@@ -190,8 +190,17 @@ func firstTest(testset *Testset, matches func(*Test) bool) *Test {
 	return nil
 }
 
+var includedHeader = regexp.MustCompile(`(?m)^\s*#\s*include\s*[<"](eolymp(?:-shapes)?\.h)[>"]`)
+
 func headerChecks(problem *Problem, found *Findings) {
 	copies := map[string]map[string]bool{}
+	count := func(header string, body []byte) {
+		sum := sha1.Sum(body)
+		if copies[header] == nil {
+			copies[header] = map[string]bool{}
+		}
+		copies[header][hex.EncodeToString(sum[:])] = true
+	}
 	for name, program := range namedPrograms(problem) {
 		if program.Source == "" {
 			continue
@@ -201,26 +210,31 @@ func headerChecks(problem *Problem, found *Findings) {
 			continue
 		}
 		quotedChecks(problem, label(name), program, string(body), found)
-		for _, one := range program.Files {
-			header := filepath.Base(one)
-			if !strings.HasPrefix(header, "eolymp") {
-				continue
-			}
-			body, err := os.ReadFile(problem.Path(one))
-			if err != nil {
-				continue
-			}
-			sum := sha1.Sum(body)
-			if copies[header] == nil {
-				copies[header] = map[string]bool{}
-			}
-			copies[header][hex.EncodeToString(sum[:])] = true
-		}
+		copiesIn(problem, program, string(body), count)
 	}
 	for header, sums := range copies {
 		if len(sums) > 1 {
 			found.note("EO910", "", fmt.Sprintf("the programs carry %d different copies of %s", len(sums), header),
-				"attach one release to every program of a problem")
+				"attach the same release to every program, or none to use the one the judge carries")
+		}
+	}
+}
+
+func copiesIn(problem *Problem, program *Program, body string, count func(string, []byte)) {
+	attached := map[string]bool{}
+	for _, one := range program.Files {
+		header := filepath.Base(one)
+		if !strings.HasPrefix(header, "eolymp") {
+			continue
+		}
+		attached[header] = true
+		if copy, err := os.ReadFile(problem.Path(one)); err == nil {
+			count(header, copy)
+		}
+	}
+	for _, match := range includedHeader.FindAllStringSubmatch(body, -1) {
+		if copy, err := carried.ReadFile("include/" + match[1]); err == nil && !attached[match[1]] {
+			count(match[1], copy)
 		}
 	}
 }

@@ -180,3 +180,20 @@ func TestAPrunedCarriedDirectoryRebuildsNothing(t *testing.T) {
 		t.Errorf("the carried headers written again made %d builds of one program", got)
 	}
 }
+
+func TestAnOldAttachedHeaderBesideTheCarriedOneIsTwoCopies(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	writeFile(t, filepath.Join(dir, "eolymp.h"), "// an old release\n")
+	writeFile(t, filepath.Join(dir, "checker.cpp"), "#include \"eolymp.h\"\n")
+	writeFile(t, filepath.Join(dir, "validator.cpp"), "#include <eolymp.h>\n")
+	problem := &Problem{dir: dir, Checker: &Program{Source: "checker.cpp", Files: []string{"eolymp.h"}},
+		Validator: &Program{Source: "validator.cpp"}}
+	if found := Configuration(problem); !fired(found, "EO910") {
+		t.Errorf("an attached old eolymp.h and the carried one raised no EO910: %v", found)
+	}
+	problem.Validator.Files = []string{"eolymp.h"}
+	if found := Configuration(problem); fired(found, "EO910") {
+		t.Errorf("one attached copy everywhere raised EO910: %v", found)
+	}
+}

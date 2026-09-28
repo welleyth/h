@@ -147,4 +147,4 @@ These are the checks the platform should eventually make when a problem is saved
 | `EO907` | warning | `eo-judge check` | the testset costs do not add up to the problem's total | make them add up, or full marks are unreachable |
 | `EO908` | warning | `eo-judge check` | `runCount` is above 1 on a problem that is not interactive | `run_count` chains an interactor's output into the next run |
 | `EO909` | warning | `eo-judge check` | the problem has more than about 1,200 test rows | Basecamp stops judging above that |
-| `EO910` | note | `eo-judge check` | the programs of one problem carry different copies of a header | attach one release to every program |
+| `EO910` | note | `eo-judge check` | the programs of one problem carry different copies of a header, counting the copy eo-judge carries for a program that attaches none | attach the same release to every program, or none to use the one the judge carries |
