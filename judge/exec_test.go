@@ -62,10 +62,9 @@ func TestTheSystemCopyOfAHeaderWinsOverAnAttachedOne(t *testing.T) {
 
 func TestAnInterruptStopsABuildAndWhatItStarted(t *testing.T) {
 	dir := t.TempDir()
-	marker := filepath.Join(dir, "still-running")
 	slow := filepath.Join(dir, "slow-compiler")
-	script := "#!/bin/sh\n(sleep 2; touch " + marker + ") &\nsleep 30\n"
-	if err := os.WriteFile(slow, []byte(script), 0o755); err != nil {
+	child, pid := lingering(dir)
+	if err := os.WriteFile(slow, []byte("#!/bin/sh\n"+child+"sleep 30\n"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.WriteFile(filepath.Join(dir, "a.cpp"), []byte("int main() {}\n"), 0o644); err != nil {
@@ -81,10 +80,7 @@ func TestAnInterruptStopsABuildAndWhatItStarted(t *testing.T) {
 	if spent := time.Since(started); spent > 5*time.Second {
 		t.Errorf("the build took %v to stop", spent)
 	}
-	time.Sleep(2500 * time.Millisecond)
-	if _, err := os.Stat(marker); err == nil {
-		t.Error("a process the compiler started outlived the build")
-	}
+	awaitGone(t, pid, "a process the compiler started outlived the build")
 }
 
 func TestATimeLimitStopsEveryProcessTheProgramStarted(t *testing.T) {
@@ -103,10 +99,10 @@ func TestATimeLimitStopsEveryProcessTheProgramStarted(t *testing.T) {
 }
 
 func TestAChildLeftBehindIsStoppedWhenTheProgramEnds(t *testing.T) {
-	marker := filepath.Join(t.TempDir(), "still-here")
+	child, pid := lingering(t.TempDir())
 	started := time.Now()
 	status, err := run(context.Background(), "/bin/sh", Invocation{
-		Args: []string{"-c", "(sleep 1; touch " + marker + ") & echo started"}, LimitMS: 10000})
+		Args: []string{"-c", child + "echo started"}, LimitMS: 10000})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -116,10 +112,7 @@ func TestAChildLeftBehindIsStoppedWhenTheProgramEnds(t *testing.T) {
 	if waited := time.Since(started); waited > 900*time.Millisecond {
 		t.Errorf("the run took %v; it waited for the child", waited)
 	}
-	time.Sleep(1500 * time.Millisecond)
-	if _, err := os.Stat(marker); err == nil {
-		t.Error("the child outlived the run")
-	}
+	awaitGone(t, pid, "the child outlived the run")
 }
 
 func TestTheSameProgramIsBuiltOnceUnderEveryName(t *testing.T) {
@@ -172,7 +165,8 @@ func TestAHangingCompilerDoesNotHangTheVersionCheck(t *testing.T) {
 
 func lingering(dir string) (string, string) {
 	pid := filepath.Join(dir, "lingering.pid")
-	return "sh -c 'echo $$ > " + pid + ".part && mv " + pid + ".part " + pid + " && exec sleep 30' &\n", pid
+	return "sh -c 'echo $$ > " + pid + ".part && mv " + pid + ".part " + pid + " && exec sleep 30' &\n" +
+		"until [ -f " + pid + " ]; do sleep 0.01; done\n", pid
 }
 
 func awaitGone(t *testing.T, pidFile, complaint string) {
