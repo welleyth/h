@@ -29,6 +29,7 @@ func workshop(t *testing.T, dir string) *Workspace {
 }
 
 func TestCheckFindsWhatIsWrongWithABrokenProblem(t *testing.T) {
+	t.Parallel()
 	needsACompiler(t)
 
 	shop := workshop(t, "testdata/broken")
@@ -49,6 +50,7 @@ func TestCheckFindsWhatIsWrongWithABrokenProblem(t *testing.T) {
 }
 
 func TestCheckReadsEveryAnswerNotOnlyTheFirst(t *testing.T) {
+	t.Parallel()
 	needsACompiler(t)
 
 	shop := workshop(t, "testdata/answers")
@@ -69,6 +71,7 @@ func TestCheckReadsEveryAnswerNotOnlyTheFirst(t *testing.T) {
 }
 
 func TestRunReproducesTheJudgeOnABatchProblem(t *testing.T) {
+	t.Parallel()
 	needsACompiler(t)
 
 	shop := workshop(t, "../tests/live/degrees")
@@ -90,6 +93,7 @@ func TestRunReproducesTheJudgeOnABatchProblem(t *testing.T) {
 }
 
 func TestRunReproducesTheJudgeOnAnInteractiveProblem(t *testing.T) {
+	t.Parallel()
 	needsACompiler(t)
 
 	shop := workshop(t, "../tests/live/guess")
@@ -115,6 +119,7 @@ func TestRunReproducesTheJudgeOnAnInteractiveProblem(t *testing.T) {
 }
 
 func TestACrashAfterAnAcceptedDialogueIsNotForgiven(t *testing.T) {
+	t.Parallel()
 	needsACompiler(t)
 
 	shop := workshop(t, "../tests/live/guess")
@@ -159,6 +164,7 @@ func judgeAll(t *testing.T, shop *Workspace) map[string]*Attempt {
 }
 
 func TestTheCopiedPointsParserMatchesTheAgent(t *testing.T) {
+	t.Parallel()
 	agent := os.Getenv("AGENT_REPO")
 	demanded := agent != ""
 	if agent == "" {
@@ -223,6 +229,7 @@ func squeeze(text string) string {
 }
 
 func TestABrokenValidatorIsNotBlamedOnTheTests(t *testing.T) {
+	t.Parallel()
 	needsACompiler(t)
 
 	dir := t.TempDir()
@@ -281,6 +288,7 @@ func TestABrokenValidatorIsNotBlamedOnTheTests(t *testing.T) {
 }
 
 func TestASolutionCannotWriteTheSummary(t *testing.T) {
+	t.Parallel()
 	needsACompiler(t)
 	code, out, errs := invokeIn(t.TempDir(), "run", "testdata/forged")
 	if code != 0 {
@@ -292,6 +300,7 @@ func TestASolutionCannotWriteTheSummary(t *testing.T) {
 }
 
 func TestASolutionCannotReachTheAnswersByRelativePath(t *testing.T) {
+	t.Parallel()
 	needsACompiler(t)
 	code, out, errs := invokeIn(t.TempDir(), "run", "testdata/poisoned", "--solution", "walker")
 	if code != 0 {
@@ -316,6 +325,7 @@ func TestAnAnswerRewrittenDuringARunStopsTheRun(t *testing.T) {
 }
 
 func TestCheckSaysTheSameEveryTime(t *testing.T) {
+	t.Parallel()
 	needsACompiler(t)
 
 	shop := workshop(t, "testdata/broken")
@@ -336,6 +346,7 @@ func TestCheckSaysTheSameEveryTime(t *testing.T) {
 }
 
 func TestFindingsAreOrderedByPlaceThenMessage(t *testing.T) {
+	t.Parallel()
 	found := Findings{
 		{Code: "EO801", Severity: "warning", Where: "test 1:10", Message: "b"},
 		{Code: "EO801", Severity: "warning", Where: "test 1:2", Message: "b"},
@@ -362,6 +373,7 @@ func TestFindingsAreOrderedByPlaceThenMessage(t *testing.T) {
 }
 
 func TestNaturalOrderComparesRunsOfDigitsAsNumbers(t *testing.T) {
+	t.Parallel()
 	for _, pair := range [][2]string{
 		{"test 1:2", "test 1:10"}, {"test 2:1", "test 10:1"}, {"a", "b"}, {"a", "a1"},
 		{"test 1:1", "test 1:01"}, {"x9", "x10"}, {"9", "a"}, {"", "a"},

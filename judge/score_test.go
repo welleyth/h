@@ -16,6 +16,7 @@ func runs(verdicts ...Verdict) []*RunResult {
 }
 
 func TestScoreOfRun(t *testing.T) {
+	t.Parallel()
 	if got := scoreOfRun(Accepted, 10, 0); got != 10 {
 		t.Fatalf("accepted pays the whole cost, got %v", got)
 	}
@@ -34,6 +35,7 @@ func TestScoreOfRun(t *testing.T) {
 }
 
 func TestPointsDecideTheVerdictTheWayTheAgentDoes(t *testing.T) {
+	t.Parallel()
 	for _, one := range []struct {
 		points, cost Points
 		want         Verdict
@@ -52,6 +54,7 @@ func TestPointsDecideTheVerdictTheWayTheAgentDoes(t *testing.T) {
 }
 
 func TestAPartialOnAZeroCostTestLetsAnAllGroupPay(t *testing.T) {
+	t.Parallel()
 	first := &RunResult{Cost: 10, Verdict: Accepted, Score: 10}
 	free := &RunResult{Cost: 0, Verdict: verdictOfPoints(0, 0)}
 	group := summarizeGroup(1, "ALL", []*RunResult{first, free})
@@ -67,6 +70,7 @@ func TestAPartialOnAZeroCostTestLetsAnAllGroupPay(t *testing.T) {
 }
 
 func TestGroupScoring(t *testing.T) {
+	t.Parallel()
 	for _, one := range []struct {
 		mode string
 		want Points
@@ -87,6 +91,7 @@ func TestGroupScoring(t *testing.T) {
 }
 
 func TestAllPaysWhenEveryRunPasses(t *testing.T) {
+	t.Parallel()
 	group := summarizeGroup(1, "ALL", runs(Accepted, Accepted))
 	if group.Score != 20 || group.Verdict != Accepted {
 		t.Fatalf("ALL gave %v at %v", group.Verdict, group.Score)
@@ -94,6 +99,7 @@ func TestAllPaysWhenEveryRunPasses(t *testing.T) {
 }
 
 func TestWorstShowsNothingUntilEveryRunIsIn(t *testing.T) {
+	t.Parallel()
 	list := runs(Accepted, Accepted)
 	list = append(list, &RunResult{Group: 1, Index: 3, Cost: 10, Verdict: Skipped})
 	group := summarizeGroup(1, "WORST", list)
@@ -103,6 +109,7 @@ func TestWorstShowsNothingUntilEveryRunIsIn(t *testing.T) {
 }
 
 func TestSubmissionTakesTheFirstFailingVerdict(t *testing.T) {
+	t.Parallel()
 	groups := []*GroupResult{
 		summarizeGroup(1, "EACH", runs(Accepted)),
 		summarizeGroup(2, "EACH", runs(TimeLimit)),

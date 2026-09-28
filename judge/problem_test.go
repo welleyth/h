@@ -8,6 +8,7 @@ import (
 )
 
 func TestEveryProblemInTheRepositoryLoads(t *testing.T) {
+	t.Parallel()
 	dirs, err := filepath.Glob("testdata/*")
 	if err != nil {
 		t.Fatal(err)
@@ -37,6 +38,7 @@ func loading(t *testing.T, body string) error {
 }
 
 func TestAMisspeltFieldOrNameIsRefused(t *testing.T) {
+	t.Parallel()
 	for body, said := range map[string]string{
 		`{"type": "PROGRAM", "timeLimitMs": 1000}`:                               `unknown field "timeLimitMs"`,
 		`{"type": "PROGRAMS"}`:                                                   `type is "PROGRAMS"; it is one of UNKNOWN_TYPE, PROGRAM, FUNCTION`,
@@ -72,6 +74,7 @@ func TestAMisspeltFieldOrNameIsRefused(t *testing.T) {
 }
 
 func TestARepeatedOrOverlongNameIsRefused(t *testing.T) {
+	t.Parallel()
 	for body, said := range map[string]string{
 		`{"solutions": [{"name": "a", "source": "a.cpp"}, {"name": "a", "source": "b.cpp"}]}`: `two solutions are called "a"`,
 		`{"scripts": {"gen": {"source": "a.cpp"}, "gen": {"source": "b.cpp"}}}`:               `"gen" appears twice in one object`,
@@ -102,6 +105,7 @@ func loaded(t *testing.T, body string) *Problem {
 }
 
 func TestEveryValueThePlatformExportsLoads(t *testing.T) {
+	t.Parallel()
 	for _, mode := range []string{"NO_SCORE", "EACH", "ALL", "WORST", "BEST"} {
 		loaded(t, `{"testsets": [{"index": 1, "scoringMode": "`+mode+`"}]}`)
 	}
@@ -121,6 +125,7 @@ func TestEveryValueThePlatformExportsLoads(t *testing.T) {
 }
 
 func TestAnUnknownPlatformValueIsTheFieldLeftOut(t *testing.T) {
+	t.Parallel()
 	problem := loaded(t, `{"type": "UNKNOWN_TYPE", "testsets": [{"index": 1,
 		"feedbackPolicy": "UNKNOWN_FEEDBACK_POLICY", "dependencyMode": "UNKNOWN_DEPENDENCY_MODE"}],
 		"solutions": [{"name": "a", "source": "a.cpp", "type": "UNSET"}]}`)
@@ -132,6 +137,7 @@ func TestAnUnknownPlatformValueIsTheFieldLeftOut(t *testing.T) {
 }
 
 func TestAProblemTypeEoJudgeCannotRunIsRefused(t *testing.T) {
+	t.Parallel()
 	for _, kind := range []string{"FUNCTION", "OUTPUT", "SQL", "ML", "QUIZ", "WIDGET"} {
 		err := loading(t, `{"type": "`+kind+`"}`)
 		if err == nil || !strings.Contains(err.Error(), "eo-judge does not run "+kind+" problems") {
@@ -145,6 +151,7 @@ func TestAProblemTypeEoJudgeCannotRunIsRefused(t *testing.T) {
 }
 
 func TestADontRunSolutionIsJudgedOnlyWhenNamed(t *testing.T) {
+	t.Parallel()
 	problem := loaded(t, `{"solutions": [{"name": "a", "source": "a.cpp", "type": "CORRECT"},
 		{"name": "b", "source": "b.cpp", "type": "DONT_RUN"}, {"name": "c", "source": "c.cpp"}]}`)
 	var names []string
@@ -160,6 +167,7 @@ func TestADontRunSolutionIsJudgedOnlyWhenNamed(t *testing.T) {
 }
 
 func TestTheExampleInThePageLoads(t *testing.T) {
+	t.Parallel()
 	page, err := os.ReadFile("../docs/judge.md")
 	if err != nil {
 		t.Fatal(err)

@@ -12,6 +12,7 @@ func writeLog(t *testing.T, body string) io.Reader {
 }
 
 func TestReadPoints(t *testing.T) {
+	t.Parallel()
 	for _, one := range []struct {
 		name  string
 		log   string
@@ -46,6 +47,7 @@ func TestReadPoints(t *testing.T) {
 }
 
 func TestReadPointsTakesTheFirstScore(t *testing.T) {
+	t.Parallel()
 	got, err := readPoints(writeLog(t, "points 10 first\npoints 90 second\n"))
 	if err != nil {
 		t.Fatal(err)

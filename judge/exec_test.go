@@ -12,6 +12,7 @@ import (
 )
 
 func TestAnAttachedHeaderIsFoundWithAngleBrackets(t *testing.T) {
+	t.Parallel()
 	needsACompiler(t)
 	dir := t.TempDir()
 	write := func(name, body string) {
@@ -67,6 +68,7 @@ func TestAnInterruptStopsABuildAndWhatItStarted(t *testing.T) {
 	if err := os.WriteFile(slow, []byte("#!/bin/sh\n"+child+"sleep 30\n"), 0o755); err != nil {
 		t.Fatal(err)
 	}
+	t.Parallel()
 	if err := os.WriteFile(filepath.Join(dir, "a.cpp"), []byte("int main() {}\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -84,6 +86,7 @@ func TestAnInterruptStopsABuildAndWhatItStarted(t *testing.T) {
 }
 
 func TestATimeLimitStopsEveryProcessTheProgramStarted(t *testing.T) {
+	t.Parallel()
 	started := time.Now()
 	status, err := run(context.Background(), "/bin/sh", Invocation{Args: []string{"-c", "sleep 30 & sleep 30"},
 		LimitMS: 300})
@@ -99,6 +102,7 @@ func TestATimeLimitStopsEveryProcessTheProgramStarted(t *testing.T) {
 }
 
 func TestAChildLeftBehindIsStoppedWhenTheProgramEnds(t *testing.T) {
+	t.Parallel()
 	child, pid := lingering(t.TempDir())
 	started := time.Now()
 	status, err := run(context.Background(), "/bin/sh", Invocation{
@@ -116,6 +120,7 @@ func TestAChildLeftBehindIsStoppedWhenTheProgramEnds(t *testing.T) {
 }
 
 func TestTheSameProgramIsBuiltOnceUnderEveryName(t *testing.T) {
+	t.Parallel()
 	needsACompiler(t)
 	dir := t.TempDir()
 	if err := os.WriteFile(filepath.Join(dir, "gen.cpp"), []byte("int main() {}\n"), 0o644); err != nil {
@@ -151,6 +156,7 @@ func TestAHangingCompilerDoesNotHangTheVersionCheck(t *testing.T) {
 	if err := os.WriteFile(hanging, []byte("#!/bin/sh\n"+child+"sleep 30\n"), 0o755); err != nil {
 		t.Fatal(err)
 	}
+	t.Parallel()
 	ctx, cancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
 	defer cancel()
 	started := time.Now()
@@ -198,6 +204,7 @@ func TestACompilersVersionIsAskedOnce(t *testing.T) {
 	if err := os.WriteFile(counted, []byte(script), 0o755); err != nil {
 		t.Fatal(err)
 	}
+	t.Parallel()
 	for range 3 {
 		if said := versionOf(context.Background(), counted); said != "counted 1.0" {
 			t.Fatalf("the version is %q", said)

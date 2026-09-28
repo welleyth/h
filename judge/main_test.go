@@ -34,6 +34,7 @@ func invokeIn(temp string, args ...string) (int, string, string) {
 }
 
 func TestNoCommandPrintsTheUsage(t *testing.T) {
+	t.Parallel()
 	code, _, errs := invoke()
 	if code != 2 || !strings.Contains(errs, "eo-judge run <problem>") {
 		t.Errorf("exit %d, said %q", code, errs)
@@ -49,6 +50,7 @@ func TestNoCommandPrintsTheUsage(t *testing.T) {
 }
 
 func TestAProblemThatCannotBeReadIsAnError(t *testing.T) {
+	t.Parallel()
 	code, _, errs := invoke("lint", t.TempDir())
 	if code != 3 || !strings.Contains(errs, "problem.json") {
 		t.Errorf("exit %d, said %q", code, errs)
@@ -56,6 +58,7 @@ func TestAProblemThatCannotBeReadIsAnError(t *testing.T) {
 }
 
 func TestLintReportsToTheGivenWriter(t *testing.T) {
+	t.Parallel()
 	code, out, _ := invoke("lint", "testdata/broken")
 	if code != 0 || !strings.Contains(out, "eo-judge:") {
 		t.Errorf("exit %d, printed %q", code, out)
@@ -80,6 +83,7 @@ func uncompilable(t *testing.T) string {
 }
 
 func TestTheWorkspaceIsRemovedWhenARunFails(t *testing.T) {
+	t.Parallel()
 	needsACompiler(t)
 	temporary := t.TempDir()
 	code, _, errs := invokeIn(temporary, "run", uncompilable(t))
@@ -96,6 +100,7 @@ func TestTheWorkspaceIsRemovedWhenARunFails(t *testing.T) {
 }
 
 func TestAWorkspaceThatWasAskedForIsKept(t *testing.T) {
+	t.Parallel()
 	needsACompiler(t)
 	kept := filepath.Join(t.TempDir(), "work")
 	code, _, _ := invoke("check", "--work", kept, uncompilable(t))
@@ -108,6 +113,7 @@ func TestAWorkspaceThatWasAskedForIsKept(t *testing.T) {
 }
 
 func TestVersionAndHelpExitZero(t *testing.T) {
+	t.Parallel()
 	for _, args := range [][]string{{"version"}, {"--version"}} {
 		code, out, _ := invoke(args...)
 		if code != 0 || out != "eo-judge "+version+"\n" {
@@ -127,6 +133,7 @@ func TestVersionAndHelpExitZero(t *testing.T) {
 }
 
 func TestFlagsMayFollowTheProblem(t *testing.T) {
+	t.Parallel()
 	code, _, _ := invoke("lint", "testdata/broken", "--strict")
 	if code != 1 {
 		t.Errorf("--strict after the problem was ignored: exit %d", code)
@@ -138,6 +145,7 @@ func TestFlagsMayFollowTheProblem(t *testing.T) {
 }
 
 func TestAnUnknownSolutionIsAUsageError(t *testing.T) {
+	t.Parallel()
 	for _, command := range []string{"run", "check", "lint"} {
 		code, out, errs := invoke(command, "../tests/live/guess", "--solution", "nosuch")
 		if code != 2 || out != "" {
@@ -150,6 +158,7 @@ func TestAnUnknownSolutionIsAUsageError(t *testing.T) {
 }
 
 func TestOnlyTheSolutionNamedAfterTheProblemIsJudged(t *testing.T) {
+	t.Parallel()
 	needsACompiler(t)
 	code, out, errs := invoke("run", "../tests/live/guess", "--solution", "binary")
 	if code != 0 {
@@ -161,6 +170,7 @@ func TestOnlyTheSolutionNamedAfterTheProblemIsJudged(t *testing.T) {
 }
 
 func TestADontRunSolutionIsNotEvenBuilt(t *testing.T) {
+	t.Parallel()
 	needsACompiler(t)
 	dir := t.TempDir()
 	write := func(name, body string) {
@@ -181,6 +191,7 @@ func TestADontRunSolutionIsNotEvenBuilt(t *testing.T) {
 }
 
 func TestVerboseListsEveryRun(t *testing.T) {
+	t.Parallel()
 	needsACompiler(t)
 	code, out, errs := invokeIn(t.TempDir(), "run", "testdata/forged", "-v")
 	if code != 0 {
@@ -196,6 +207,7 @@ func TestVerboseListsEveryRun(t *testing.T) {
 }
 
 func TestEoJudgeCarriesTheRepositorysVersion(t *testing.T) {
+	t.Parallel()
 	core, err := os.ReadFile("../src/core.h")
 	if err != nil {
 		t.Fatal(err)
@@ -206,6 +218,7 @@ func TestEoJudgeCarriesTheRepositorysVersion(t *testing.T) {
 }
 
 func TestACommunicationProblemIsRefusedBeforeAnythingRuns(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	body := `{"type": "COMMUNICATION", "interactor": {"source": "controller.cpp"},
 		"solutions": [{"name": "full", "source": "full.cpp"}]}`

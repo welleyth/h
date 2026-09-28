@@ -3,6 +3,7 @@ package main
 import "testing"
 
 func TestWarningsFromAJudgeLog(t *testing.T) {
+	t.Parallel()
 	log := `points 6.5585 1009 of 2000 degrees
 eolymp.h 1.0.0
 note EO106 source.cpp:10 the bounds 1..1999 are one away from a round number (2000 times)
@@ -32,12 +33,14 @@ eo-report {"version":1,"warnings":[{"code":"EO106","at":"source.cpp:10","count":
 }
 
 func TestALogWithNoWarningsGivesNone(t *testing.T) {
+	t.Parallel()
 	if found := warningsIn("checker", "ok all 12 degrees\neolymp.h 1.0.0\n"); len(found) != 0 {
 		t.Fatalf("got %v", found)
 	}
 }
 
 func TestTheSpokenLinesAloneStillParse(t *testing.T) {
+	t.Parallel()
 	found := warningsIn("validator", "validator.cpp:4: note EO106: the bounds are odd\n")
 	if len(found) != 0 {
 		t.Fatalf("the local format is not the judge format, got %v", found)

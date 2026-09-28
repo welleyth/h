@@ -12,6 +12,7 @@ func fired(found Findings, code string) bool {
 }
 
 func TestConfigurationChecks(t *testing.T) {
+	t.Parallel()
 	problem := &Problem{
 		Type: "PROGRAM", RunCount: 3, TimeLimit: 0,
 		Testsets: []*Testset{
@@ -35,6 +36,7 @@ func TestConfigurationChecks(t *testing.T) {
 }
 
 func TestAnEachTestsetWithExpandedIcpcFeedbackIsFlagged(t *testing.T) {
+	t.Parallel()
 	problem := &Problem{Type: "PROGRAM", RunCount: 1, Testsets: []*Testset{
 		{Index: 1, ScoringMode: "EACH", FeedbackPolicy: "ICPC_EXPANDED", Tests: []*Test{{Index: 1, Score: 100}}},
 	}}
@@ -44,6 +46,7 @@ func TestAnEachTestsetWithExpandedIcpcFeedbackIsFlagged(t *testing.T) {
 }
 
 func TestAnInteractiveProblemNeedsAWallLimit(t *testing.T) {
+	t.Parallel()
 	problem := &Problem{Type: "INTERACTIVE", RunCount: 1}
 	if !fired(Configuration(problem), "EO902") {
 		t.Fatal("EO902 did not fire")
@@ -55,6 +58,7 @@ func TestAnInteractiveProblemNeedsAWallLimit(t *testing.T) {
 }
 
 func TestTooManyTestRows(t *testing.T) {
+	t.Parallel()
 	testset := &Testset{Index: 1, ScoringMode: "EACH"}
 	for at := 1; at <= 1300; at++ {
 		testset.Tests = append(testset.Tests, &Test{Index: at})

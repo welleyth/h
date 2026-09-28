@@ -25,6 +25,7 @@ func problemWith(t *testing.T, role, body string) *Problem {
 }
 
 func TestLintFindsAClockInAGenerator(t *testing.T) {
+	t.Parallel()
 	found := Lint(problemWith(t, "script", "int main() { srand(time(0)); return rand(); }"))
 	if !fired(found, "EO501") {
 		t.Fatalf("EO501 did not fire: %v", found)
@@ -32,6 +33,7 @@ func TestLintFindsAClockInAGenerator(t *testing.T) {
 }
 
 func TestLintFindsPrintingInAnInteractor(t *testing.T) {
+	t.Parallel()
 	found := Lint(problemWith(t, "interactor", "#include <cstdio>\nint main() { printf(\"hi\"); }"))
 	if !fired(found, "EO401") {
 		t.Fatalf("EO401 did not fire: %v", found)
@@ -39,6 +41,7 @@ func TestLintFindsPrintingInAnInteractor(t *testing.T) {
 }
 
 func TestLintIgnoresAStringAndAComment(t *testing.T) {
+	t.Parallel()
 	found := Lint(problemWith(t, "script", "int main() { /* rand() */ const char* s = \"rand()\"; return 0; }"))
 	if fired(found, "EO501") {
 		t.Fatalf("EO501 fired on a comment and a string: %v", found)
@@ -46,6 +49,7 @@ func TestLintIgnoresAStringAndAComment(t *testing.T) {
 }
 
 func TestLintLeavesOtherRolesAlone(t *testing.T) {
+	t.Parallel()
 	found := Lint(problemWith(t, "checker", "#include <cstdio>\nint main() { printf(\"ok\"); }"))
 	if fired(found, "EO401") {
 		t.Fatal("a checker is allowed to print")

@@ -168,6 +168,7 @@ func TestTheCacheIsWhereTheEnvironmentSays(t *testing.T) {
 }
 
 func TestAWarningInACachedProgramNamesTheSource(t *testing.T) {
+	t.Parallel()
 	shop := &Workspace{Dir: "/work", Problem: &Problem{Checker: &Program{Source: "checker.cpp"}},
 		Programs: map[string]*Built{"checker": {Name: "checker", Dir: "/work/checker",
 			Source: "/cache/ab/abcd/source.cpp"}}}

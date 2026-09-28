@@ -11,6 +11,7 @@ func planOf(group int, count int) []*Planned {
 }
 
 func TestIcpcStopsAfterATestWorthNothing(t *testing.T) {
+	t.Parallel()
 	gate := &showstopper{group: 1}
 	plan := planOf(1, 3)
 
@@ -37,6 +38,7 @@ func TestIcpcStopsAfterATestWorthNothing(t *testing.T) {
 }
 
 func TestIcpcLeavesOtherGroupsAlone(t *testing.T) {
+	t.Parallel()
 	gate := &showstopper{group: 1}
 	gate.Notify(planOf(1, 1)[0], &RunResult{Verdict: RuntimeFail})
 	if gate.Admit(planOf(2, 1)[0]) != Admitted {
@@ -45,6 +47,7 @@ func TestIcpcLeavesOtherGroupsAlone(t *testing.T) {
 }
 
 func TestIcpcExpandedStopsLikeIcpc(t *testing.T) {
+	t.Parallel()
 	problem := &Problem{Testsets: []*Testset{{Index: 1, FeedbackPolicy: "ICPC_EXPANDED"}}}
 	gate := admissionFor(problem)
 	plan := planOf(1, 2)
@@ -55,6 +58,7 @@ func TestIcpcExpandedStopsLikeIcpc(t *testing.T) {
 }
 
 func TestDependencyBlocksUntilTheBlockersPass(t *testing.T) {
+	t.Parallel()
 	first := planOf(1, 2)
 	gate := &dependency{group: 2, mode: "FULLY_ACCEPTED", blockers: map[string]bool{
 		reference(first[0]): true, reference(first[1]): true,
@@ -75,6 +79,7 @@ func TestDependencyBlocksUntilTheBlockersPass(t *testing.T) {
 }
 
 func TestDependencyRejectsWhenABlockerFails(t *testing.T) {
+	t.Parallel()
 	first := planOf(1, 1)
 	gate := &dependency{group: 2, mode: "FULLY_ACCEPTED",
 		blockers: map[string]bool{reference(first[0]): true}}
@@ -85,6 +90,7 @@ func TestDependencyRejectsWhenABlockerFails(t *testing.T) {
 }
 
 func TestFirstPointUnblocksOnAPartialScore(t *testing.T) {
+	t.Parallel()
 	first := planOf(1, 1)
 	gate := &dependency{group: 2, mode: "FIRST_POINT",
 		blockers: map[string]bool{reference(first[0]): true}}
