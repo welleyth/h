@@ -30,10 +30,10 @@ Flags may come before or after the problem.
 `
 
 func main() {
-	os.Exit(realMain(os.Args[1:], os.Stdout, os.Stderr))
+	os.Exit(realMain(os.Args[1:], "", os.Stdout, os.Stderr))
 }
 
-func realMain(args []string, out, errs io.Writer) int {
+func realMain(args []string, temp string, out, errs io.Writer) int {
 	if len(args) < 1 {
 		fmt.Fprint(errs, usage)
 		return 2
@@ -100,7 +100,7 @@ func realMain(args []string, out, errs io.Writer) int {
 
 	space := *work
 	if space == "" {
-		space, err = os.MkdirTemp("", "eo-judge-")
+		space, err = os.MkdirTemp(temp, "eo-judge-")
 		if err != nil {
 			fmt.Fprintln(errs, "eo-judge:", err)
 			return 3
@@ -118,6 +118,7 @@ func realMain(args []string, out, errs io.Writer) int {
 		stop()
 	}()
 	shop := NewWorkspace(problem, space)
+	shop.Temp = temp
 
 	switch command {
 	case "check":

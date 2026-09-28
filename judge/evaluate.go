@@ -169,7 +169,7 @@ func (w *Workspace) batch(ctx context.Context, made *Prepared, solution *Built, 
 	}
 	defer file.Close()
 
-	alone, err := os.MkdirTemp("", "eo-judge-run-")
+	alone, err := os.MkdirTemp(w.Temp, "eo-judge-run-")
 	if err != nil {
 		return nil, err
 	}
@@ -292,7 +292,7 @@ func (w *Workspace) onePhase(ctx context.Context, input, summary string, solutio
 		arguments = append(arguments, answer)
 	}
 
-	alone, err := os.MkdirTemp("", "eo-judge-run-")
+	alone, err := os.MkdirTemp(w.Temp, "eo-judge-run-")
 	if err != nil {
 		return nil, nil, err
 	}

@@ -282,8 +282,7 @@ func TestABrokenValidatorIsNotBlamedOnTheTests(t *testing.T) {
 
 func TestASolutionCannotWriteTheSummary(t *testing.T) {
 	needsACompiler(t)
-	t.Setenv("TMPDIR", t.TempDir())
-	code, out, errs := invoke("run", "testdata/forged")
+	code, out, errs := invokeIn(t.TempDir(), "run", "testdata/forged")
 	if code != 0 {
 		t.Fatalf("exit %d, said %q", code, errs)
 	}
@@ -294,8 +293,7 @@ func TestASolutionCannotWriteTheSummary(t *testing.T) {
 
 func TestASolutionCannotReachTheAnswersByRelativePath(t *testing.T) {
 	needsACompiler(t)
-	t.Setenv("TMPDIR", t.TempDir())
-	code, out, errs := invoke("run", "testdata/poisoned", "--solution", "walker")
+	code, out, errs := invokeIn(t.TempDir(), "run", "testdata/poisoned", "--solution", "walker")
 	if code != 0 {
 		t.Fatalf("exit %d, said %q", code, errs)
 	}
@@ -306,8 +304,9 @@ func TestASolutionCannotReachTheAnswersByRelativePath(t *testing.T) {
 
 func TestAnAnswerRewrittenDuringARunStopsTheRun(t *testing.T) {
 	needsACompiler(t)
-	t.Setenv("TMPDIR", t.TempDir())
-	code, out, errs := invoke("run", "testdata/poisoned", "--solution", "poisoner")
+	temporary := t.TempDir()
+	t.Setenv("TMPDIR", temporary)
+	code, out, errs := invokeIn(temporary, "run", "testdata/poisoned", "--solution", "poisoner")
 	if code != 3 || !strings.Contains(errs, "01-001.ans changed while solution.poisoner ran") {
 		t.Fatalf("exit %d, said %q", code, errs)
 	}

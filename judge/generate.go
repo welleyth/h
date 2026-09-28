@@ -60,6 +60,7 @@ type Workspace struct {
 	Programs map[string]*Built
 	Tests    map[string]*Prepared
 	Warnings []Warning
+	Temp     string
 
 	tools toolchain
 }

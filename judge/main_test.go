@@ -24,8 +24,12 @@ func TestMain(m *testing.M) {
 }
 
 func invoke(args ...string) (int, string, string) {
+	return invokeIn("", args...)
+}
+
+func invokeIn(temp string, args ...string) (int, string, string) {
 	var out, errs bytes.Buffer
-	code := realMain(args, &out, &errs)
+	code := realMain(args, temp, &out, &errs)
 	return code, out.String(), errs.String()
 }
 
@@ -78,8 +82,7 @@ func uncompilable(t *testing.T) string {
 func TestTheWorkspaceIsRemovedWhenARunFails(t *testing.T) {
 	needsACompiler(t)
 	temporary := t.TempDir()
-	t.Setenv("TMPDIR", temporary)
-	code, _, errs := invoke("run", uncompilable(t))
+	code, _, errs := invokeIn(temporary, "run", uncompilable(t))
 	if code != 3 || !strings.Contains(errs, "does not compile") {
 		t.Fatalf("exit %d, said %q", code, errs)
 	}
@@ -179,8 +182,7 @@ func TestADontRunSolutionIsNotEvenBuilt(t *testing.T) {
 
 func TestVerboseListsEveryRun(t *testing.T) {
 	needsACompiler(t)
-	t.Setenv("TMPDIR", t.TempDir())
-	code, out, errs := invoke("run", "testdata/forged", "-v")
+	code, out, errs := invokeIn(t.TempDir(), "run", "testdata/forged", "-v")
 	if code != 0 {
 		t.Fatalf("exit %d, said %q", code, errs)
 	}
