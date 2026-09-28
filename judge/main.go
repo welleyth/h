@@ -201,14 +201,7 @@ func tally(group *GroupResult) string {
 		kinds = append(kinds, fmt.Sprintf("%d %s", count, verdict))
 	}
 	sort.Strings(kinds)
-	out := ""
-	for at, one := range kinds {
-		if at > 0 {
-			out += ", "
-		}
-		out += one
-	}
-	return out
+	return strings.Join(kinds, ", ")
 }
 
 func report(out io.Writer, found Findings, strict bool) int {
