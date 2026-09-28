@@ -7,7 +7,6 @@ const (
 	WrongAnswer Verdict = "WRONG_ANSWER"
 	Partial     Verdict = "PARTIALLY_CORRECT"
 	TimeLimit   Verdict = "TIME_LIMIT_EXCEEDED"
-	MemoryLimit Verdict = "MEMORY_LIMIT_EXCEEDED"
 	RuntimeFail Verdict = "RUNTIME_ERROR"
 	Failure     Verdict = "FAILURE"
 	Skipped     Verdict = "SKIPPED"
@@ -23,7 +22,6 @@ type RunResult struct {
 	Fraction Points
 	Score    Points
 	Wall     int
-	Memory   int64
 	Message  string
 	Warnings []Warning
 }

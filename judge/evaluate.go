@@ -122,7 +122,6 @@ func (w *Workspace) judge(ctx context.Context, one *Planned, solution, checker, 
 	}
 
 	result.Wall = status.Wall
-	result.Memory = status.Memory
 
 	verdict := Accepted
 	switch {

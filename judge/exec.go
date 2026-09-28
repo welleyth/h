@@ -25,7 +25,6 @@ type Status struct {
 	ExitCode int
 	Signal   bool
 	Wall     int
-	Memory   int64
 	TimedOut bool
 	Stdout   []byte
 	Stderr   []byte
@@ -174,9 +173,6 @@ func run(ctx context.Context, exe string, call Invocation) (*Status, error) {
 	status := &Status{Wall: elapsed, Stdout: out.Bytes(), Stderr: errs.Bytes()}
 	if state := command.ProcessState; state != nil {
 		status.ExitCode = state.ExitCode()
-		if usage, ok := state.SysUsage().(*syscall.Rusage); ok {
-			status.Memory = int64(usage.Maxrss)
-		}
 		if wait, ok := state.Sys().(syscall.WaitStatus); ok && wait.Signaled() {
 			status.Signal = true
 		}
