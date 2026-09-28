@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 func needsACompiler(t *testing.T) {
@@ -408,5 +409,60 @@ func TestAFailedGeneratorNamesTheTestAndItsArguments(t *testing.T) {
 		if code != 3 || errs != "eo-judge: "+one.said+"\n" {
 			t.Errorf("exit %d, said %q, not %q", code, errs, one.said)
 		}
+	}
+}
+
+func TestEveryTestThatCannotBeMadeIsNamedBeforeTheRunStops(t *testing.T) {
+	t.Parallel()
+	needsACompiler(t)
+	dir := t.TempDir()
+	writeFile(t, filepath.Join(dir, "gen.cpp"), "#include <cstdio>\n#include <cstring>\n"+
+		"int main(int argc, char** argv) {\n"+
+		"    if (argc > 1 && std::strcmp(argv[1], \"-n=0\") == 0) return 3;\n"+
+		"    std::printf(\"1\\n\");\n}\n")
+	writeFile(t, filepath.Join(dir, "solution.cpp"), "int main() {}\n")
+	writeFile(t, filepath.Join(dir, "problem.json"), `{"type": "PROGRAM",
+		"scripts": {"gen": {"source": "gen.cpp"}, "answer": {"source": "solution.cpp"}},
+		"solutions": [{"name": "main", "source": "solution.cpp"}],
+		"testsets": [{"index": 1, "tests": [
+			{"index": 1, "score": 50, "generator": {"script": "gen", "arguments": ["-n=0"]}, "answerGenerator": "answer"},
+			{"index": 2, "score": 25, "generator": {"script": "gen", "arguments": ["-n=1"]}, "answerGenerator": "answer"},
+			{"index": 3, "score": 25, "input": "missing.txt", "answerGenerator": "answer"}]}]}`)
+	for _, command := range []string{"run", "check"} {
+		code, out, errs := invokeIn(t.TempDir(), command, dir)
+		want := "eo-judge: 2 tests could not be made, so nothing was judged:\n" +
+			"  test 1:1: the generator gen -n=0 exited 3\n" +
+			"  test 1:3: open " + filepath.Join(dir, "missing.txt") + ": no such file or directory\n"
+		if code != 3 || errs != want || strings.Contains(out, "main:") {
+			t.Errorf("%s exited %d, printed %q, said %q", command, code, out, errs)
+		}
+	}
+}
+
+func TestAGeneratorThatTimesOutIsNotTriedAgain(t *testing.T) {
+	t.Parallel()
+	needsACompiler(t)
+	dir := t.TempDir()
+	writeFile(t, filepath.Join(dir, "slow.cpp"), "int main() { for (;;) {} }\n")
+	writeFile(t, filepath.Join(dir, "gen.cpp"), "#include <cstdio>\nint main() { std::printf(\"1\\n\"); }\n")
+	writeFile(t, filepath.Join(dir, "problem.json"), `{"type": "PROGRAM",
+		"scripts": {"slow": {"source": "slow.cpp"}, "gen": {"source": "gen.cpp"}},
+		"testsets": [{"index": 1, "tests": [
+			{"index": 1, "score": 30, "generator": {"script": "slow", "arguments": ["-n=1"]}, "answer": "gen.cpp"},
+			{"index": 2, "score": 30, "generator": {"script": "gen"}, "answerGenerator": "slow"},
+			{"index": 3, "score": 40, "generator": {"script": "slow", "arguments": ["-n=2"]}, "answer": "gen.cpp"}]}]}`)
+	shop := workshop(t, dir)
+	shop.generatorLimit = 300
+	started := time.Now()
+	err := shop.Generate(context.Background())
+	want := "3 tests could not be made, so nothing was judged:\n" +
+		"  test 1:1: the generator slow -n=1 did not finish in 0.3 s\n" +
+		"  test 1:2: not tried, since slow did not finish on test 1:1\n" +
+		"  test 1:3: not tried, since slow did not finish on test 1:1"
+	if err == nil || err.Error() != want {
+		t.Errorf("said %v", err)
+	}
+	if spent := time.Since(started); spent > 3*time.Second {
+		t.Errorf("generating took %v", spent)
 	}
 }

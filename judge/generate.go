@@ -6,6 +6,7 @@ import (
 	"crypto/sha1"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -63,7 +64,8 @@ type Workspace struct {
 	Warnings []Warning
 	Temp     string
 
-	tools toolchain
+	tools          toolchain
+	generatorLimit int
 }
 
 func normalise(body []byte) []byte {
@@ -81,7 +83,8 @@ func keyOf(parts ...string) string {
 
 func NewWorkspace(problem *Problem, dir string) *Workspace {
 	return &Workspace{Problem: problem, Dir: dir,
-		Programs: map[string]*Built{}, Tests: map[string]*Prepared{}, tools: hostToolchain()}
+		Programs: map[string]*Built{}, Tests: map[string]*Prepared{}, tools: hostToolchain(),
+		generatorLimit: generatorLimit}
 }
 
 func (w *Workspace) Build(ctx context.Context, name string, program *Program) (*Built, error) {
@@ -191,6 +194,8 @@ func (w *Workspace) Generate(ctx context.Context) error {
 		return err
 	}
 
+	var failed []string
+	stuck := map[string]string{}
 	for _, testset := range w.Problem.Testsets {
 		for _, test := range testset.Tests {
 			made := &Prepared{Group: testset.Index, Test: test}
@@ -198,19 +203,62 @@ func (w *Workspace) Generate(ctx context.Context) error {
 			made.Input = filepath.Join(tests, name+".in")
 			made.Answer = filepath.Join(tests, name+".ans")
 
-			if err := w.makeInput(ctx, made); err != nil {
-				return err
+			if script, where := stuckOn(test, stuck); script != "" {
+				failed = append(failed, fmt.Sprintf("test %d:%d: not tried, since %s did not finish on test %s",
+					made.Group, test.Index, script, where))
+				continue
 			}
-			if err := w.makeAnswer(ctx, made); err != nil {
-				return err
-			}
-			if err := made.seal(); err != nil {
-				return err
+			if err := w.prepare(ctx, made); err != nil {
+				if ctx.Err() != nil {
+					return err
+				}
+				var late *timedOut
+				if errors.As(err, &late) {
+					stuck[late.script] = fmt.Sprintf("%d:%d", made.Group, test.Index)
+				}
+				failed = append(failed, fmt.Sprintf("test %d:%d: %v", made.Group, test.Index, err))
+				continue
 			}
 			w.Tests[reference(&Planned{Group: testset.Index, Test: test})] = made
 		}
 	}
-	return nil
+	switch len(failed) {
+	case 0:
+		return nil
+	case 1:
+		return errors.New(failed[0])
+	}
+	return fmt.Errorf("%d tests could not be made, so nothing was judged:\n  %s", len(failed),
+		strings.Join(failed, "\n  "))
+}
+
+type timedOut struct {
+	script string
+	err    error
+}
+
+func (t *timedOut) Error() string { return t.err.Error() }
+
+func stuckOn(test *Test, stuck map[string]string) (string, string) {
+	if test.Generator != nil {
+		if where, known := stuck[test.Generator.Script]; known {
+			return test.Generator.Script, where
+		}
+	}
+	if where, known := stuck[test.AnswerGenerator]; known && test.AnswerGenerator != "" {
+		return test.AnswerGenerator, where
+	}
+	return "", ""
+}
+
+func (w *Workspace) prepare(ctx context.Context, made *Prepared) error {
+	if err := w.makeInput(ctx, made); err != nil {
+		return err
+	}
+	if err := w.makeAnswer(ctx, made); err != nil {
+		return err
+	}
+	return made.seal()
 }
 
 func (w *Workspace) makeInput(ctx context.Context, made *Prepared) error {
@@ -224,7 +272,7 @@ func (w *Workspace) makeInput(ctx context.Context, made *Prepared) error {
 	}
 
 	if test.Generator == nil {
-		return fmt.Errorf("test %d:%d has neither an input nor a generator", made.Group, test.Index)
+		return errors.New("it has neither an input nor a generator")
 	}
 
 	built, err := w.script(ctx, test.Generator.Script)
@@ -237,17 +285,21 @@ func (w *Workspace) makeInput(ctx context.Context, made *Prepared) error {
 		return err
 	}
 
-	status, err := built.jury(ctx, generatorLimit, Invocation{Args: test.Generator.Arguments, Stdout: file})
+	status, err := built.jury(ctx, w.generatorLimit, Invocation{Args: test.Generator.Arguments, Stdout: file})
 	closed := file.Close()
 	call := strings.Join(append([]string{test.Generator.Script}, test.Generator.Arguments...), " ")
 	if err != nil {
-		return fmt.Errorf("test %d:%d: the generator %s: %w", made.Group, test.Index, call, err)
+		return fmt.Errorf("the generator %s: %w", call, err)
 	}
 	if status.ExitCode != 0 {
-		return fmt.Errorf("test %d:%d: the generator %s %s", made.Group, test.Index, call, ended(status, generatorLimit))
+		failed := fmt.Errorf("the generator %s %s", call, ended(status, w.generatorLimit))
+		if status.TimedOut {
+			return &timedOut{script: test.Generator.Script, err: failed}
+		}
+		return failed
 	}
 	if closed != nil {
-		return fmt.Errorf("test %d:%d's input could not be written: %w; check the space left for the workspace", made.Group, test.Index, closed)
+		return fmt.Errorf("its input could not be written: %w; check the space left for the workspace", closed)
 	}
 	made.Warnings = append(made.Warnings, warningsIn(test.Generator.Script, string(status.Stderr))...)
 	return nil
@@ -266,7 +318,7 @@ func (w *Workspace) makeAnswer(ctx context.Context, made *Prepared) error {
 
 	if test.AnswerGenerator == "" {
 		if !w.Problem.Interactive() {
-			return fmt.Errorf("test %d:%d has no answer and no answerGenerator", made.Group, test.Index)
+			return errors.New("it has no answer and no answerGenerator")
 		}
 		body, err := os.ReadFile(made.Input)
 		if err != nil {
@@ -291,17 +343,20 @@ func (w *Workspace) makeAnswer(ctx context.Context, made *Prepared) error {
 		return err
 	}
 
-	status, err := built.jury(ctx, generatorLimit, Invocation{Stdin: input, Stdout: file})
+	status, err := built.jury(ctx, w.generatorLimit, Invocation{Stdin: input, Stdout: file})
 	closed := file.Close()
 	if err != nil {
-		return fmt.Errorf("test %d:%d: the answer generator %s: %w", made.Group, test.Index, test.AnswerGenerator, err)
+		return fmt.Errorf("the answer generator %s: %w", test.AnswerGenerator, err)
 	}
 	if status.ExitCode != 0 {
-		return fmt.Errorf("test %d:%d: the answer generator %s %s", made.Group, test.Index, test.AnswerGenerator,
-			ended(status, generatorLimit))
+		failed := fmt.Errorf("the answer generator %s %s", test.AnswerGenerator, ended(status, w.generatorLimit))
+		if status.TimedOut {
+			return &timedOut{script: test.AnswerGenerator, err: failed}
+		}
+		return failed
 	}
 	if closed != nil {
-		return fmt.Errorf("test %d:%d's answer could not be written: %w; check the space left for the workspace", made.Group, test.Index, closed)
+		return fmt.Errorf("its answer could not be written: %w; check the space left for the workspace", closed)
 	}
 	return nil
 }
@@ -349,7 +404,7 @@ func ended(status *Status, limit int) string {
 	how := fmt.Sprintf("exited %d", status.ExitCode)
 	switch {
 	case status.TimedOut:
-		how = fmt.Sprintf("did not finish in %d s", limit/1000)
+		how = fmt.Sprintf("did not finish in %g s", float64(limit)/1000)
 	case status.Signal:
 		how = "was killed by a signal"
 	}
