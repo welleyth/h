@@ -34,11 +34,12 @@ eo-judge version           # the version of eo-judge
 | `--work dir` | keep the workspace instead of a temporary directory |
 | `-v` | after each testset, list every run: `1:2 WRONG_ANSWER 12ms` and the first line of what the checker or interactor said |
 | `--json` | print one JSON object on stdout instead of the text; see [below](#json) |
+| `--expect` | with `run`, exit 1 when a solution breaks its declared type; see [below](#expected-types) |
 
 Flags may come before or after the problem directory, and `-h` or `--help` prints the usage.
-It exits 0 when it finished, 1 under `--strict` with warnings, 2 on a usage error and 3 when
-the problem itself could not be run — a program that does not compile, a generator that
-fails, a missing file.
+It exits 0 when it finished, 1 under `--strict` with warnings or `--expect` with a broken
+type, 2 on a usage error and 3 when the problem itself could not be run — a program that does
+not compile, a generator that fails, a missing file.
 
 ## Cache
 
@@ -151,7 +152,7 @@ loads as it is; an explicit `UNKNOWN_TYPE`, `UNKNOWN_FEEDBACK_POLICY`,
 | `exactFormat` | false | whitespace is part of the format, which turns EO818 off |
 | `checker`, `validator`, `interactor` | — | one program each |
 | `scripts` | — | named generators, whose names become directory names like a solution's; `answerGenerator` names one of them |
-| `solutions` | — | what `run` judges and `check` compares subtasks against; each has a `name`, which becomes a directory name and so cannot hold `/`, be `..`, be longer than 240 bytes or be another solution's, a `source`, an optional `type`, and an optional expected score in `scores`; `CORRECT` is a reference expected to score full marks unless `scores` says otherwise, `DONT_RUN` is left out of `run` and `check` unless `--solution` names it, and `INCORRECT`, `WRONG_ANSWER`, `TIMEOUT`, `OVERFLOW`, `TIMEOUT_OR_ACCEPTED`, `OVERFLOW_OR_ACCEPTED` and `FAILURE` are judged with no expectation checked |
+| `solutions` | — | what `run` judges and `check` compares subtasks against; each has a `name`, which becomes a directory name and so cannot hold `/`, be `..`, be longer than 240 bytes or be another solution's, a `source`, an optional `type`, and an optional expected score in `scores`; `CORRECT` is a reference expected to score full marks unless `scores` says otherwise, `DONT_RUN` is left out of `run` and `check` unless `--solution` names it, and `INCORRECT`, `WRONG_ANSWER`, `TIMEOUT`, `OVERFLOW`, `TIMEOUT_OR_ACCEPTED`, `OVERFLOW_OR_ACCEPTED` and `FAILURE` are judged with no expectation checked unless `run --expect` [checks them](#expected-types) |
 | `testsets` | — | the groups |
 
 ### Program
@@ -227,6 +228,38 @@ the solution rewrote. None of this stops a solution that looks for the workspace
 it lives under `$TMPDIR`, and a process can find the directories of the processes around it —
 so run a problem you do not trust in a container.
 
+## Expected types
+
+`run --expect` holds every judged solution to its `type` and exits 1 if one breaks it, which
+is what makes `run` a gate for CI. The solution's block says why:
+
+```
+linear: RUNTIME_ERROR, 40
+  testset 1  RUNTIME_ERROR             40 of 100      2 ACCEPTED, 3 RUNTIME_ERROR
+  it is declared WRONG_ANSWER, but test 1:3 is RUNTIME_ERROR
+...
+eo-judge: 1 solution(s) break their declared type
+```
+
+A type means what the same tag means on Polygon, read onto the platform's names. A run the
+judge skipped counts for nothing either way.
+
+| `type` | Holds when |
+| --- | --- |
+| `CORRECT` | the solution ends `ACCEPTED` at 100 |
+| `INCORRECT` | it does not end `ACCEPTED`: some run failed |
+| `WRONG_ANSWER` | some run is `WRONG_ANSWER` or `PARTIALLY_CORRECT`, and every run is one of those or `ACCEPTED` |
+| `TIMEOUT` | some run is `TIME_LIMIT_EXCEEDED`, and every run is that or `ACCEPTED` |
+| `TIMEOUT_OR_ACCEPTED` | every run is `TIME_LIMIT_EXCEEDED` or `ACCEPTED` |
+| `FAILURE` | some run is `FAILURE`, a jury error; a runtime error does not satisfy it, on the platform either |
+| `OVERFLOW`, `OVERFLOW_OR_ACCEPTED` | not checked, and the block says so: eo-judge does not measure memory |
+| `DONT_RUN`, none | nothing |
+
+A solution with `scores` must also score exactly that; for `CORRECT` it takes the place of the
+100, so a reference expected to score 60 is `"type": "CORRECT", "scores": "60"`. A time limit
+on your machine is not the judge's, so a `TIMEOUT` solution that is only slightly slow can hold
+here and break there, or the other way round; give such a solution `TIMEOUT_OR_ACCEPTED`.
+
 ## JSON
 
 With `--json`, `run`, `check` and `lint` print nothing on stdout but one object, and the exit
@@ -255,6 +288,7 @@ code is the same as without it:
 | Field | Holds |
 | --- | --- |
 | `attempts` | what `run` judged, in the order of `solutions`; empty for `check` and `lint` |
+| `breaks` | under `--expect`, why the solution breaks its type; left out when it holds |
 | `type` | the solution's `type` from `problem.json`, empty when it has none |
 | `invalid` | the tests the validator refused; left out when there are none |
 | `findings` | the report, in its order and without its repeats; `where` is empty for the whole problem |
