@@ -26,6 +26,50 @@ func (f Finding) String() string {
 	return fmt.Sprintf("%s%s %s: %s\n  %s", where, f.Severity, f.Code, f.Message, f.Fix)
 }
 
+func (f Finding) before(other Finding) bool {
+	switch {
+	case f.Severity != other.Severity:
+		return f.Severity == "warning"
+	case f.Code != other.Code:
+		return f.Code < other.Code
+	case f.Where != other.Where:
+		return naturalLess(f.Where, other.Where)
+	}
+	return f.Message < other.Message
+}
+
+func naturalLess(a, b string) bool {
+	for a != "" && b != "" {
+		x, y := leadingDigits(a), leadingDigits(b)
+		if x == "" || y == "" {
+			if a[0] != b[0] {
+				return a[0] < b[0]
+			}
+			a, b = a[1:], b[1:]
+			continue
+		}
+		if p, q := strings.TrimLeft(x, "0"), strings.TrimLeft(y, "0"); p != q {
+			if len(p) != len(q) {
+				return len(p) < len(q)
+			}
+			return p < q
+		}
+		if x != y {
+			return len(x) < len(y)
+		}
+		a, b = a[len(x):], b[len(y):]
+	}
+	return len(a) < len(b)
+}
+
+func leadingDigits(text string) string {
+	end := 0
+	for end < len(text) && text[end] >= '0' && text[end] <= '9' {
+		end++
+	}
+	return text[:end]
+}
+
 type Findings []Finding
 
 func (f *Findings) warn(code, where, message, fix string) {

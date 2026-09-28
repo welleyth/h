@@ -315,3 +315,63 @@ func TestAnAnswerRewrittenDuringARunStopsTheRun(t *testing.T) {
 		t.Errorf("printed %q", out)
 	}
 }
+
+func TestCheckSaysTheSameEveryTime(t *testing.T) {
+	needsACompiler(t)
+
+	shop := workshop(t, "testdata/broken")
+	first := ""
+	for at := 0; at < 6; at++ {
+		found, err := shop.Check(context.Background(), false)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var out strings.Builder
+		report(&out, append(found, Lint(shop.Problem)...), false)
+		if at == 0 {
+			first = out.String()
+		} else if out.String() != first {
+			t.Fatalf("check %d printed\n%s\nand check 1 printed\n%s", at+1, out.String(), first)
+		}
+	}
+}
+
+func TestFindingsAreOrderedByPlaceThenMessage(t *testing.T) {
+	found := Findings{
+		{Code: "EO801", Severity: "warning", Where: "test 1:10", Message: "b"},
+		{Code: "EO801", Severity: "warning", Where: "test 1:2", Message: "b"},
+		{Code: "EO801", Severity: "warning", Where: "test 1:2", Message: "a"},
+		{Code: "EO807", Severity: "note", Where: "testset 1", Message: "a"},
+		{Code: "EO807", Severity: "warning", Where: "testset 2", Message: "a"},
+		{Code: "EO807", Severity: "warning", Where: "testset 10", Message: "a"},
+	}
+	var out strings.Builder
+	report(&out, found, false)
+	var order []string
+	for _, line := range strings.Split(out.String(), "\n") {
+		if strings.Contains(line, " EO8") {
+			order = append(order, line)
+		}
+	}
+	want := []string{
+		"test 1:2: warning EO801: a", "test 1:2: warning EO801: b", "test 1:10: warning EO801: b",
+		"testset 2: warning EO807: a", "testset 10: warning EO807: a", "testset 1: note EO807: a",
+	}
+	if strings.Join(order, "\n") != strings.Join(want, "\n") {
+		t.Errorf("ordered\n%s", strings.Join(order, "\n"))
+	}
+}
+
+func TestNaturalOrderComparesRunsOfDigitsAsNumbers(t *testing.T) {
+	for _, pair := range [][2]string{
+		{"test 1:2", "test 1:10"}, {"test 2:1", "test 10:1"}, {"a", "b"}, {"a", "a1"},
+		{"test 1:1", "test 1:01"}, {"x9", "x10"}, {"9", "a"}, {"", "a"},
+	} {
+		if !naturalLess(pair[0], pair[1]) || naturalLess(pair[1], pair[0]) {
+			t.Errorf("%q and %q are ordered the wrong way", pair[0], pair[1])
+		}
+	}
+	if naturalLess("test 1:2", "test 1:2") {
+		t.Error("a place is before itself")
+	}
+}

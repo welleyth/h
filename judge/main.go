@@ -222,12 +222,7 @@ func report(out io.Writer, found Findings, strict bool) int {
 		kept = append(kept, one)
 	}
 
-	sort.SliceStable(kept, func(i, j int) bool {
-		if kept[i].Severity != kept[j].Severity {
-			return kept[i].Severity == "warning"
-		}
-		return kept[i].Code < kept[j].Code
-	})
+	sort.Slice(kept, func(i, j int) bool { return kept[i].before(kept[j]) })
 
 	warnings := 0
 	for _, one := range kept {
