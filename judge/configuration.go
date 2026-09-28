@@ -155,9 +155,10 @@ func testsetChecks(testset *Testset, found *Findings) float64 {
 		}
 	}
 
-	most, sum := float64(0), float64(0)
-	for _, test := range testset.Tests {
-		most, sum = max(most, test.Score), sum+test.Score
+	most := float64(0)
+	scores := make([]float64, len(testset.Tests))
+	for at, test := range testset.Tests {
+		most, scores[at] = max(most, test.Score), test.Score
 	}
 	switch {
 	case testset.Index == 0:
@@ -176,9 +177,8 @@ func testsetChecks(testset *Testset, found *Findings) float64 {
 				fmt.Sprintf("a WORST testset where test %d is worth %g and the most is %g", test.Index, test.Score, most),
 				"under WORST the group takes the smallest test score, so every test carries the full value")
 		}
-		return most
 	}
-	return sum
+	return costOf(testset.ScoringMode, scores)
 }
 
 func firstTest(testset *Testset, matches func(*Test) bool) *Test {
