@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -230,5 +231,88 @@ func TestACommunicationProblemIsRefusedBeforeAnythingRuns(t *testing.T) {
 		if code != 3 || out != "" || !strings.Contains(errs, "does not run COMMUNICATION problems yet") {
 			t.Errorf("%s exited %d, printed %q, said %q", command, code, out, errs)
 		}
+	}
+}
+
+func decoded(t *testing.T, printed string) outcome {
+	t.Helper()
+	var got outcome
+	decoder := json.NewDecoder(strings.NewReader(printed))
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&got); err != nil {
+		t.Fatalf("printed %q, which is not the JSON report: %v", printed, err)
+	}
+	if got.Version != version {
+		t.Errorf("the report is version %q", got.Version)
+	}
+	return got
+}
+
+func TestRunPrintsItsResultAsJSON(t *testing.T) {
+	t.Parallel()
+	needsACompiler(t)
+	code, out, errs := invokeIn(t.TempDir(), "run", "../tests/live/guess", "--json")
+	if code != 0 {
+		t.Fatalf("exit %d, said %q", code, errs)
+	}
+	got := decoded(t, out)
+	if got.Problem != "../tests/live/guess" || got.Exit != 0 || got.Error != "" || len(got.Attempts) != 4 {
+		t.Fatalf("reported %+v", got)
+	}
+	linear := got.Attempts[1]
+	if linear.Name != "linear" || linear.Verdict != RuntimeFail || linear.Score != 40 || len(linear.Groups) != 1 {
+		t.Fatalf("linear is %+v", linear)
+	}
+	group := linear.Groups[0]
+	if group.Index != 1 || group.Cost != 100 || group.Score != 40 || len(group.Runs) != 5 {
+		t.Fatalf("its testset is %+v", group)
+	}
+	if run := group.Runs[2]; run.Test != 3 || run.Verdict != RuntimeFail || run.Message != "exit 1" {
+		t.Errorf("its third run is %+v", run)
+	}
+	if got.Attempts[0].Type != "CORRECT" {
+		t.Errorf("binary has the type %q", got.Attempts[0].Type)
+	}
+}
+
+func TestCheckAndLintPrintTheirFindingsAsJSON(t *testing.T) {
+	t.Parallel()
+	needsACompiler(t)
+	code, out, _ := invokeIn(t.TempDir(), "check", "testdata/broken", "--json")
+	got := decoded(t, out)
+	if code != 0 || got.Exit != 0 || len(got.Attempts) != 0 {
+		t.Fatalf("exit %d, reported %+v", code, got)
+	}
+	found := map[string]bool{}
+	for _, one := range got.Findings {
+		found[one.Code+" "+one.Level+" "+one.Where] = true
+	}
+	for _, want := range []string{"EO801 warning test 1:2", "EO821 note ", "EO501 warning script gen"} {
+		if !found[want] {
+			t.Errorf("no %s in %+v", want, got.Findings)
+		}
+	}
+
+	code, out, _ = invoke("lint", "--json", "--strict", "testdata/broken")
+	got = decoded(t, out)
+	if code != 1 || got.Exit != 1 || len(got.Findings) != 1 || got.Findings[0].Fix == "" {
+		t.Errorf("a strict lint exited %d and reported %+v", code, got)
+	}
+}
+
+func TestAnErrorIsInTheJSONReportToo(t *testing.T) {
+	t.Parallel()
+	needsACompiler(t)
+	code, out, errs := invokeIn(t.TempDir(), "run", "--json", uncompilable(t))
+	got := decoded(t, out)
+	if code != 3 || got.Exit != 3 || !strings.Contains(got.Error, "checker does not compile") {
+		t.Errorf("exit %d, reported %+v", code, got)
+	}
+	if !strings.Contains(errs, "checker does not compile") {
+		t.Errorf("said %q", errs)
+	}
+	code, out, _ = invoke("lint", "--json", t.TempDir())
+	if got := decoded(t, out); code != 3 || got.Exit != 3 || !strings.Contains(got.Error, "problem.json") {
+		t.Errorf("a missing problem exited %d, reported %+v", code, got)
 	}
 }

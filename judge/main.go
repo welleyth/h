@@ -25,6 +25,7 @@ const usage = `eo-judge runs an Eolymp problem the way the judge does.
   --strict   make every warning fatal
   --work     keep the workspace in this directory
   -v         print every run of every test after its testset
+  --json     print the result as one JSON object instead of text
 
 Flags may come before or after the problem.
 `
@@ -51,13 +52,24 @@ func realMain(args []string, temp string, out, errs io.Writer) int {
 	if !parsed {
 		return code
 	}
-	one := &session{options: opts, temp: temp, out: out, errs: errs}
-	return one.run()
+	one := &session{options: opts, temp: temp, out: out, errs: errs, result: newOutcome(opts.dir)}
+	if opts.json {
+		one.out = io.Discard
+	}
+	code = one.run()
+	if opts.json {
+		one.result.Exit = code
+		if err := one.result.write(out); err != nil {
+			fmt.Fprintln(errs, "eo-judge:", err)
+			return 3
+		}
+	}
+	return code
 }
 
 type options struct {
-	command, dir, only, work string
-	strict, deep, verbose    bool
+	command, dir, only, work    string
+	strict, deep, verbose, json bool
 }
 
 func parse(args []string, out, errs io.Writer) (options, int, bool) {
@@ -69,6 +81,7 @@ func parse(args []string, out, errs io.Writer) (options, int, bool) {
 	flags.StringVar(&opts.only, "solution", "", "judge one solution by name")
 	flags.StringVar(&opts.work, "work", "", "keep the workspace here")
 	flags.BoolVar(&opts.verbose, "v", false, "print every run")
+	flags.BoolVar(&opts.json, "json", false, "print the result as JSON")
 	flags.Usage = func() { fmt.Fprint(errs, usage) }
 	var positional []string
 	for rest := args[1:]; ; {
@@ -97,11 +110,18 @@ type session struct {
 	options
 	temp      string
 	out, errs io.Writer
+	result    *outcome
 }
 
 func (s *session) fail(err error) int {
 	fmt.Fprintln(s.errs, "eo-judge:", err)
+	s.result.Error = err.Error()
 	return 3
+}
+
+func (s *session) report(found Findings) int {
+	s.result.findings(ordered(found))
+	return report(s.out, found, s.strict)
 }
 
 func (s *session) run() int {
@@ -115,13 +135,14 @@ func (s *session) run() int {
 		for _, one := range problem.Solutions {
 			known = append(known, one.Name)
 		}
-		fmt.Fprintf(s.errs, "eo-judge: the problem has no solution called %q; it has %s\n", s.only,
+		s.result.Error = fmt.Sprintf("the problem has no solution called %q; it has %s", s.only,
 			strings.Join(known, ", "))
+		fmt.Fprintln(s.errs, "eo-judge:", s.result.Error)
 		return 2
 	}
 
 	if s.command == "lint" {
-		return report(s.out, Lint(problem), s.strict)
+		return s.report(Lint(problem))
 	}
 
 	space := s.work
@@ -150,7 +171,7 @@ func (s *session) run() int {
 		if err != nil {
 			return s.fail(err)
 		}
-		return report(s.out, append(found, Lint(problem)...), s.strict)
+		return s.report(append(found, Lint(problem)...))
 	case "run":
 		return s.judge(ctx, shop)
 	default:
@@ -178,6 +199,7 @@ func (s *session) judge(ctx context.Context, shop *Workspace) int {
 		if shop.Problem.Validator != nil && !made.Valid {
 			invalid++
 			fmt.Fprintf(out, "test %d:%d is invalid: %s\n", made.Group, made.Test.Index, made.Why)
+			s.result.Invalid = append(s.result.Invalid, invalidTest{made.Group, made.Test.Index, made.Why})
 		}
 		found = append(found, shop.findingsOf(made.Warnings)...)
 	}
@@ -190,6 +212,7 @@ func (s *session) judge(ctx context.Context, shop *Workspace) int {
 		if err != nil {
 			return s.fail(err)
 		}
+		s.result.attempt(solution, attempt)
 		fmt.Fprintf(out, "\n%s: %s, %g\n", solution.Name, attempt.Verdict, attempt.Score)
 		for _, group := range attempt.Groups {
 			fmt.Fprintf(out, "  testset %-2d %-20s %7.4g of %-7.4g", group.Index, group.Verdict, group.Score, group.Cost)
@@ -208,7 +231,7 @@ func (s *session) judge(ctx context.Context, shop *Workspace) int {
 	}
 
 	fmt.Fprintln(out)
-	return report(out, found, s.strict)
+	return s.report(found)
 }
 
 func tally(group *GroupResult) string {
