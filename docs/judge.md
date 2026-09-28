@@ -23,6 +23,7 @@ writes `build/eo-judge`, and `make judge` runs gofmt, go vet and the eo-judge te
 eo-judge run   <problem>   # build, generate, validate, judge every solution, score it
 eo-judge check <problem>   # EO801-EO821 and EO901-EO910
 eo-judge lint  <problem>   # what is only visible in the source
+eo-judge init  <dir>       # write a new problem that run and check pass
 eo-judge version           # the version of eo-judge
 ```
 
@@ -40,6 +41,21 @@ Flags may come before or after the problem directory, and `-h` or `--help` print
 It exits 0 when it finished, 1 under `--strict` with warnings or `--expect` with a broken
 type, 2 on a usage error and 3 when the problem itself could not be run — a program that does
 not compile, a generator that fails, a missing file.
+
+## A new problem
+
+`eo-judge init <dir>` writes a complete problem into a new or empty directory, and
+`--type` picks which:
+
+| `--type` | Writes |
+| --- | --- |
+| `program`, the default | the sum of n numbers: a validator, a generator with options, a checker, a reference solution and a 32-bit one declared `WRONG_ANSWER`, and five generated tests |
+| `interactive` | guessing a number in 20 queries: an interactor with a budget, a checker that takes the interactor's verdict, and a solution that always answers 1 |
+| `phases` | Alice and Bob over `runCount` 2: an interactor that hands a code from the first run to the second, and a solution whose longer code scores part of a test |
+
+Each passes `run --expect --strict` and `check --strict` as written, with only note EO821
+left, so everything the report says after an edit is about the edit. The programs include
+`eolymp.h` and attach nothing, as on the judge.
 
 ## Cache
 
