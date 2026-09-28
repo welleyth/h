@@ -8,13 +8,13 @@ and is written in Go with no dependencies beyond the standard library.
 for Linux and macOS on amd64 and arm64, with a `SHA256SUMS` file to check them against:
 
 ```bash
-curl -LO https://github.com/eolymp/h/releases/download/judge/v2.0.0/eo-judge-linux-amd64
-curl -LO https://github.com/eolymp/h/releases/download/judge/v2.0.0/SHA256SUMS
+curl -LO https://github.com/eolymp/h/releases/download/judge/v2.1.0/eo-judge-linux-amd64
+curl -LO https://github.com/eolymp/h/releases/download/judge/v2.1.0/SHA256SUMS
 sha256sum --check --ignore-missing SHA256SUMS
 install -m 755 eo-judge-linux-amd64 ~/.local/bin/eo-judge
 ```
 
-With Go 1.23 or later, `go install github.com/eolymp/h/judge/v2@v2.0.0` builds the same
+With Go 1.23 or later, `go install github.com/eolymp/h/judge/v2@v2.1.0` builds the same
 program from the tag; the `/v2` is Go's rule for a module at major version 2, and Go names the
 binary `judge` after its directory. In a checkout, `make build/eo-judge`
 writes `build/eo-judge`, and `make judge` runs gofmt, go vet and the eo-judge tests.
