@@ -12,6 +12,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync"
 	"syscall"
@@ -105,7 +106,7 @@ type stamp struct {
 	MTime int64  `json:"mtime"`
 }
 
-func (tools toolchain) writeManifest(ctx context.Context, entry, deps string, files []string) error {
+func (tools toolchain) writeManifest(ctx context.Context, entry, deps, carried string, shadowed []string) error {
 	rule, err := os.ReadFile(deps)
 	if err != nil {
 		return err
@@ -116,7 +117,8 @@ func (tools toolchain) writeManifest(ctx context.Context, entry, deps string, fi
 		if err != nil {
 			return err
 		}
-		if strings.HasPrefix(path, entry+string(os.PathSeparator)) {
+		if strings.HasPrefix(path, entry+string(os.PathSeparator)) ||
+			strings.HasPrefix(path, carried+string(os.PathSeparator)) {
 			continue
 		}
 		info, err := os.Stat(path)
@@ -126,13 +128,15 @@ func (tools toolchain) writeManifest(ctx context.Context, entry, deps string, fi
 		read = append(read, stamp{Path: path, Size: info.Size(), MTime: info.ModTime().UnixNano()})
 	}
 	var absent []string
-	if len(files) > 0 {
+	slices.Sort(shadowed)
+	shadowed = slices.Compact(shadowed)
+	if len(shadowed) > 0 {
 		dirs, err := searchPath(ctx, tools.cxx)
 		if err != nil {
 			return err
 		}
 		for _, dir := range dirs {
-			for _, one := range files {
+			for _, one := range shadowed {
 				path := filepath.Join(dir, one)
 				if _, err := os.Lstat(path); errors.Is(err, fs.ErrNotExist) {
 					absent = append(absent, path)
@@ -246,8 +250,7 @@ func searchPath(ctx context.Context, cxx string) ([]string, error) {
 	return dirs, nil
 }
 
-func (tools toolchain) buildInto(ctx context.Context, name string, args []string, dir, entry string,
-	files []string) (bool, error) {
+func (tools toolchain) buildInto(ctx context.Context, made compilation, dir, entry string) (bool, error) {
 	unlock, err := lockEntry(entry)
 	if err != nil {
 		return false, nil
@@ -259,7 +262,7 @@ func (tools toolchain) buildInto(ctx context.Context, name string, args []string
 		return true, nil
 	}
 	os.Remove(filepath.Join(entry, "manifest.json"))
-	for _, one := range append([]string{"source.cpp"}, files...) {
+	for _, one := range append([]string{"source.cpp"}, made.files...) {
 		if err := copyFile(filepath.Join(dir, one), filepath.Join(entry, one)); err != nil {
 			return false, nil
 		}
@@ -268,14 +271,15 @@ func (tools toolchain) buildInto(ctx context.Context, name string, args []string
 	deps := filepath.Join(entry, fmt.Sprintf("program.%d.d", os.Getpid()))
 	defer os.Remove(deps)
 	defer os.Remove(filepath.Join(entry, fresh))
-	if err := tools.compile(ctx, name, args, entry, fresh, []string{"-MD", "-MF", deps}); err != nil {
+	if err := tools.compile(ctx, made, entry, fresh, []string{"-MD", "-MF", deps}); err != nil {
 		inside := entry + string(os.PathSeparator)
 		return false, errors.New(strings.ReplaceAll(err.Error(), inside, dir+string(os.PathSeparator)))
 	}
 	if err := os.Rename(filepath.Join(entry, fresh), filepath.Join(entry, "program")); err != nil {
 		return false, nil
 	}
-	if tools.writeManifest(ctx, entry, deps, files) != nil {
+	shadowed := append(append([]string{}, made.files...), carriedHeaders...)
+	if tools.writeManifest(ctx, entry, deps, made.headers, shadowed) != nil {
 		os.Remove(filepath.Join(entry, "manifest.json"))
 	}
 	return true, nil

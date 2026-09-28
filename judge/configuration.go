@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 )
 
@@ -225,13 +226,13 @@ func headerChecks(problem *Problem, found *Findings) {
 }
 
 func quotedChecks(problem *Problem, name string, program *Program, body string, found *Findings) {
-	carried := map[string]bool{}
+	attached := map[string]bool{}
 	for _, one := range program.Files {
-		carried[filepath.Base(one)] = true
+		attached[filepath.Base(one)] = true
 	}
 	for _, match := range quoted.FindAllStringSubmatch(body, -1) {
 		wanted := filepath.Base(match[1])
-		if !carried[wanted] && !fileBeside(problem, program, wanted) {
+		if !attached[wanted] && !fileBeside(problem, program, wanted) && !slices.Contains(carriedHeaders, wanted) {
 			found.warn("EO903", name, fmt.Sprintf("it includes %q with no matching files entry", match[1]),
 				"attach the header to the program, or the first run fails to compile")
 		}

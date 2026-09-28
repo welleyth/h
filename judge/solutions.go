@@ -227,6 +227,11 @@ func (w *Workspace) findingsOf(warnings []Warning) Findings {
 }
 
 func (w *Workspace) named(one Warning) string {
+	for _, dir := range w.tools.carriedDirs(w.Dir) {
+		if rest, inside := strings.CutPrefix(one.At, dir+string(os.PathSeparator)); inside {
+			return rest
+		}
+	}
 	names := make([]string, 0, len(w.Programs))
 	for name := range w.Programs {
 		names = append(names, name)

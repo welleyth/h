@@ -76,5 +76,5 @@ runs:
       run: |
         cache="$HOME/.cache/eo-judge"
         [ -d "$cache" ] && [ -f "$RUNNER_TEMP/eo-judge-started" ] || exit 0
-        find "$cache" -mindepth 2 -maxdepth 2 -type d ! -newer "$RUNNER_TEMP/eo-judge-started" |
+        find "$cache" -mindepth 2 -maxdepth 2 -type d ! -path "$cache/include/*" ! -newer "$RUNNER_TEMP/eo-judge-started" |
           while read -r entry; do rm -rf "$entry" "$entry.lock"; done

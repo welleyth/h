@@ -87,11 +87,17 @@ func (tools toolchain) build(ctx context.Context, problem *Problem, name string,
 		files = append(files, filepath.Base(one))
 	}
 
-	args := []string{"-std=" + standard(program.Runtime), "-O2"}
+	headers, err := tools.writeCarried(work)
+	if err != nil {
+		return nil, err
+	}
+	made := compilation{name: name, args: []string{"-std=" + standard(program.Runtime), "-O2"},
+		headers: headers, files: files}
 	if tools.cache != "" {
-		if key, err := cacheKey(tools.cxx, args, dir, files); err == nil {
+		keyed := append(append([]string{}, made.args...), "-idirafter", headers)
+		if key, err := cacheKey(tools.cxx, keyed, dir, files); err == nil {
 			entry := filepath.Join(tools.cache, key[:2], key)
-			cached, err := tools.buildInto(ctx, name, args, dir, entry, files)
+			cached, err := tools.buildInto(ctx, made, dir, entry)
 			if err != nil {
 				return nil, err
 			}
@@ -101,14 +107,22 @@ func (tools toolchain) build(ctx context.Context, problem *Problem, name string,
 			}
 		}
 	}
-	if err := tools.compile(ctx, name, args, dir, "program", nil); err != nil {
+	if err := tools.compile(ctx, made, dir, "program", nil); err != nil {
 		return nil, err
 	}
 	return &Built{Name: name, Exe: filepath.Join(dir, "program"), Dir: dir, Source: filepath.Join(dir, "source.cpp")}, nil
 }
 
-func (tools toolchain) compile(ctx context.Context, name string, args []string, dir, exe string, extra []string) error {
-	line := append(append(append([]string{}, args...), extra...), "-idirafter", dir,
+type compilation struct {
+	name    string
+	args    []string
+	headers string
+	files   []string
+}
+
+func (tools toolchain) compile(ctx context.Context, made compilation, dir, exe string, extra []string) error {
+	name := made.name
+	line := append(append(append([]string{}, made.args...), extra...), "-idirafter", dir, "-idirafter", made.headers,
 		"-o", filepath.Join(dir, exe), filepath.Join(dir, "source.cpp"))
 	said, err := grouped(ctx, tools.cxx, line...).CombinedOutput()
 	if ctx.Err() != nil {

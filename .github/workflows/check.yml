@@ -68,7 +68,7 @@ jobs:
       - name: Keep only the programs this run used
         run: |
           [ -d "$EO_JUDGE_CACHE" ] || exit 0
-          find "$EO_JUDGE_CACHE" -mindepth 2 -maxdepth 2 -type d ! -newer "$RUNNER_TEMP/judge-started" |
+          find "$EO_JUDGE_CACHE" -mindepth 2 -maxdepth 2 -type d ! -path "$EO_JUDGE_CACHE/include/*" ! -newer "$RUNNER_TEMP/judge-started" |
             while read -r entry; do rm -rf "$entry" "$entry.lock"; done
 
   version:
