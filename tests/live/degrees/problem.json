@@ -6,26 +6,16 @@
   "uniqueAnswer": true,
   "checker": {
     "source": "checker.cpp",
-    "runtime": "cpp:20-gnu14",
-    "files": [
-      "../../../eolymp.h"
-    ]
+    "runtime": "cpp:20-gnu14"
   },
   "validator": {
     "source": "validator.cpp",
-    "runtime": "cpp:20-gnu14",
-    "files": [
-      "../../../eolymp.h"
-    ]
+    "runtime": "cpp:20-gnu14"
   },
   "scripts": {
     "gen": {
       "source": "generator.cpp",
-      "runtime": "cpp:20-gnu14",
-      "files": [
-        "../../../eolymp.h",
-        "../../../eolymp-shapes.h"
-      ]
+      "runtime": "cpp:20-gnu14"
     },
     "solution": {
       "source": "solution_full.cpp",

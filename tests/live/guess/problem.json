@@ -6,17 +6,11 @@
   "memoryLimit": 268435456,
   "checker": {
     "source": "checker.cpp",
-    "runtime": "cpp:20-gnu14",
-    "files": [
-      "../../../eolymp.h"
-    ]
+    "runtime": "cpp:20-gnu14"
   },
   "interactor": {
     "source": "interactor.cpp",
-    "runtime": "cpp:20-gnu14",
-    "files": [
-      "../../../eolymp.h"
-    ]
+    "runtime": "cpp:20-gnu14"
   },
   "solutions": [
     {
