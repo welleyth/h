@@ -39,8 +39,7 @@ func realMain(args []string, temp string, out, errs io.Writer) int {
 		return 2
 	}
 
-	command := args[0]
-	switch command {
+	switch args[0] {
 	case "version", "--version", "-version":
 		fmt.Fprintf(out, "eo-judge %s\n", version)
 		return 0
@@ -48,22 +47,37 @@ func realMain(args []string, temp string, out, errs io.Writer) int {
 		fmt.Fprint(out, usage)
 		return 0
 	}
-	flags := flag.NewFlagSet(command, flag.ContinueOnError)
+	opts, code, parsed := parse(args, out, errs)
+	if !parsed {
+		return code
+	}
+	one := &session{options: opts, temp: temp, out: out, errs: errs}
+	return one.run()
+}
+
+type options struct {
+	command, dir, only, work string
+	strict, deep, verbose    bool
+}
+
+func parse(args []string, out, errs io.Writer) (options, int, bool) {
+	opts := options{command: args[0]}
+	flags := flag.NewFlagSet(opts.command, flag.ContinueOnError)
 	flags.SetOutput(errs)
-	strict := flags.Bool("strict", false, "make every warning fatal")
-	deep := flags.Bool("deep", false, "run the slow hostile outputs")
-	only := flags.String("solution", "", "judge one solution by name")
-	work := flags.String("work", "", "keep the workspace here")
-	verbose := flags.Bool("v", false, "print every run")
+	flags.BoolVar(&opts.strict, "strict", false, "make every warning fatal")
+	flags.BoolVar(&opts.deep, "deep", false, "run the slow hostile outputs")
+	flags.StringVar(&opts.only, "solution", "", "judge one solution by name")
+	flags.StringVar(&opts.work, "work", "", "keep the workspace here")
+	flags.BoolVar(&opts.verbose, "v", false, "print every run")
 	flags.Usage = func() { fmt.Fprint(errs, usage) }
 	var positional []string
 	for rest := args[1:]; ; {
 		if err := flags.Parse(rest); err != nil {
 			if errors.Is(err, flag.ErrHelp) {
 				fmt.Fprint(out, usage)
-				return 0
+				return opts, 0, false
 			}
-			return 2
+			return opts, 2, false
 		}
 		if flags.NArg() == 0 {
 			break
@@ -71,44 +85,54 @@ func realMain(args []string, temp string, out, errs io.Writer) int {
 		positional = append(positional, flags.Arg(0))
 		rest = flags.Args()[1:]
 	}
-
 	if len(positional) != 1 {
 		fmt.Fprint(errs, usage)
-		return 2
+		return opts, 2, false
 	}
-	dir := positional[0]
+	opts.dir = positional[0]
+	return opts, 0, true
+}
 
-	problem, err := LoadProblem(dir)
+type session struct {
+	options
+	temp      string
+	out, errs io.Writer
+}
+
+func (s *session) fail(err error) int {
+	fmt.Fprintln(s.errs, "eo-judge:", err)
+	return 3
+}
+
+func (s *session) run() int {
+	problem, err := LoadProblem(s.dir)
 	if err != nil {
-		fmt.Fprintln(errs, "eo-judge:", err)
-		return 3
+		return s.fail(err)
 	}
 
-	if *only != "" && problem.Solution(*only) == nil {
+	if s.only != "" && problem.Solution(s.only) == nil {
 		var known []string
 		for _, one := range problem.Solutions {
 			known = append(known, one.Name)
 		}
-		fmt.Fprintf(errs, "eo-judge: the problem has no solution called %q; it has %s\n", *only,
+		fmt.Fprintf(s.errs, "eo-judge: the problem has no solution called %q; it has %s\n", s.only,
 			strings.Join(known, ", "))
 		return 2
 	}
 
-	if command == "lint" {
-		return report(out, Lint(problem), *strict)
+	if s.command == "lint" {
+		return report(s.out, Lint(problem), s.strict)
 	}
 
-	space := *work
+	space := s.work
 	if space == "" {
-		space, err = os.MkdirTemp(temp, "eo-judge-")
+		space, err = os.MkdirTemp(s.temp, "eo-judge-")
 		if err != nil {
-			fmt.Fprintln(errs, "eo-judge:", err)
-			return 3
+			return s.fail(err)
 		}
 		defer os.RemoveAll(space)
 	} else if err := os.MkdirAll(space, 0o755); err != nil {
-		fmt.Fprintln(errs, "eo-judge:", err)
-		return 3
+		return s.fail(err)
 	}
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
@@ -118,37 +142,34 @@ func realMain(args []string, temp string, out, errs io.Writer) int {
 		stop()
 	}()
 	shop := NewWorkspace(problem, space)
-	shop.Temp = temp
+	shop.Temp = s.temp
 
-	switch command {
+	switch s.command {
 	case "check":
-		found, err := shop.Check(ctx, *deep)
+		found, err := shop.Check(ctx, s.deep)
 		if err != nil {
-			fmt.Fprintln(errs, "eo-judge:", err)
-			return 3
+			return s.fail(err)
 		}
-		return report(out, append(found, Lint(problem)...), *strict)
+		return report(s.out, append(found, Lint(problem)...), s.strict)
 	case "run":
-		return runProblem(ctx, shop, *only, *strict, *verbose, out, errs)
+		return s.judge(ctx, shop)
 	default:
-		fmt.Fprint(errs, usage)
+		fmt.Fprint(s.errs, usage)
 		return 2
 	}
 }
 
-func runProblem(ctx context.Context, shop *Workspace, only string, strict, verbose bool, out, errs io.Writer) int {
-	judged := shop.Problem.Judged(only)
+func (s *session) judge(ctx context.Context, shop *Workspace) int {
+	out := s.out
+	judged := shop.Problem.Judged(s.only)
 	if err := shop.BuildAll(ctx, judged); err != nil {
-		fmt.Fprintln(errs, "eo-judge:", err)
-		return 3
+		return s.fail(err)
 	}
 	if err := shop.Generate(ctx); err != nil {
-		fmt.Fprintln(errs, "eo-judge:", err)
-		return 3
+		return s.fail(err)
 	}
 	if err := shop.Validate(ctx); err != nil {
-		fmt.Fprintln(errs, "eo-judge:", err)
-		return 3
+		return s.fail(err)
 	}
 
 	var found Findings
@@ -167,14 +188,13 @@ func runProblem(ctx context.Context, shop *Workspace, only string, strict, verbo
 	for _, solution := range judged {
 		attempt, err := shop.Evaluate(ctx, solution.Name, &Program{Source: solution.Source})
 		if err != nil {
-			fmt.Fprintln(errs, "eo-judge:", err)
-			return 3
+			return s.fail(err)
 		}
 		fmt.Fprintf(out, "\n%s: %s, %g\n", solution.Name, attempt.Verdict, attempt.Score)
 		for _, group := range attempt.Groups {
 			fmt.Fprintf(out, "  testset %-2d %-20s %7.4g of %-7.4g", group.Index, group.Verdict, group.Score, group.Cost)
 			fmt.Fprintf(out, "  %s\n", tally(group))
-			if verbose {
+			if s.verbose {
 				for _, one := range group.Runs {
 					fmt.Fprintf(out, "    %d:%d %s %dms %s\n", one.Group, one.Index, one.Verdict, one.Wall, one.Message)
 				}
@@ -188,7 +208,7 @@ func runProblem(ctx context.Context, shop *Workspace, only string, strict, verbo
 	}
 
 	fmt.Fprintln(out)
-	return report(out, found, strict)
+	return report(out, found, s.strict)
 }
 
 func tally(group *GroupResult) string {
@@ -204,7 +224,7 @@ func tally(group *GroupResult) string {
 	return strings.Join(kinds, ", ")
 }
 
-func report(out io.Writer, found Findings, strict bool) int {
+func ordered(found Findings) Findings {
 	seen := map[string]bool{}
 	var kept Findings
 	for _, one := range found {
@@ -215,9 +235,12 @@ func report(out io.Writer, found Findings, strict bool) int {
 		seen[key] = true
 		kept = append(kept, one)
 	}
-
 	sort.Slice(kept, func(i, j int) bool { return kept[i].before(kept[j]) })
+	return kept
+}
 
+func report(out io.Writer, found Findings, strict bool) int {
+	kept := ordered(found)
 	warnings := 0
 	for _, one := range kept {
 		fmt.Fprintln(out, one)
