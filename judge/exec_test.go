@@ -4,7 +4,9 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
+	"syscall"
 	"testing"
 	"time"
 )
@@ -146,5 +148,72 @@ func TestTheSameProgramIsBuiltOnceUnderEveryName(t *testing.T) {
 	problem.Checker = &Program{Source: "missing.cpp"}
 	if err := NewWorkspace(problem, t.TempDir()).BuildAll(context.Background(), nil); err == nil {
 		t.Error("a program that cannot be built was not reported")
+	}
+}
+
+func TestAHangingCompilerDoesNotHangTheVersionCheck(t *testing.T) {
+	dir := t.TempDir()
+	hanging := filepath.Join(dir, "hanging-compiler")
+	child, pid := lingering(dir)
+	if err := os.WriteFile(hanging, []byte("#!/bin/sh\n"+child+"sleep 30\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
+	defer cancel()
+	started := time.Now()
+	if said := versionOf(ctx, hanging); said != "" {
+		t.Errorf("a compiler that never answered has the version %q", said)
+	}
+	if spent := time.Since(started); spent > 5*time.Second {
+		t.Errorf("the version check took %v to stop", spent)
+	}
+	awaitGone(t, pid, "a process the compiler started outlived the version check")
+}
+
+func lingering(dir string) (string, string) {
+	pid := filepath.Join(dir, "lingering.pid")
+	return "sh -c 'echo $$ > " + pid + ".part && mv " + pid + ".part " + pid + " && exec sleep 30' &\n", pid
+}
+
+func awaitGone(t *testing.T, pidFile, complaint string) {
+	t.Helper()
+	deadline := time.Now().Add(5 * time.Second)
+	for ; time.Now().Before(deadline); time.Sleep(20 * time.Millisecond) {
+		body, err := os.ReadFile(pidFile)
+		if err != nil {
+			continue
+		}
+		pid, err := strconv.Atoi(strings.TrimSpace(string(body)))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if syscall.Kill(pid, 0) != nil {
+			return
+		}
+	}
+	if _, err := os.Stat(pidFile); err == nil {
+		t.Error(complaint)
+	}
+}
+
+func TestACompilersVersionIsAskedOnce(t *testing.T) {
+	dir := t.TempDir()
+	calls := filepath.Join(dir, "calls")
+	counted := filepath.Join(dir, "counted-compiler")
+	script := "#!/bin/sh\necho called >> " + calls + "\necho 'counted 1.0'\n"
+	if err := os.WriteFile(counted, []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	for range 3 {
+		if said := versionOf(context.Background(), counted); said != "counted 1.0" {
+			t.Fatalf("the version is %q", said)
+		}
+	}
+	body, err := os.ReadFile(calls)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if asked := strings.Count(string(body), "called"); asked != 1 {
+		t.Errorf("the compiler was asked for its version %d times", asked)
 	}
 }

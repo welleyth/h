@@ -9,6 +9,8 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"sync"
+	"time"
 )
 
 type probe struct {
@@ -393,7 +395,7 @@ func (w *Workspace) generatorChecks(ctx context.Context, found *Findings) error 
 				"unspecified argument order, std::shuffle, unordered iteration or signed char")
 		}
 
-		if other := otherCompiler(); other != "" {
+		if other := otherCompiler(ctx); other != "" {
 			twin, err := buildWith(ctx, other, w.Problem, "twin."+name, script, w.Dir)
 			if err != nil {
 				found.note("EO812", where, fmt.Sprintf("it does not build with %s: %v", other, err),
@@ -514,10 +516,10 @@ func (w *Workspace) validateBody(ctx context.Context, body []byte) string {
 	return firstLine(string(status.Stdout) + string(status.Stderr))
 }
 
-func otherCompiler() string {
-	mine := versionOf(compiler())
+func otherCompiler(ctx context.Context) string {
+	mine := versionOf(ctx, compiler())
 	for _, candidate := range []string{"g++", "clang++"} {
-		said := versionOf(candidate)
+		said := versionOf(ctx, candidate)
 		if said == "" || said == mine {
 			continue
 		}
@@ -526,14 +528,29 @@ func otherCompiler() string {
 	return ""
 }
 
-func versionOf(name string) string {
-	path, err := exec.LookPath(name)
-	if err != nil {
-		return ""
+var versions = struct {
+	sync.Mutex
+	said map[string]string
+}{said: map[string]string{}}
+
+const versionLimit = 10 * time.Second
+
+func versionOf(ctx context.Context, name string) string {
+	versions.Lock()
+	defer versions.Unlock()
+	if said, known := versions.said[name]; known {
+		return said
 	}
-	said, err := exec.Command(path, "--version").Output()
-	if err != nil {
-		return ""
+	said := ""
+	if path, err := exec.LookPath(name); err == nil {
+		limited, stop := context.WithTimeout(ctx, versionLimit)
+		defer stop()
+		if out, err := grouped(limited, path, "--version").Output(); err == nil {
+			said = firstLine(string(out))
+		}
 	}
-	return firstLine(string(said))
+	if ctx.Err() == nil {
+		versions.said[name] = said
+	}
+	return said
 }
