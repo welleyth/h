@@ -33,6 +33,7 @@ eo-judge version           # the version of eo-judge
 | `--deep` | use the full 100 MB hostile output rather than 2 MB |
 | `--work dir` | keep the workspace instead of a temporary directory |
 | `-v` | after each testset, list every run: `1:2 WRONG_ANSWER 12ms` and the first line of what the checker or interactor said |
+| `--json` | print one JSON object on stdout instead of the text; see [below](#json) |
 
 Flags may come before or after the problem directory, and `-h` or `--help` prints the usage.
 It exits 0 when it finished, 1 under `--strict` with warnings, 2 on a usage error and 3 when
@@ -225,6 +226,40 @@ changed, it stops with exit 3 and names the solution rather than score a run aga
 the solution rewrote. None of this stops a solution that looks for the workspace on purpose —
 it lives under `$TMPDIR`, and a process can find the directories of the processes around it —
 so run a problem you do not trust in a container.
+
+## JSON
+
+With `--json`, `run`, `check` and `lint` print nothing on stdout but one object, and the exit
+code is the same as without it:
+
+```json
+{
+  "version": "2.1.0",
+  "problem": "tests/live/degrees",
+  "invalid": [{"group": 1, "test": 2, "why": "line 1, n: 1 is below 2"}],
+  "attempts": [
+    {"name": "leaves", "type": "", "verdict": "PARTIALLY_CORRECT", "score": 55.767494,
+     "groups": [
+       {"index": 1, "verdict": "PARTIALLY_CORRECT", "score": 5.425, "cost": 9,
+        "runs": [{"test": 1, "verdict": "PARTIALLY_CORRECT", "ms": 3, "message": "points 1 2 of 6 degrees"}]}
+     ]}
+  ],
+  "findings": [
+    {"code": "EO106", "level": "note", "where": "checker.cpp:10",
+     "message": "the bounds 1..1999 are one away from a round number", "fix": "reported by checker"}
+  ],
+  "exit": 0
+}
+```
+
+| Field | Holds |
+| --- | --- |
+| `attempts` | what `run` judged, in the order of `solutions`; empty for `check` and `lint` |
+| `type` | the solution's `type` from `problem.json`, empty when it has none |
+| `invalid` | the tests the validator refused; left out when there are none |
+| `findings` | the report, in its order and without its repeats; `where` is empty for the whole problem |
+| `exit` | the exit code |
+| `error` | why eo-judge could not finish, when it could not; the same line also goes to stderr |
 
 ## What it does not do
 
