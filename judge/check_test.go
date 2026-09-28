@@ -486,3 +486,21 @@ func TestCheckFindsAnInteractorThatFailsOnABadClient(t *testing.T) {
 		}
 	}
 }
+
+func TestCheckFindsAnOptionExtremeTheValidatorRefuses(t *testing.T) {
+	t.Parallel()
+	needsACompiler(t)
+	found, err := workshop(t, "testdata/extremes").Check(context.Background(), false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var extremes []string
+	for _, one := range found {
+		if one.Code == "EO813" {
+			extremes = append(extremes, one.Where+": "+one.Message)
+		}
+	}
+	if len(extremes) != 1 || !strings.HasPrefix(extremes[0], "script gen: n=2000 produces an invalid test: ") {
+		t.Errorf("EO813 said %q; only n=2000 is outside the validator's range", extremes)
+	}
+}

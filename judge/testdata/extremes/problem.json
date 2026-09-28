@@ -1,0 +1,20 @@
+{
+  "title": "a generator whose declared range is wider than the validator's",
+  "type": "PROGRAM",
+  "timeLimit": 1000,
+  "memoryLimit": 268435456,
+  "checker": {"source": "checker.cpp", "files": ["../../../eolymp.h"]},
+  "validator": {"source": "validator.cpp", "files": ["../../../eolymp.h"]},
+  "scripts": {
+    "gen": {"source": "generator.cpp", "files": ["../../../eolymp.h"]},
+    "solution": {"source": "solution.cpp"}
+  },
+  "solutions": [{"name": "echo", "source": "solution.cpp", "type": "CORRECT"}],
+  "testsets": [
+    {"index": 1, "scoringMode": "EACH", "feedbackPolicy": "COMPLETE",
+     "tests": [
+       {"index": 1, "score": 50, "generator": {"script": "gen", "arguments": ["-n=1"]}, "answerGenerator": "solution"},
+       {"index": 2, "score": 50, "generator": {"script": "gen", "arguments": ["-n=1000"]}, "answerGenerator": "solution"}
+     ]}
+  ]
+}
