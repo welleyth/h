@@ -57,6 +57,11 @@ func copyFile(from, to string) error {
 }
 
 func build(ctx context.Context, problem *Problem, name string, program *Program, work string) (*Built, error) {
+	return buildWith(ctx, compiler(), problem, name, program, work)
+}
+
+func buildWith(ctx context.Context, cxx string, problem *Problem, name string, program *Program,
+	work string) (*Built, error) {
 	if program == nil || program.Source == "" {
 		return nil, fmt.Errorf("%s has no source", name)
 	}
@@ -76,7 +81,7 @@ func build(ctx context.Context, problem *Problem, name string, program *Program,
 	}
 
 	exe := filepath.Join(dir, "program")
-	command := exec.CommandContext(ctx, compiler(), "-std="+standard(program.Runtime), "-O2", "-idirafter", dir,
+	command := exec.CommandContext(ctx, cxx, "-std="+standard(program.Runtime), "-O2", "-idirafter", dir,
 		"-o", exe, filepath.Join(dir, "source.cpp"))
 	command.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 	command.Cancel = func() error { return killGroup(command) }

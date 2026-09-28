@@ -537,10 +537,3 @@ func versionOf(name string) string {
 	}
 	return firstLine(string(said))
 }
-
-func buildWith(ctx context.Context, cxx string, problem *Problem, name string, program *Program, work string) (*Built, error) {
-	before := os.Getenv("CXX")
-	os.Setenv("CXX", cxx)
-	defer os.Setenv("CXX", before)
-	return build(ctx, problem, name, program, work)
-}

@@ -69,11 +69,10 @@ func TestAnInterruptStopsABuildAndWhatItStarted(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(dir, "a.cpp"), []byte("int main() {}\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	t.Setenv("CXX", slow)
 	ctx, cancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
 	defer cancel()
 	started := time.Now()
-	_, err := build(ctx, &Problem{dir: dir}, "slow", &Program{Source: "a.cpp"}, t.TempDir())
+	_, err := buildWith(ctx, slow, &Problem{dir: dir}, "slow", &Program{Source: "a.cpp"}, t.TempDir())
 	if err == nil || !strings.Contains(err.Error(), "the build of slow was interrupted") {
 		t.Fatalf("said %v", err)
 	}
