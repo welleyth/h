@@ -149,7 +149,7 @@ func TestTheSameProgramIsBuiltOnceUnderEveryName(t *testing.T) {
 	}
 }
 
-func TestAHangingCompilerDoesNotHangTheVersionCheck(t *testing.T) {
+func TestAHangingCompilerDoesNotHangTheFamilyCheck(t *testing.T) {
 	dir := t.TempDir()
 	hanging := filepath.Join(dir, "hanging-compiler")
 	child, pid := lingering(dir)
@@ -160,13 +160,13 @@ func TestAHangingCompilerDoesNotHangTheVersionCheck(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
 	defer cancel()
 	started := time.Now()
-	if said := versionOf(ctx, hanging); said != "" {
-		t.Errorf("a compiler that never answered has the version %q", said)
+	if family := familyOf(ctx, hanging); family != "" {
+		t.Errorf("a compiler that never answered is of the family %q", family)
 	}
 	if spent := time.Since(started); spent > 5*time.Second {
-		t.Errorf("the version check took %v to stop", spent)
+		t.Errorf("the family check took %v to stop", spent)
 	}
-	awaitGone(t, pid, "a process the compiler started outlived the version check")
+	awaitGone(t, pid, "a process the compiler started outlived the family check")
 }
 
 func lingering(dir string) (string, string) {
@@ -196,18 +196,18 @@ func awaitGone(t *testing.T, pidFile, complaint string) {
 	}
 }
 
-func TestACompilersVersionIsAskedOnce(t *testing.T) {
+func TestACompilersFamilyIsAskedOnce(t *testing.T) {
 	dir := t.TempDir()
 	calls := filepath.Join(dir, "calls")
 	counted := filepath.Join(dir, "counted-compiler")
-	script := "#!/bin/sh\necho called >> " + calls + "\necho 'counted 1.0'\n"
+	script := "#!/bin/sh\necho called >> " + calls + "\necho '#define __clang__ 1'\n"
 	if err := os.WriteFile(counted, []byte(script), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	t.Parallel()
 	for range 3 {
-		if said := versionOf(context.Background(), counted); said != "counted 1.0" {
-			t.Fatalf("the version is %q", said)
+		if family := familyOf(context.Background(), counted); family != "clang" {
+			t.Fatalf("the family is %q", family)
 		}
 	}
 	body, err := os.ReadFile(calls)
@@ -215,6 +215,26 @@ func TestACompilersVersionIsAskedOnce(t *testing.T) {
 		t.Fatal(err)
 	}
 	if asked := strings.Count(string(body), "called"); asked != 1 {
-		t.Errorf("the compiler was asked for its version %d times", asked)
+		t.Errorf("the compiler was asked for its family %d times", asked)
+	}
+}
+
+func TestTheSecondCompilerIsOfTheOtherFamily(t *testing.T) {
+	t.Parallel()
+	for macros, want := range map[string]string{
+		"#define __GNUC__ 12\n#define __clang__ 1\n": "clang", "#define __GNUC__ 12\n": "gcc", "": "",
+	} {
+		if got := familyIn(macros); got != want {
+			t.Errorf("%q is %q, not %q", macros, got, want)
+		}
+	}
+	gcc, clang := familyOf(context.Background(), "g++"), familyOf(context.Background(), "clang++")
+	if gcc != "gcc" || clang != "clang" {
+		t.Skipf("g++ is %q and clang++ is %q here, not one of each", gcc, clang)
+	}
+	for mine, want := range map[string]string{"g++": "clang++", "clang++": "g++"} {
+		if got := otherCompiler(context.Background(), mine); got != want {
+			t.Errorf("the compiler beside %s is %q, not %s", mine, got, want)
+		}
 	}
 }

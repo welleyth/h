@@ -403,7 +403,8 @@ func (w *Workspace) generatorChecks(ctx context.Context, found *Findings) error 
 				if !bytes.Equal(first, crossed) {
 					found.warn("EO812", where,
 						fmt.Sprintf("%s and %s give different bytes for the same arguments", w.tools.cxx, other),
-						"the test depends on the standard library, not only on the seed")
+						"the bytes depend on the compiler, not only on the seed: argument evaluation order, "+
+							"std::shuffle and the <random> distributions differ between the two")
 				}
 			}
 		}
@@ -504,40 +505,48 @@ func (w *Workspace) validateBody(ctx context.Context, body []byte) string {
 }
 
 func otherCompiler(ctx context.Context, cxx string) string {
-	mine := versionOf(ctx, cxx)
+	mine := familyOf(ctx, cxx)
 	for _, candidate := range []string{"g++", "clang++"} {
-		said := versionOf(ctx, candidate)
-		if said == "" || said == mine {
-			continue
+		if family := familyOf(ctx, candidate); family != "" && family != mine {
+			return candidate
 		}
-		return candidate
 	}
 	return ""
 }
 
-var versions = struct {
+var families = struct {
 	sync.Mutex
-	said map[string]string
-}{said: map[string]string{}}
+	of map[string]string
+}{of: map[string]string{}}
 
-const versionLimit = 10 * time.Second
+const probeLimit = 10 * time.Second
 
-func versionOf(ctx context.Context, name string) string {
-	versions.Lock()
-	defer versions.Unlock()
-	if said, known := versions.said[name]; known {
-		return said
+func familyOf(ctx context.Context, name string) string {
+	families.Lock()
+	defer families.Unlock()
+	if family, known := families.of[name]; known {
+		return family
 	}
-	said := ""
+	family := ""
 	if path, err := exec.LookPath(name); err == nil {
-		limited, stop := context.WithTimeout(ctx, versionLimit)
+		limited, stop := context.WithTimeout(ctx, probeLimit)
 		defer stop()
-		if out, err := grouped(limited, path, "--version").Output(); err == nil {
-			said = firstLine(string(out))
+		if out, err := grouped(limited, path, "-dM", "-E", "-x", "c++", os.DevNull).Output(); err == nil {
+			family = familyIn(string(out))
 		}
 	}
 	if ctx.Err() == nil {
-		versions.said[name] = said
+		families.of[name] = family
 	}
-	return said
+	return family
+}
+
+func familyIn(macros string) string {
+	switch {
+	case strings.Contains(macros, "#define __clang__ "):
+		return "clang"
+	case strings.Contains(macros, "#define __GNUC__ "):
+		return "gcc"
+	}
+	return ""
 }

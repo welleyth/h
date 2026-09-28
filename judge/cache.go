@@ -228,7 +228,7 @@ func searchPath(ctx context.Context, cxx string) ([]string, error) {
 	if dirs, known := searchPaths.dirs[key]; known {
 		return dirs, nil
 	}
-	limited, stop := context.WithTimeout(ctx, versionLimit)
+	limited, stop := context.WithTimeout(ctx, probeLimit)
 	defer stop()
 	said, err := grouped(limited, cxx, "-E", "-v", "-x", "c++", os.DevNull).CombinedOutput()
 	if err != nil {
