@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"maps"
 	"os"
 	"path/filepath"
 )
@@ -179,27 +180,11 @@ func (w *Workspace) batch(ctx context.Context, made *Prepared, solution *Built, 
 
 func (w *Workspace) check(ctx context.Context, one *Planned, made *Prepared, checker *Built,
 	work, output string, result *RunResult) (*RunResult, error) {
-	log := filepath.Join(work, "checker.log")
-	file, err := os.Create(log)
+	status, said, err := runChecker(ctx, checker, made, output, work, w.metadata(one))
 	if err != nil {
 		return nil, err
 	}
 
-	status, err := run(ctx, checker.Exe, Invocation{
-		Args: []string{made.Input, output, made.Answer}, Dir: work, Stdout: file, Stderr: file,
-		LimitMS: checkerLimit,
-		Env: map[string]string{
-			"EOLYMP": "1", "INPUT_FILE": made.Input, "OUTPUT_FILE": output, "ANSWER_FILE": made.Answer,
-			"TEST_ID": reference(one), "TEST_COST": fmt.Sprint(one.Test.Score),
-			"TEST_INDEX": fmt.Sprint(one.Test.Index), "TEST_GROUP": fmt.Sprint(one.Group),
-		},
-	})
-	file.Close()
-	if err != nil {
-		return nil, err
-	}
-
-	said, _ := os.ReadFile(log)
 	result.Message = firstLine(string(said))
 	result.Warnings = warningsIn("checker", string(said))
 
@@ -226,6 +211,27 @@ func (w *Workspace) check(ctx context.Context, one *Planned, made *Prepared, che
 		result.Fraction = result.Cost
 	}
 	return result, nil
+}
+
+func runChecker(ctx context.Context, checker *Built, made *Prepared, output, work string,
+	metadata map[string]string) (*Status, []byte, error) {
+	log := filepath.Join(work, "checker.log")
+	file, err := os.Create(log)
+	if err != nil {
+		return nil, nil, err
+	}
+	env := maps.Clone(metadata)
+	env["INPUT_FILE"], env["OUTPUT_FILE"], env["ANSWER_FILE"] = made.Input, output, made.Answer
+	status, err := run(ctx, checker.Exe, Invocation{
+		Args: []string{made.Input, output, made.Answer}, Dir: work, Stdout: file, Stderr: file,
+		LimitMS: checkerLimit, Env: env,
+	})
+	file.Close()
+	if err != nil {
+		return nil, nil, err
+	}
+	said, _ := os.ReadFile(log)
+	return status, said, nil
 }
 
 func (w *Workspace) interact(ctx context.Context, one *Planned, made *Prepared, solution, interactor *Built,

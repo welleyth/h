@@ -27,24 +27,12 @@ func (w *Workspace) probeChecker(ctx context.Context, made *Prepared, output str
 	if err := os.MkdirAll(work, 0o755); err != nil {
 		return probe{}, err
 	}
-	log := filepath.Join(work, "checker.log")
-	file, err := os.Create(log)
-	if err != nil {
-		return probe{}, err
-	}
-	status, err := run(ctx, checker.Exe, Invocation{
-		Args: []string{made.Input, output, made.Answer}, Dir: work, Stdout: file, Stderr: file,
-		LimitMS: checkerLimit,
-		Env: map[string]string{
-			"EOLYMP": "1", "INPUT_FILE": made.Input, "OUTPUT_FILE": output, "ANSWER_FILE": made.Answer,
-			"TEST_ID": "probe", "TEST_COST": fmt.Sprint(cost), "TEST_INDEX": "1", "TEST_GROUP": "1",
-		},
+	status, said, err := runChecker(ctx, checker, made, output, work, map[string]string{
+		"EOLYMP": "1", "TEST_ID": "probe", "TEST_COST": fmt.Sprint(cost), "TEST_INDEX": "1", "TEST_GROUP": "1",
 	})
-	file.Close()
 	if err != nil {
 		return probe{}, err
 	}
-	said, _ := os.ReadFile(log)
 	if status.TimedOut {
 		return probe{exit: -1, log: "the checker did not finish"}, nil
 	}
