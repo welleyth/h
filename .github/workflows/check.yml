@@ -54,7 +54,22 @@ jobs:
         with:
           go-version-file: judge/go.mod
           cache: false
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.cache/eo-judge
+            ~/.cache/go-build
+          key: judge-${{ runner.os }}-${{ hashFiles('judge/go.mod', 'judge/*.go', 'judge/templates/**', 'judge/testdata/**', 'tests/live/**', 'eolymp.h', 'eolymp-shapes.h') }}
+          restore-keys: judge-${{ runner.os }}-
+      - run: |
+          echo "EO_JUDGE_CACHE=$HOME/.cache/eo-judge" >> "$GITHUB_ENV"
+          touch "$RUNNER_TEMP/judge-started"
       - run: make judge
+      - name: Keep only the programs this run used
+        run: |
+          [ -d "$EO_JUDGE_CACHE" ] || exit 0
+          find "$EO_JUDGE_CACHE" -mindepth 2 -maxdepth 2 -type d ! -newer "$RUNNER_TEMP/judge-started" |
+            while read -r entry; do rm -rf "$entry" "$entry.lock"; done
 
   version:
     if: github.event_name == 'pull_request'
