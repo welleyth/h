@@ -90,75 +90,18 @@ func (w *Workspace) checkerChecks(ctx context.Context, found *Findings, deep boo
 		if err != nil {
 			return err
 		}
+		if err := w.ownAnswerChecks(ctx, made, answer, found); err != nil {
+			return err
+		}
+		if at > 0 {
+			continue
+		}
 		input, err := os.ReadFile(made.Input)
 		if err != nil {
 			return err
 		}
-		where := fmt.Sprintf("test %d:%d", made.Group, made.Test.Index)
-
-		got, err := w.probeChecker(ctx, made, made.Answer, made.Test.Score)
-		if err != nil {
+		if partial, err = w.hostileChecks(ctx, made, answer, input, deep, found); err != nil {
 			return err
-		}
-		if got.exit != 0 {
-			found.warn("EO801", where, fmt.Sprintf("the checker does not accept its own answer: %s", got.log),
-				"the checker and the answer files disagree; a contestant cannot pass this test")
-		}
-
-		if !w.Problem.ExactFormat {
-			loose := filepath.Join(w.Dir, "probe", "loose.txt")
-			if err := os.WriteFile(loose, spacedOut(answer), 0o644); err != nil {
-				return err
-			}
-			got, err := w.probeChecker(ctx, made, loose, made.Test.Score)
-			if err != nil {
-				return err
-			}
-			if got.exit != 0 {
-				found.warn("EO818", where,
-					fmt.Sprintf("the checker rejects its own answer with CRLF and trailing spaces: %s", got.log),
-					"a contestant's output is not normalised; accept the whitespace or declare an exact format")
-			}
-		}
-
-		if at > 0 {
-			continue
-		}
-
-		for name, body := range hostileOutputs(answer, input, deep) {
-			if name == "one token changed" && !w.Problem.Unique {
-				continue
-			}
-			path := filepath.Join(w.Dir, "probe", "hostile.txt")
-			if err := os.WriteFile(path, body, 0o644); err != nil {
-				return err
-			}
-			got, err := w.probeChecker(ctx, made, path, made.Test.Score)
-			if err != nil {
-				return err
-			}
-			if got.exit == 7 {
-				partial = true
-			}
-			switch {
-			case got.exit == 0 && name == "nothing at all":
-				found.warn("EO802", where, "the checker accepts an empty output",
-					"it is not reading the contestant's answer")
-			case got.exit == 0 && name == "the input echoed back":
-				found.warn("EO803", where, "the checker accepts the input echoed back as the output",
-					"it is not comparing enough")
-			case got.exit == 0 && name == "one token changed":
-				found.warn("EO804", where, "the checker accepts the answer with one token changed",
-					"the problem declares a unique answer, so this must be wrong")
-			case got.exit == 0:
-				continue
-			case got.exit == 1 || got.exit == 2 || got.exit == 7:
-				continue
-			default:
-				found.warn("EO805", where,
-					fmt.Sprintf("%s makes the checker exit %d: %s", name, got.exit, got.log),
-					"a contestant's output must give a wrong answer, never a crash or a jury error")
-			}
 		}
 	}
 
@@ -172,6 +115,75 @@ func (w *Workspace) checkerChecks(ctx context.Context, found *Findings, deep boo
 		}
 	}
 	return nil
+}
+
+func (w *Workspace) ownAnswerChecks(ctx context.Context, made *Prepared, answer []byte, found *Findings) error {
+	where := fmt.Sprintf("test %d:%d", made.Group, made.Test.Index)
+	got, err := w.probeChecker(ctx, made, made.Answer, made.Test.Score)
+	if err != nil {
+		return err
+	}
+	if got.exit != 0 {
+		found.warn("EO801", where, fmt.Sprintf("the checker does not accept its own answer: %s", got.log),
+			"the checker and the answer files disagree; a contestant cannot pass this test")
+	}
+	if w.Problem.ExactFormat {
+		return nil
+	}
+	loose := filepath.Join(w.Dir, "probe", "loose.txt")
+	if err := os.WriteFile(loose, spacedOut(answer), 0o644); err != nil {
+		return err
+	}
+	if got, err = w.probeChecker(ctx, made, loose, made.Test.Score); err != nil {
+		return err
+	}
+	if got.exit != 0 {
+		found.warn("EO818", where,
+			fmt.Sprintf("the checker rejects its own answer with CRLF and trailing spaces: %s", got.log),
+			"a contestant's output is not normalised; accept the whitespace or declare an exact format")
+	}
+	return nil
+}
+
+func (w *Workspace) hostileChecks(ctx context.Context, made *Prepared, answer, input []byte, deep bool,
+	found *Findings) (bool, error) {
+	where := fmt.Sprintf("test %d:%d", made.Group, made.Test.Index)
+	partial := false
+	for name, body := range hostileOutputs(answer, input, deep) {
+		if name == "one token changed" && !w.Problem.Unique {
+			continue
+		}
+		path := filepath.Join(w.Dir, "probe", "hostile.txt")
+		if err := os.WriteFile(path, body, 0o644); err != nil {
+			return false, err
+		}
+		got, err := w.probeChecker(ctx, made, path, made.Test.Score)
+		if err != nil {
+			return false, err
+		}
+		partial = partial || got.exit == 7
+		hostileFinding(name, got, where, found)
+	}
+	return partial, nil
+}
+
+func hostileFinding(name string, got probe, where string, found *Findings) {
+	switch {
+	case got.exit == 0 && name == "nothing at all":
+		found.warn("EO802", where, "the checker accepts an empty output",
+			"it is not reading the contestant's answer")
+	case got.exit == 0 && name == "the input echoed back":
+		found.warn("EO803", where, "the checker accepts the input echoed back as the output",
+			"it is not comparing enough")
+	case got.exit == 0 && name == "one token changed":
+		found.warn("EO804", where, "the checker accepts the answer with one token changed",
+			"the problem declares a unique answer, so this must be wrong")
+	case got.exit == 0, got.exit == 1, got.exit == 2, got.exit == 7:
+	default:
+		found.warn("EO805", where,
+			fmt.Sprintf("%s makes the checker exit %d: %s", name, got.exit, got.log),
+			"a contestant's output must give a wrong answer, never a crash or a jury error")
+	}
 }
 
 func (w *Workspace) sorted() []*Prepared {
