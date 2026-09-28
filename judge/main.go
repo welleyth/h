@@ -26,6 +26,7 @@ const usage = `eo-judge runs an Eolymp problem the way the judge does.
   --work     keep the workspace in this directory
   -v         print every run of every test after its testset
   --json     print the result as one JSON object instead of text
+  --expect   with run, exit 1 when a solution breaks its declared type
 
 Flags may come before or after the problem.
 `
@@ -68,8 +69,8 @@ func realMain(args []string, temp string, out, errs io.Writer) int {
 }
 
 type options struct {
-	command, dir, only, work    string
-	strict, deep, verbose, json bool
+	command, dir, only, work            string
+	strict, deep, verbose, json, expect bool
 }
 
 func parse(args []string, out, errs io.Writer) (options, int, bool) {
@@ -82,6 +83,7 @@ func parse(args []string, out, errs io.Writer) (options, int, bool) {
 	flags.StringVar(&opts.work, "work", "", "keep the workspace here")
 	flags.BoolVar(&opts.verbose, "v", false, "print every run")
 	flags.BoolVar(&opts.json, "json", false, "print the result as JSON")
+	flags.BoolVar(&opts.expect, "expect", false, "fail when a solution breaks its declared type")
 	flags.Usage = func() { fmt.Fprint(errs, usage) }
 	var positional []string
 	for rest := args[1:]; ; {
@@ -125,6 +127,11 @@ func (s *session) report(found Findings) int {
 }
 
 func (s *session) run() int {
+	if s.expect && s.command != "run" {
+		s.result.Error = "--expect judges solutions, so it applies to run only; use eo-judge run --expect"
+		fmt.Fprintln(s.errs, "eo-judge:", s.result.Error)
+		return 2
+	}
 	problem, err := LoadProblem(s.dir)
 	if err != nil {
 		return s.fail(err)
@@ -207,21 +214,16 @@ func (s *session) judge(ctx context.Context, shop *Workspace) int {
 		fmt.Fprintf(out, "\n%d test(s) the validator refuses\n", invalid)
 	}
 
+	broken := 0
 	for _, solution := range judged {
 		attempt, err := shop.Evaluate(ctx, solution.Name, &Program{Source: solution.Source})
 		if err != nil {
 			return s.fail(err)
 		}
 		s.result.attempt(solution, attempt)
-		fmt.Fprintf(out, "\n%s: %s, %g\n", solution.Name, attempt.Verdict, attempt.Score)
-		for _, group := range attempt.Groups {
-			fmt.Fprintf(out, "  testset %-2d %-20s %7.4g of %-7.4g", group.Index, group.Verdict, group.Score, group.Cost)
-			fmt.Fprintf(out, "  %s\n", tally(group))
-			if s.verbose {
-				for _, one := range group.Runs {
-					fmt.Fprintf(out, "    %d:%d %s %dms %s\n", one.Group, one.Index, one.Verdict, one.Wall, one.Message)
-				}
-			}
+		s.print(attempt)
+		if s.expect && s.expected(solution, attempt) != "" {
+			broken++
 		}
 		for _, group := range attempt.Groups {
 			for _, one := range group.Runs {
@@ -231,7 +233,36 @@ func (s *session) judge(ctx context.Context, shop *Workspace) int {
 	}
 
 	fmt.Fprintln(out)
-	return s.report(found)
+	code := s.report(found)
+	if broken > 0 {
+		fmt.Fprintf(out, "eo-judge: %d solution(s) break their declared type\n", broken)
+		code = max(code, 1)
+	}
+	return code
+}
+
+func (s *session) print(attempt *Attempt) {
+	fmt.Fprintf(s.out, "\n%s: %s, %g\n", attempt.Name, attempt.Verdict, attempt.Score)
+	for _, group := range attempt.Groups {
+		fmt.Fprintf(s.out, "  testset %-2d %-20s %7.4g of %-7.4g", group.Index, group.Verdict, group.Score, group.Cost)
+		fmt.Fprintf(s.out, "  %s\n", tally(group))
+		if s.verbose {
+			for _, one := range group.Runs {
+				fmt.Fprintf(s.out, "    %d:%d %s %dms %s\n", one.Group, one.Index, one.Verdict, one.Wall, one.Message)
+			}
+		}
+	}
+}
+
+func (s *session) expected(solution *Solution, attempt *Attempt) string {
+	why := breaks(solution, attempt)
+	if why != "" {
+		fmt.Fprintf(s.out, "  it is declared %s, but %s\n", solution.Type, why)
+		s.result.Attempts[len(s.result.Attempts)-1].Breaks = why
+	} else if note := unchecked(solution.Type); note != "" {
+		fmt.Fprintf(s.out, "  %s\n", note)
+	}
+	return why
 }
 
 func tally(group *GroupResult) string {

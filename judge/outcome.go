@@ -27,6 +27,7 @@ type attemptResult struct {
 	Verdict Verdict       `json:"verdict"`
 	Score   Points        `json:"score"`
 	Groups  []groupResult `json:"groups"`
+	Breaks  string        `json:"breaks,omitempty"`
 }
 
 type groupResult struct {
