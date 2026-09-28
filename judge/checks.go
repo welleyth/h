@@ -395,8 +395,8 @@ func (w *Workspace) generatorChecks(ctx context.Context, found *Findings) error 
 				"unspecified argument order, std::shuffle, unordered iteration or signed char")
 		}
 
-		if other := otherCompiler(ctx); other != "" {
-			twin, err := buildWith(ctx, other, w.Problem, "twin."+name, script, w.Dir)
+		if other := otherCompiler(ctx, w.tools.cxx); other != "" {
+			twin, err := toolchain{cxx: other}.build(ctx, w.Problem, "twin."+name, script, w.Dir)
 			if err != nil {
 				found.note("EO812", where, fmt.Sprintf("it does not build with %s: %v", other, err),
 					"a generator has to build with both compilers the judge may use")
@@ -407,7 +407,7 @@ func (w *Workspace) generatorChecks(ctx context.Context, found *Findings) error 
 				}
 				if !bytes.Equal(first, crossed) {
 					found.warn("EO812", where,
-						fmt.Sprintf("%s and %s give different bytes for the same arguments", compiler(), other),
+						fmt.Sprintf("%s and %s give different bytes for the same arguments", w.tools.cxx, other),
 						"the test depends on the standard library, not only on the seed")
 				}
 			}
@@ -516,8 +516,8 @@ func (w *Workspace) validateBody(ctx context.Context, body []byte) string {
 	return firstLine(string(status.Stdout) + string(status.Stderr))
 }
 
-func otherCompiler(ctx context.Context) string {
-	mine := versionOf(ctx, compiler())
+func otherCompiler(ctx context.Context, cxx string) string {
+	mine := versionOf(ctx, cxx)
 	for _, candidate := range []string{"g++", "clang++"} {
 		said := versionOf(ctx, candidate)
 		if said == "" || said == mine {

@@ -60,6 +60,8 @@ type Workspace struct {
 	Programs map[string]*Built
 	Tests    map[string]*Prepared
 	Warnings []Warning
+
+	tools toolchain
 }
 
 func normalise(body []byte) []byte {
@@ -77,14 +79,14 @@ func keyOf(parts ...string) string {
 
 func NewWorkspace(problem *Problem, dir string) *Workspace {
 	return &Workspace{Problem: problem, Dir: dir,
-		Programs: map[string]*Built{}, Tests: map[string]*Prepared{}}
+		Programs: map[string]*Built{}, Tests: map[string]*Prepared{}, tools: hostToolchain()}
 }
 
 func (w *Workspace) Build(ctx context.Context, name string, program *Program) (*Built, error) {
 	if made, known := w.Programs[name]; known {
 		return made, nil
 	}
-	made, err := build(ctx, w.Problem, name, program, w.Dir)
+	made, err := w.tools.build(ctx, w.Problem, name, program, w.Dir)
 	if err != nil {
 		return nil, err
 	}
@@ -151,7 +153,7 @@ func (w *Workspace) BuildAll(ctx context.Context, solutions []*Solution) error {
 		go func(at int, job wanted) {
 			defer waiting.Done()
 			slots <- struct{}{}
-			built[at], failed[at] = build(ctx, problem, job.name, job.program, w.Dir)
+			built[at], failed[at] = w.tools.build(ctx, problem, job.name, job.program, w.Dir)
 			<-slots
 		}(at, job)
 	}

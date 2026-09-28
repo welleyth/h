@@ -56,11 +56,15 @@ func copyFile(from, to string) error {
 	return os.WriteFile(to, body, 0o644)
 }
 
-func build(ctx context.Context, problem *Problem, name string, program *Program, work string) (*Built, error) {
-	return buildWith(ctx, compiler(), problem, name, program, work)
+type toolchain struct {
+	cxx string
 }
 
-func buildWith(ctx context.Context, cxx string, problem *Problem, name string, program *Program,
+func hostToolchain() toolchain {
+	return toolchain{cxx: compiler()}
+}
+
+func (tools toolchain) build(ctx context.Context, problem *Problem, name string, program *Program,
 	work string) (*Built, error) {
 	if program == nil || program.Source == "" {
 		return nil, fmt.Errorf("%s has no source", name)
@@ -81,7 +85,7 @@ func buildWith(ctx context.Context, cxx string, problem *Problem, name string, p
 	}
 
 	exe := filepath.Join(dir, "program")
-	command := grouped(ctx, cxx, "-std="+standard(program.Runtime), "-O2", "-idirafter", dir,
+	command := grouped(ctx, tools.cxx, "-std="+standard(program.Runtime), "-O2", "-idirafter", dir,
 		"-o", exe, filepath.Join(dir, "source.cpp"))
 	said, err := command.CombinedOutput()
 	if ctx.Err() != nil {

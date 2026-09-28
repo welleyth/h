@@ -22,7 +22,7 @@ func TestAnAttachedHeaderIsFoundWithAngleBrackets(t *testing.T) {
 	write("attached_helper.h", "inline int answer() { return 42; }\n")
 	write("checker.cpp", "#include <attached_helper.h>\nint main() { return answer() == 42 ? 0 : 1; }\n")
 	problem := &Problem{dir: dir}
-	built, err := build(context.Background(), problem, "checker", &Program{Source: "checker.cpp", Files: []string{"attached_helper.h"}},
+	built, err := hostToolchain().build(context.Background(), problem, "checker", &Program{Source: "checker.cpp", Files: []string{"attached_helper.h"}},
 		t.TempDir())
 	if err != nil {
 		t.Fatal(err)
@@ -46,7 +46,7 @@ func TestTheSystemCopyOfAHeaderWinsOverAnAttachedOne(t *testing.T) {
 	write(filepath.Join(dir, "checker.cpp"), "#include <attached_helper.h>\nint main() { return answer(); }\n")
 	t.Setenv("CPLUS_INCLUDE_PATH", system)
 	problem := &Problem{dir: dir}
-	built, err := build(context.Background(), problem, "checker", &Program{Source: "checker.cpp", Files: []string{"attached_helper.h"}},
+	built, err := hostToolchain().build(context.Background(), problem, "checker", &Program{Source: "checker.cpp", Files: []string{"attached_helper.h"}},
 		t.TempDir())
 	if err != nil {
 		t.Fatal(err)
@@ -74,7 +74,7 @@ func TestAnInterruptStopsABuildAndWhatItStarted(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
 	defer cancel()
 	started := time.Now()
-	_, err := buildWith(ctx, slow, &Problem{dir: dir}, "slow", &Program{Source: "a.cpp"}, t.TempDir())
+	_, err := toolchain{cxx: slow}.build(ctx, &Problem{dir: dir}, "slow", &Program{Source: "a.cpp"}, t.TempDir())
 	if err == nil || !strings.Contains(err.Error(), "the build of slow was interrupted") {
 		t.Fatalf("said %v", err)
 	}

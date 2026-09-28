@@ -46,7 +46,7 @@ func (w *Workspace) interactiveChecks(ctx context.Context, found *Findings) erro
 		if err := os.WriteFile(source, []byte(body), 0o644); err != nil {
 			return err
 		}
-		client, err := build(ctx, &Problem{dir: dir}, "client", &Program{Source: "source.cpp"}, dir)
+		client, err := w.tools.build(ctx, &Problem{dir: dir}, "client", &Program{Source: "source.cpp"}, dir)
 		if err != nil {
 			return err
 		}
