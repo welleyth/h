@@ -216,6 +216,14 @@ func TestEoJudgeCarriesTheRepositorysVersion(t *testing.T) {
 	if !strings.Contains(string(core), "#define EOLYMP_H_VERSION \""+version+"\"\n") {
 		t.Errorf("eo-judge is %s, and src/core.h has another EOLYMP_H_VERSION; the two are one version", version)
 	}
+	action, err := os.ReadFile("../action.yml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	downloaded := regexp.MustCompile(`(?m)^  version:\n(?:    .*\n)*?    default: (\S+)\n`).FindStringSubmatch(string(action))
+	if downloaded == nil || downloaded[1] != version {
+		t.Errorf("eo-judge is %s, and action.yml downloads %v by default; the action installs this release", version, downloaded)
+	}
 }
 
 func TestACommunicationProblemIsRefusedBeforeAnythingRuns(t *testing.T) {

@@ -1,0 +1,80 @@
+name: eo-judge
+description: Check an Eolymp problem with eo-judge, and fail when a solution breaks its declared type.
+
+inputs:
+  problem:
+    description: The problem's directory, the one that holds problem.json.
+    required: true
+  version:
+    description: The eo-judge release to download.
+    default: 2.0.0
+  strict:
+    description: Fail when check raises any warning, not only when it cannot finish.
+    default: "false"
+  expect:
+    description: Also run every solution and fail when one breaks its declared type.
+    default: "false"
+  binary:
+    description: An eo-judge binary to use instead of downloading the release.
+    default: ""
+
+runs:
+  using: composite
+  steps:
+    - name: Install eo-judge
+      shell: bash
+      env:
+        VERSION: ${{ inputs.version }}
+        BINARY: ${{ inputs.binary }}
+      run: |
+        into="$RUNNER_TEMP/eo-judge"
+        if [ -n "$BINARY" ]; then
+          mkdir -p "$into"
+          cp "$BINARY" "$into/eo-judge"
+          "$into/eo-judge" version
+        else
+          "$GITHUB_ACTION_PATH/tools/install-eo-judge.sh" "$VERSION" "$into"
+        fi
+        echo "$into" >> "$GITHUB_PATH"
+        touch "$RUNNER_TEMP/eo-judge-started"
+
+    - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: ~/.cache/eo-judge
+        key: eo-judge-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles(format('{0}/**', inputs.problem)) }}
+        restore-keys: eo-judge-${{ runner.os }}-${{ runner.arch }}-
+
+    - name: eo-judge check
+      shell: bash
+      env:
+        PROBLEM: ${{ inputs.problem }}
+        STRICT: ${{ inputs.strict }}
+      run: |
+        export EO_JUDGE_CACHE="$HOME/.cache/eo-judge"
+        set -- --json
+        if [ "$STRICT" = true ]; then set -- "$@" --strict; fi
+        code=0
+        eo-judge check "$@" "$PROBLEM" > "$RUNNER_TEMP/eo-judge-check.json" || code=$?
+        "$GITHUB_ACTION_PATH/tools/eo-judge-annotate.sh" "$PROBLEM" < "$RUNNER_TEMP/eo-judge-check.json"
+        exit "$code"
+
+    - name: eo-judge run --expect
+      if: inputs.expect == 'true'
+      shell: bash
+      env:
+        PROBLEM: ${{ inputs.problem }}
+      run: |
+        export EO_JUDGE_CACHE="$HOME/.cache/eo-judge"
+        code=0
+        eo-judge run --json --expect "$PROBLEM" > "$RUNNER_TEMP/eo-judge-run.json" || code=$?
+        "$GITHUB_ACTION_PATH/tools/eo-judge-annotate.sh" "$PROBLEM" < "$RUNNER_TEMP/eo-judge-run.json"
+        exit "$code"
+
+    - name: Keep only the programs this run used
+      if: always()
+      shell: bash
+      run: |
+        cache="$HOME/.cache/eo-judge"
+        [ -d "$cache" ] && [ -f "$RUNNER_TEMP/eo-judge-started" ] || exit 0
+        find "$cache" -mindepth 2 -maxdepth 2 -type d ! -newer "$RUNNER_TEMP/eo-judge-started" |
+          while read -r entry; do rm -rf "$entry" "$entry.lock"; done
