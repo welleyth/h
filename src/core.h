@@ -6,9 +6,9 @@
 #include <string>
 #include <utility>
 
-#define EOLYMP_H_VERSION "2.0.0"
+#define EOLYMP_H_VERSION "2.1.0"
 #define EOLYMP_H_VERSION_MAJOR 2
-#define EOLYMP_H_VERSION_MINOR 0
+#define EOLYMP_H_VERSION_MINOR 1
 #define EOLYMP_H_VERSION_PATCH 0
 
 namespace eo {
