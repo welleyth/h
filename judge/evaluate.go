@@ -8,6 +8,7 @@ import (
 	"maps"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 type Attempt struct {
@@ -134,6 +135,12 @@ func (w *Workspace) judge(ctx context.Context, one *Planned, solution, checker, 
 
 	if verdict != Accepted {
 		result.Verdict = verdict
+		if jury != nil {
+			said, _ := os.ReadFile(filepath.Join(work, "interactor.log"))
+			if line := firstLine(string(said)); line != "" {
+				result.Message = strings.TrimPrefix(result.Message+"; the interactor said: "+line, "; ")
+			}
+		}
 		return result, nil
 	}
 

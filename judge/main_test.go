@@ -278,7 +278,8 @@ func TestRunPrintsItsResultAsJSON(t *testing.T) {
 	if group.Index != 1 || group.Cost != 100 || group.Score != 40 || len(group.Runs) != 5 {
 		t.Fatalf("its testset is %+v", group)
 	}
-	if run := group.Runs[2]; run.Test != 3 || run.Verdict != RuntimeFail || run.Message != "exit 1" {
+	if run := group.Runs[2]; run.Test != 3 || run.Verdict != RuntimeFail ||
+		run.Message != "exit 1; the interactor said: wrong answer more than 20 queries" {
 		t.Errorf("its third run is %+v", run)
 	}
 	if got.Attempts[0].Type != "CORRECT" {
@@ -375,5 +376,17 @@ func TestInitWritesOnlyIntoANewOrEmptyDirectory(t *testing.T) {
 	if code, out, _ := invoke("init", filepath.Join(dir, "third"), "--type", "interactive"); code != 0 ||
 		!strings.Contains(out, "wrote an interactive problem") {
 		t.Errorf("exit %d, printed %q", code, out)
+	}
+}
+
+func TestVerboseShowsTheInteractorNextToACrash(t *testing.T) {
+	t.Parallel()
+	needsACompiler(t)
+	code, out, errs := invokeIn(t.TempDir(), "run", "../tests/live/guess", "--solution", "crasher", "-v")
+	if code != 0 {
+		t.Fatalf("exit %d, said %q", code, errs)
+	}
+	if !regexp.MustCompile(`\n    1:2 RUNTIME_ERROR \d+ms exit 3; the interactor said: ok 9 queries\n`).MatchString(out) {
+		t.Errorf("printed %q", out)
 	}
 }
