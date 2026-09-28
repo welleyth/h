@@ -1,5 +1,57 @@
 # Changelog
 
+## 2.1.0
+
+This release changes no verdict. The header is the same library as 2.0.0 under a new
+version; everything else is eo-judge, whose emulated verdicts and scores are the same as
+2.0.0's on every problem it ran then.
+
+### eo-judge
+
+- **A build cache.** Programs are compiled once into `~/.cache/eo-judge` and reused while the
+  compiler, the flags, the include variables, the sources and every header they read are
+  unchanged. A warm `run` of `tests/live/degrees` takes 0.16 s instead of 3.2 s, and a warm
+  `check` 0.40 s instead of 6.2 s. `EO_JUDGE_CACHE` moves the cache or, set to `off`, turns
+  it off; a cache directory that cannot be written is the same as `off`.
+- **Both headers are carried.** eo-judge embeds `eolymp.h` and `eolymp-shapes.h` of its own
+  release and searches them after the system's headers and the program's attached files, so
+  a problem attaches neither, as on the judge. `files` still works.
+- **`eo-judge init <dir> --type program|interactive|phases`** writes a new problem that passes
+  `run --expect --strict` and `check --strict`.
+- **`--json`** prints `run`, `check` and `lint` as one object: the attempts, the findings, the
+  exit code and the error.
+- **`run --expect`** exits 1 when a solution breaks its declared `type`, which makes `run` a
+  gate for CI; `docs/judge.md` lists what each type asserts.
+- **A GitHub Action**, `uses: eolymp/h@v2.1.0`, downloads and verifies eo-judge, keeps its
+  cache, runs `check` and optionally `run --expect`, and turns the findings into annotations.
+- `check` prints the same report on every run: findings are ordered by severity, code,
+  place in natural order, and message, instead of the order maps gave.
+- `run` and `check` refuse a `COMMUNICATION` problem, exit 3, instead of judging it as an
+  interactive one whose solutions all got RUNTIME_ERROR; `lint` reads it.
+- Every test is generated before a failure stops the run, and each failed test is named with
+  the generator call that failed; nothing is judged, exit 3, as before. A generator that runs
+  out of its 60 s is not run again for its other tests.
+- A testset's "of N" is what its mode can pay: the smallest test under `WORST`, the largest
+  under `BEST`, 0 under `NO_SCORE`; EO907 adds up the same figures.
+- `-v` and `--json` show the interactor's line next to a solution that crashed or ran out of
+  time.
+- EO814 also fires for an interactor that a hostile client kills with a signal, which the judge
+  takes as an interaction failure too.
+- EO812's second compiler is the other family, clang beside GCC or GCC beside clang; it used
+  to pick `g++` beside `c++`, the same compiler under another name, on Debian and Ubuntu, so
+  it never compared with clang there. `check` can now raise EO812 where it could not.
+- EO903 no longer asks a program that includes `"eolymp.h"` or `"eolymp-shapes.h"` to attach
+  it, since the judge's runtime carries both, and EO910 counts the carried copy against an
+  attached one.
+- An unknown command is reported before the problem is loaded, exit 2, and `version --json`
+  prints the version as JSON.
+- A generated test or answer that cannot be closed, as on a full disk, stops the run instead
+  of being judged truncated; a compiler that hangs when asked what it is no longer hangs
+  `check`; a compiler that cannot start says why.
+
+All of these change what `check` and `lint` report, or how eo-judge runs; none changes a
+verdict or a score.
+
 ## 2.0.0
 
 This release changes verdicts, so it is a major version. Every verdict change moves a run
