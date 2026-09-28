@@ -39,6 +39,40 @@ It exits 0 when it finished, 1 under `--strict` with warnings, 2 on a usage erro
 the problem itself could not be run — a program that does not compile, a generator that
 fails, a missing file.
 
+## Cache
+
+Compiling is nearly all of a run's time, so `eo-judge` keeps every program it builds in
+`~/.cache/eo-judge` (`$XDG_CACHE_HOME/eo-judge` when that is set, `~/Library/Caches/eo-judge`
+on macOS) and builds it again only when something that decides its bytes changed. A second
+`run` of an unchanged problem takes a fraction of a second.
+
+| `EO_JUDGE_CACHE` | Means |
+| --- | --- |
+| unset | the directory above |
+| a directory | that directory instead |
+| `off` | no cache: every program is built in the workspace, every time |
+
+A directory that cannot be created or written, on a read-only home for one, is the same as
+`off`.
+
+An entry is named by the compiler (its resolved path, size and modification time), the flags,
+`CPATH`, `CPLUS_INCLUDE_PATH`, `C_INCLUDE_PATH`, `GCC_EXEC_PREFIX` and `COMPILER_PATH`, and the
+bytes of the source and of every attached file. The headers the compiler finds on its own are
+checked rather than named: the entry lists every one the build read, with its size and
+modification time, and every place in the compiler's search path where an attached header's
+name was absent, so an updated system header, or an installed `eolymp.h` that would now win
+over an attached one, rebuilds the program. Two `eo-judge` processes that need the same
+program take turns building it.
+
+Nothing is ever removed from the cache on its own; `rm -rf ~/.cache/eo-judge` empties it, and
+the next run builds everything again. A program's warnings name the problem's own files, as
+they do without a cache.
+
+The compiler is known by the driver that `CXX` names, so replacing only what it runs, such as
+`cc1plus` or the linker, with the driver untouched is not noticed; empty the cache after such
+an upgrade, as ccache asks too. With the cache on, `--work` keeps each program's copied
+sources and its runs, but the compiled program lives in the cache entry.
+
 ## It reproduces the judge, deliberately
 
 Every scoring rule is taken from the platform's own source rather than from a specification,
