@@ -81,11 +81,8 @@ func buildWith(ctx context.Context, cxx string, problem *Problem, name string, p
 	}
 
 	exe := filepath.Join(dir, "program")
-	command := exec.CommandContext(ctx, cxx, "-std="+standard(program.Runtime), "-O2", "-idirafter", dir,
+	command := grouped(ctx, cxx, "-std="+standard(program.Runtime), "-O2", "-idirafter", dir,
 		"-o", exe, filepath.Join(dir, "source.cpp"))
-	command.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
-	command.Cancel = func() error { return killGroup(command) }
-	command.WaitDelay = 250 * time.Millisecond
 	said, err := command.CombinedOutput()
 	if ctx.Err() != nil {
 		return nil, fmt.Errorf("the build of %s was interrupted", name)
@@ -116,10 +113,7 @@ func run(ctx context.Context, exe string, call Invocation) (*Status, error) {
 	inner, stop := context.WithTimeout(ctx, time.Duration(limit)*time.Millisecond)
 	defer stop()
 
-	command := exec.CommandContext(inner, exe, call.Args...)
-	command.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
-	command.Cancel = func() error { return killGroup(command) }
-	command.WaitDelay = 250 * time.Millisecond
+	command := grouped(inner, exe, call.Args...)
 	command.Dir = call.Dir
 	command.Env = append(os.Environ(), flatten(call.Env)...)
 	command.Stdin = call.Stdin
@@ -164,6 +158,14 @@ func run(ctx context.Context, exe string, call Invocation) (*Status, error) {
 		return status, err
 	}
 	return status, nil
+}
+
+func grouped(ctx context.Context, name string, args ...string) *exec.Cmd {
+	command := exec.CommandContext(ctx, name, args...)
+	command.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	command.Cancel = func() error { return killGroup(command) }
+	command.WaitDelay = 250 * time.Millisecond
+	return command
 }
 
 func killGroup(command *exec.Cmd) error {
