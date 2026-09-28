@@ -113,7 +113,7 @@ func (w *Workspace) solutionChecks(ctx context.Context, found *Findings) error {
 
 		if one.Type == "CORRECT" {
 			if want, known := one.Expected(); known && attempt.Score != Points(want) {
-				found.warn("EO819", "solution "+one.Name,
+				found.warn("EO819", label(solutionName(one.Name)),
 					fmt.Sprintf("it is declared correct and scores %g, not %g", attempt.Score, want),
 					"a reference that does not score full marks is the first thing to fix")
 			}
@@ -125,7 +125,7 @@ func (w *Workspace) solutionChecks(ctx context.Context, found *Findings) error {
 			return err
 		}
 		if twice.Verdict != attempt.Verdict || twice.Score != attempt.Score {
-			found.warn("EO815", "solution "+one.Name,
+			found.warn("EO815", label(solutionName(one.Name)),
 				fmt.Sprintf("two runs gave %s at %g and %s at %g",
 					attempt.Verdict, attempt.Score, twice.Verdict, twice.Score),
 				"something in the problem uses the clock or unseeded randomness")
@@ -161,7 +161,7 @@ func (w *Workspace) headroom(found *Findings, solution *Solution, attempt *Attem
 				continue
 			}
 			if one.Wall*2 > limit {
-				found.warn("EO816", "solution "+solution.Name,
+				found.warn("EO816", label(solutionName(solution.Name)),
 					fmt.Sprintf("test %d:%d uses %d ms of the %d ms limit", one.Group, one.Index, one.Wall, limit),
 					"a reference under half the limit survives a slower machine and a rejudge")
 			}
@@ -247,14 +247,8 @@ func (w *Workspace) named(one Warning) string {
 }
 
 func (w *Workspace) sourceOf(name string) string {
-	if program, known := namedPrograms(w.Problem)[strings.Replace(name, ".", " ", 1)]; known {
+	if program, known := namedPrograms(w.Problem)[name]; known {
 		return program.Source
-	}
-	switch name {
-	case "checker", "validator", "interactor":
-		if program, known := namedPrograms(w.Problem)[name]; known {
-			return program.Source
-		}
 	}
 	return ""
 }

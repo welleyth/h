@@ -366,11 +366,11 @@ var describedOption = regexp.MustCompile(`^eo-describe option (\S+) an? (integer
 
 func (w *Workspace) generatorChecks(ctx context.Context, found *Findings) error {
 	for name, script := range w.Problem.Scripts {
-		built, err := w.Build(ctx, "script."+name, script)
+		built, err := w.Build(ctx, scriptName(name), script)
 		if err != nil {
 			return err
 		}
-		where := "script " + name
+		where := label(scriptName(name))
 
 		used := w.argumentsFor(name)
 		if len(used) == 0 {

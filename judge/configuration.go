@@ -94,12 +94,24 @@ func namedPrograms(problem *Problem) map[string]*Program {
 		out["interactor"] = problem.Interactor
 	}
 	for name, script := range problem.Scripts {
-		out["script "+name] = script
+		out[scriptName(name)] = script
 	}
 	for _, solution := range problem.Solutions {
-		out["solution "+solution.Name] = &Program{Source: solution.Source}
+		out[solutionName(solution.Name)] = &Program{Source: solution.Source}
 	}
 	return out
+}
+
+func scriptName(name string) string { return "script." + name }
+
+func solutionName(name string) string { return "solution." + name }
+
+func label(program string) string {
+	role, name, named := strings.Cut(program, ".")
+	if !named {
+		return program
+	}
+	return role + " " + name
 }
 
 func Configuration(problem *Problem) Findings {
@@ -187,7 +199,7 @@ func headerChecks(problem *Problem, found *Findings) {
 		if err != nil {
 			continue
 		}
-		quotedChecks(problem, name, program, string(body), found)
+		quotedChecks(problem, label(name), program, string(body), found)
 		for _, one := range program.Files {
 			header := filepath.Base(one)
 			if !strings.HasPrefix(header, "eolymp") {

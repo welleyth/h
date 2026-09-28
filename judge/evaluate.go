@@ -18,7 +18,7 @@ type Attempt struct {
 }
 
 func (w *Workspace) Evaluate(ctx context.Context, name string, source *Program) (*Attempt, error) {
-	built, err := w.Build(ctx, "solution."+name, source)
+	built, err := w.Build(ctx, solutionName(name), source)
 	if err != nil {
 		return nil, err
 	}

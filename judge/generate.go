@@ -126,10 +126,10 @@ func (w *Workspace) BuildAll(ctx context.Context, solutions []*Solution) error {
 	}
 	sort.Strings(names)
 	for _, name := range names {
-		jobs = append(jobs, wanted{"script." + name, problem.Scripts[name]})
+		jobs = append(jobs, wanted{scriptName(name), problem.Scripts[name]})
 	}
 	for _, one := range solutions {
-		jobs = append(jobs, wanted{"solution." + one.Name, &Program{Source: one.Source}})
+		jobs = append(jobs, wanted{solutionName(one.Name), &Program{Source: one.Source}})
 	}
 
 	var first []wanted
@@ -178,7 +178,7 @@ func (w *Workspace) script(ctx context.Context, name string) (*Built, error) {
 	if !known {
 		return nil, fmt.Errorf("no script named %q", name)
 	}
-	return w.Build(ctx, "script."+name, script)
+	return w.Build(ctx, scriptName(name), script)
 }
 
 func (w *Workspace) Generate(ctx context.Context) error {

@@ -45,12 +45,12 @@ func Lint(problem *Problem) Findings {
 			continue
 		}
 		text := stripped(string(body))
-		role := strings.Fields(name)[0]
+		role, _, _ := strings.Cut(name, ".")
 		for _, one := range rules {
 			if !plays(role, one.roles) || !one.pattern.MatchString(text) {
 				continue
 			}
-			found.warn(one.code, name, one.says, one.fix)
+			found.warn(one.code, label(name), one.says, one.fix)
 		}
 	}
 	return found
