@@ -466,3 +466,23 @@ func TestAGeneratorThatTimesOutIsNotTriedAgain(t *testing.T) {
 		t.Errorf("generating took %v", spent)
 	}
 }
+
+func TestCheckFindsAnInteractorThatFailsOnABadClient(t *testing.T) {
+	t.Parallel()
+	needsACompiler(t)
+	found, err := workshop(t, "testdata/fragile").Check(context.Background(), false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	blamed := map[string]bool{}
+	for _, one := range found {
+		if one.Code == "EO814" && one.Where == "interactor" {
+			blamed[strings.SplitN(one.Message, " ends the run", 2)[0]] = true
+		}
+	}
+	for _, client := range []string{"a client that exits at once", "a client that prints garbage"} {
+		if !blamed[client] {
+			t.Errorf("EO814 did not fire for %s: %v", client, found)
+		}
+	}
+}

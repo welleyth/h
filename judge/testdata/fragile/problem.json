@@ -1,0 +1,13 @@
+{
+  "title": "an interactor that fails on a bad read",
+  "type": "INTERACTIVE",
+  "timeLimit": 1000,
+  "memoryLimit": 268435456,
+  "checker": {"source": "checker.cpp"},
+  "interactor": {"source": "interactor.cpp"},
+  "solutions": [{"name": "double", "source": "solution.cpp", "type": "CORRECT"}],
+  "testsets": [
+    {"index": 1, "scoringMode": "EACH", "feedbackPolicy": "COMPLETE",
+     "tests": [{"index": 1, "score": 100, "input": "01.in"}]}
+  ]
+}

@@ -56,19 +56,21 @@ func (w *Workspace) interactiveChecks(ctx context.Context, found *Findings) erro
 		if err := os.MkdirAll(work, 0o755); err != nil {
 			return err
 		}
-		status, jury, err := w.onePhase(ctx, first.Input, filepath.Join(work, "summary.txt"),
+		_, jury, err := w.onePhase(ctx, first.Input, filepath.Join(work, "summary.txt"),
 			client, interactor, work, limit, w.metadata(nil), "")
 		if err != nil {
 			return err
 		}
-		_ = status
-
-		said, _ := os.ReadFile(filepath.Join(work, "interactor.log"))
-		if jury.ExitCode >= 3 {
-			found.warn("EO814", "interactor",
-				fmt.Sprintf("%s ends the run with %q", name, firstLine(string(said))),
-				"a badly behaved client must give a wrong answer or a time limit, never an interaction failure")
+		if jury.ExitCode == 0 || jury.ExitCode == 1 || jury.ExitCode == 2 {
+			continue
 		}
+		failure := fmt.Sprintf("%s ends the run in an interaction failure", name)
+		said, _ := os.ReadFile(filepath.Join(work, "interactor.log"))
+		if line := firstLine(string(said)); line != "" {
+			failure += ": " + line
+		}
+		found.warn("EO814", "interactor", failure,
+			"a badly behaved client must give a wrong answer or a time limit, never an interaction failure")
 	}
 	return nil
 }
