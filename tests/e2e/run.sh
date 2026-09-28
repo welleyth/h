@@ -58,7 +58,8 @@ expect() {
 expect accept 0 ""
 expect invalid 3 "line 2: n is 7"
 expect library 3 "eolymp.h: two roles in one program"
-expect version 0 "0."
+released=$(sed -n 's/^#define EOLYMP_H_VERSION "\(.*\)"$/\1/p' "$root/src/core.h")
+expect version 0 "${released:?src/core.h defines no EOLYMP_H_VERSION}"
 expect anything 1 "unknown request"
 
 check_validator() {
