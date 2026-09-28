@@ -49,6 +49,12 @@ func realMain(args []string, temp string, out, errs io.Writer) int {
 		fmt.Fprint(out, usage)
 		return 0
 	}
+	switch args[0] {
+	case "run", "check", "lint":
+	default:
+		fmt.Fprintf(errs, "eo-judge: there is no command %q\n\n%s", args[0], usage)
+		return 2
+	}
 	opts, code, parsed := parse(args, out, errs)
 	if !parsed {
 		return code
@@ -179,11 +185,8 @@ func (s *session) run() int {
 			return s.fail(err)
 		}
 		return s.report(append(found, Lint(problem)...))
-	case "run":
-		return s.judge(ctx, shop)
 	default:
-		fmt.Fprint(s.errs, usage)
-		return 2
+		return s.judge(ctx, shop)
 	}
 }
 

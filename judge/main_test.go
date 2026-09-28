@@ -40,9 +40,12 @@ func TestNoCommandPrintsTheUsage(t *testing.T) {
 	if code != 2 || !strings.Contains(errs, "eo-judge run <problem>") {
 		t.Errorf("exit %d, said %q", code, errs)
 	}
-	code, _, errs = invoke("fly", "testdata/broken")
-	if code != 2 || !strings.Contains(errs, "eo-judge run <problem>") {
-		t.Errorf("an unknown command exited %d, said %q", code, errs)
+	for _, problem := range []string{"testdata/broken", t.TempDir()} {
+		code, _, errs = invoke("fly", problem)
+		if code != 2 || !strings.HasPrefix(errs, `eo-judge: there is no command "fly"`) ||
+			!strings.Contains(errs, "eo-judge run <problem>") {
+			t.Errorf("an unknown command on %s exited %d, said %q", problem, code, errs)
+		}
 	}
 	code, _, _ = invoke("run")
 	if code != 2 {
