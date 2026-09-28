@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"sort"
+	"strings"
 	"sync"
 )
 
@@ -238,12 +239,12 @@ func (w *Workspace) makeInput(ctx context.Context, made *Prepared) error {
 
 	status, err := built.jury(ctx, generatorLimit, Invocation{Args: test.Generator.Arguments, Stdout: file})
 	closed := file.Close()
+	call := strings.Join(append([]string{test.Generator.Script}, test.Generator.Arguments...), " ")
 	if err != nil {
-		return fmt.Errorf("generator %s: %w", test.Generator.Script, err)
+		return fmt.Errorf("test %d:%d: the generator %s: %w", made.Group, test.Index, call, err)
 	}
 	if status.ExitCode != 0 {
-		return fmt.Errorf("generator %s exited %d: %s", test.Generator.Script, status.ExitCode,
-			bytes.TrimSpace(status.Stderr))
+		return fmt.Errorf("test %d:%d: the generator %s %s", made.Group, test.Index, call, ended(status, generatorLimit))
 	}
 	if closed != nil {
 		return fmt.Errorf("test %d:%d's input could not be written: %w; check the space left for the workspace", made.Group, test.Index, closed)
@@ -293,11 +294,11 @@ func (w *Workspace) makeAnswer(ctx context.Context, made *Prepared) error {
 	status, err := built.jury(ctx, generatorLimit, Invocation{Stdin: input, Stdout: file})
 	closed := file.Close()
 	if err != nil {
-		return fmt.Errorf("answer generator %s: %w", test.AnswerGenerator, err)
+		return fmt.Errorf("test %d:%d: the answer generator %s: %w", made.Group, test.Index, test.AnswerGenerator, err)
 	}
 	if status.ExitCode != 0 {
-		return fmt.Errorf("answer generator %s exited %d on test %d:%d", test.AnswerGenerator,
-			status.ExitCode, made.Group, test.Index)
+		return fmt.Errorf("test %d:%d: the answer generator %s %s", made.Group, test.Index, test.AnswerGenerator,
+			ended(status, generatorLimit))
 	}
 	if closed != nil {
 		return fmt.Errorf("test %d:%d's answer could not be written: %w; check the space left for the workspace", made.Group, test.Index, closed)
@@ -342,6 +343,20 @@ func (w *Workspace) describe(ctx context.Context, made *Prepared) (string, error
 		return "", err
 	}
 	return string(status.Stdout), nil
+}
+
+func ended(status *Status, limit int) string {
+	how := fmt.Sprintf("exited %d", status.ExitCode)
+	switch {
+	case status.TimedOut:
+		how = fmt.Sprintf("did not finish in %d s", limit/1000)
+	case status.Signal:
+		how = "was killed by a signal"
+	}
+	if said := bytes.TrimSpace(status.Stderr); len(said) > 0 {
+		how += ": " + string(said)
+	}
+	return how
 }
 
 func firstLine(text string) string {

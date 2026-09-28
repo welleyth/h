@@ -386,3 +386,27 @@ func TestNaturalOrderComparesRunsOfDigitsAsNumbers(t *testing.T) {
 		t.Error("a place is before itself")
 	}
 }
+
+func TestAFailedGeneratorNamesTheTestAndItsArguments(t *testing.T) {
+	t.Parallel()
+	needsACompiler(t)
+	dir := t.TempDir()
+	writeFile(t, filepath.Join(dir, "gen.cpp"), "#include <cstdio>\n#include <cstring>\n"+
+		"int main(int argc, char** argv) {\n"+
+		"    if (argc > 1 && std::strcmp(argv[1], \"-n=0\") == 0) { std::fprintf(stderr, \"n is 0\\n\"); return 3; }\n"+
+		"    std::printf(\"1\\n\");\n}\n")
+	writeFile(t, filepath.Join(dir, "answer.cpp"), "int main() { return 4; }\n")
+	for _, one := range []struct{ arguments, answer, said string }{
+		{`"-n=0", "-seed=7"`, "", "test 1:1: the generator gen -n=0 -seed=7 exited 3: n is 0"},
+		{`"-n=1"`, `, "answerGenerator": "answer"`, "test 1:1: the answer generator answer exited 4"},
+	} {
+		writeFile(t, filepath.Join(dir, "problem.json"), `{"type": "PROGRAM",
+			"scripts": {"gen": {"source": "gen.cpp"}, "answer": {"source": "answer.cpp"}},
+			"testsets": [{"index": 1, "tests": [{"index": 1, "score": 100,
+				"generator": {"script": "gen", "arguments": [`+one.arguments+`]}`+one.answer+`}]}]}`)
+		code, _, errs := invokeIn(t.TempDir(), "run", dir)
+		if code != 3 || errs != "eo-judge: "+one.said+"\n" {
+			t.Errorf("exit %d, said %q, not %q", code, errs, one.said)
+		}
+	}
+}
