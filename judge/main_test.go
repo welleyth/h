@@ -9,6 +9,20 @@ import (
 	"testing"
 )
 
+func TestMain(m *testing.M) {
+	if os.Getenv("EO_JUDGE_CACHE") != "" {
+		os.Exit(m.Run())
+	}
+	dir, err := os.MkdirTemp("", "eo-judge-test-cache-")
+	if err != nil {
+		panic(err)
+	}
+	os.Setenv("EO_JUDGE_CACHE", dir)
+	code := m.Run()
+	os.RemoveAll(dir)
+	os.Exit(code)
+}
+
 func invoke(args ...string) (int, string, string) {
 	var out, errs bytes.Buffer
 	code := realMain(args, &out, &errs)

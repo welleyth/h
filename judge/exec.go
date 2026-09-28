@@ -15,9 +15,10 @@ import (
 )
 
 type Built struct {
-	Name string
-	Exe  string
-	Dir  string
+	Name   string
+	Exe    string
+	Dir    string
+	Source string
 }
 
 type Status struct {
@@ -57,11 +58,12 @@ func copyFile(from, to string) error {
 }
 
 type toolchain struct {
-	cxx string
+	cxx   string
+	cache string
 }
 
 func hostToolchain() toolchain {
-	return toolchain{cxx: compiler()}
+	return toolchain{cxx: compiler(), cache: writable(cacheRoot())}
 }
 
 func (tools toolchain) build(ctx context.Context, problem *Problem, name string, program *Program,
@@ -78,24 +80,49 @@ func (tools toolchain) build(ctx context.Context, problem *Problem, name string,
 	if err := copyFile(problem.Path(program.Source), filepath.Join(dir, "source.cpp")); err != nil {
 		return nil, err
 	}
+	var files []string
 	for _, one := range program.Files {
 		if err := copyFile(problem.Path(one), filepath.Join(dir, filepath.Base(one))); err != nil {
 			return nil, fmt.Errorf("%s needs %s: %w", name, one, err)
 		}
+		files = append(files, filepath.Base(one))
 	}
 
-	exe := filepath.Join(dir, "program")
-	command := grouped(ctx, tools.cxx, "-std="+standard(program.Runtime), "-O2", "-idirafter", dir,
-		"-o", exe, filepath.Join(dir, "source.cpp"))
-	said, err := command.CombinedOutput()
+	args := []string{"-std=" + standard(program.Runtime), "-O2"}
+	if tools.cache != "" {
+		if key, err := cacheKey(tools.cxx, args, dir, files); err == nil {
+			entry := filepath.Join(tools.cache, key[:2], key)
+			cached, err := tools.buildInto(ctx, name, args, dir, entry, files)
+			if err != nil {
+				return nil, err
+			}
+			if cached {
+				return &Built{Name: name, Exe: filepath.Join(entry, "program"), Dir: dir,
+					Source: filepath.Join(entry, "source.cpp")}, nil
+			}
+		}
+	}
+	if err := tools.compile(ctx, name, args, dir, "program", nil); err != nil {
+		return nil, err
+	}
+	return &Built{Name: name, Exe: filepath.Join(dir, "program"), Dir: dir, Source: filepath.Join(dir, "source.cpp")}, nil
+}
+
+func (tools toolchain) compile(ctx context.Context, name string, args []string, dir, exe string, extra []string) error {
+	line := append(append(append([]string{}, args...), extra...), "-idirafter", dir,
+		"-o", filepath.Join(dir, exe), filepath.Join(dir, "source.cpp"))
+	said, err := grouped(ctx, tools.cxx, line...).CombinedOutput()
 	if ctx.Err() != nil {
-		return nil, fmt.Errorf("the build of %s was interrupted", name)
+		return fmt.Errorf("the build of %s was interrupted", name)
 	}
 	if err != nil {
-		return nil, fmt.Errorf("%s does not compile:\n%s", name, strings.TrimSpace(string(said)))
+		said := strings.TrimSpace(string(said))
+		if said == "" {
+			said = err.Error()
+		}
+		return fmt.Errorf("%s does not compile:\n%s", name, said)
 	}
-
-	return &Built{Name: name, Exe: exe, Dir: dir}, nil
+	return nil
 }
 
 type Invocation struct {

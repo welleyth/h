@@ -396,7 +396,7 @@ func (w *Workspace) generatorChecks(ctx context.Context, found *Findings) error 
 		}
 
 		if other := otherCompiler(ctx, w.tools.cxx); other != "" {
-			twin, err := toolchain{cxx: other}.build(ctx, w.Problem, "twin."+name, script, w.Dir)
+			twin, err := toolchain{cxx: other, cache: w.tools.cache}.build(ctx, w.Problem, "twin."+name, script, w.Dir)
 			if err != nil {
 				found.note("EO812", where, fmt.Sprintf("it does not build with %s: %v", other, err),
 					"a generator has to build with both compilers the judge may use")

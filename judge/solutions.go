@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 )
 
@@ -226,17 +227,23 @@ func (w *Workspace) findingsOf(warnings []Warning) Findings {
 }
 
 func (w *Workspace) named(one Warning) string {
-	at := strings.TrimPrefix(one.At, w.Dir+string(os.PathSeparator))
-	for name, built := range w.Programs {
-		inside := strings.TrimPrefix(built.Dir, w.Dir+string(os.PathSeparator))
-		if !strings.HasPrefix(at, inside+"/source.cpp") {
-			continue
+	names := make([]string, 0, len(w.Programs))
+	for name := range w.Programs {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	for _, name := range names {
+		built := w.Programs[name]
+		if rest, inside := strings.CutPrefix(one.At, built.Source); inside {
+			if source := w.sourceOf(name); source != "" {
+				return source + rest
+			}
 		}
-		if source := w.sourceOf(name); source != "" {
-			return source + strings.TrimPrefix(at, inside+"/source.cpp")
+		if rest, inside := strings.CutPrefix(one.At, filepath.Dir(built.Source)+string(os.PathSeparator)); inside {
+			return filepath.Join(strings.TrimPrefix(built.Dir, w.Dir+string(os.PathSeparator)), rest)
 		}
 	}
-	return at
+	return strings.TrimPrefix(one.At, w.Dir+string(os.PathSeparator))
 }
 
 func (w *Workspace) sourceOf(name string) string {

@@ -167,7 +167,7 @@ func (w *Workspace) BuildAll(ctx context.Context, solutions []*Solution) error {
 		if failed[at] != nil {
 			return failed[at]
 		}
-		w.Programs[job.name] = &Built{Name: job.name, Exe: built[at].Exe, Dir: built[at].Dir}
+		w.Programs[job.name] = &Built{Name: job.name, Exe: built[at].Exe, Dir: built[at].Dir, Source: built[at].Source}
 	}
 	return nil
 }
