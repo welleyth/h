@@ -59,12 +59,11 @@ type GroupResult struct {
 }
 
 func summarizeGroup(index int, mode string, runs []*RunResult) *GroupResult {
-	group := &GroupResult{Index: index, ScoringMode: mode, Verdict: Accepted, Runs: runs}
+	group := &GroupResult{Index: index, ScoringMode: mode, Cost: costOf(mode, runs), Verdict: Accepted, Runs: runs}
 
 	scores := make([]Points, 0, len(runs))
 	complete := true
 	for _, run := range runs {
-		group.Cost += run.Cost
 		if run.Verdict == Skipped {
 			complete = false
 			continue
@@ -111,6 +110,24 @@ func summarizeGroup(index int, mode string, runs []*RunResult) *GroupResult {
 	}
 
 	return group
+}
+
+func costOf(mode string, runs []*RunResult) Points {
+	if mode == "NO_SCORE" || len(runs) == 0 {
+		return 0
+	}
+	cost := runs[0].Cost
+	for _, run := range runs[1:] {
+		switch mode {
+		case "WORST":
+			cost = min(cost, run.Cost)
+		case "BEST":
+			cost = max(cost, run.Cost)
+		default:
+			cost += run.Cost
+		}
+	}
+	return cost
 }
 
 func summarizeSubmission(groups []*GroupResult) (Verdict, Points) {

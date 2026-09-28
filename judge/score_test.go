@@ -123,3 +123,35 @@ func TestSubmissionTakesTheFirstFailingVerdict(t *testing.T) {
 		t.Fatalf("total %v, want 14", total)
 	}
 }
+
+func TestATestsetCostsWhatItsModeCanPay(t *testing.T) {
+	t.Parallel()
+	costs := func(values ...Points) []*RunResult {
+		var out []*RunResult
+		for at, one := range values {
+			out = append(out, &RunResult{Group: 1, Index: at + 1, Cost: one, Verdict: Accepted, Score: one})
+		}
+		return out
+	}
+	for _, one := range []struct {
+		mode string
+		runs []*RunResult
+		cost Points
+	}{
+		{"EACH", costs(10, 20, 30), 60},
+		{"ALL", costs(10, 20, 30), 60},
+		{"WORST", costs(20, 20), 20},
+		{"WORST", costs(30, 10), 10},
+		{"BEST", costs(10, 25), 25},
+		{"NO_SCORE", costs(10, 20), 0},
+		{"EACH", nil, 0},
+	} {
+		group := summarizeGroup(1, one.mode, one.runs)
+		if group.Cost != one.cost {
+			t.Errorf("%s over %d runs costs %g, not %g", one.mode, len(one.runs), group.Cost, one.cost)
+		}
+		if one.runs != nil && group.Verdict == Accepted && group.Score != group.Cost {
+			t.Errorf("%s pays %g for every run accepted, and costs %g", one.mode, group.Score, group.Cost)
+		}
+	}
+}
