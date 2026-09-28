@@ -1,0 +1,27 @@
+{
+  "title": "alice and bob",
+  "type": "INTERACTIVE",
+  "runCount": 2,
+  "timeLimit": 1000,
+  "memoryLimit": 268435456,
+  "checker": {"source": "checker.cpp", "runtime": "cpp:20-gnu14"},
+  "validator": {"source": "validator.cpp", "runtime": "cpp:20-gnu14"},
+  "interactor": {"source": "interactor.cpp", "runtime": "cpp:20-gnu14"},
+  "scripts": {
+    "gen": {"source": "generator.cpp", "runtime": "cpp:20-gnu14"}
+  },
+  "solutions": [
+    {"name": "binary", "source": "solution.cpp", "type": "CORRECT"},
+    {"name": "long", "source": "solution_long.cpp", "type": "WRONG_ANSWER"}
+  ],
+  "testsets": [
+    {"index": 1, "scoringMode": "EACH", "feedbackPolicy": "COMPLETE",
+     "tests": [
+       {"index": 1, "score": 20, "generator": {"script": "gen", "arguments": ["-x=0"]}},
+       {"index": 2, "score": 20, "generator": {"script": "gen", "arguments": ["-x=1"]}},
+       {"index": 3, "score": 20, "generator": {"script": "gen", "arguments": ["-x=1000000000"]}},
+       {"index": 4, "score": 20, "generator": {"script": "gen", "arguments": ["-seed=1"]}},
+       {"index": 5, "score": 20, "generator": {"script": "gen", "arguments": ["-seed=2"]}}
+     ]}
+  ]
+}

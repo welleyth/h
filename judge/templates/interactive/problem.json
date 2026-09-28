@@ -1,0 +1,26 @@
+{
+  "title": "guess",
+  "type": "INTERACTIVE",
+  "timeLimit": 1000,
+  "memoryLimit": 268435456,
+  "checker": {"source": "checker.cpp", "runtime": "cpp:20-gnu14"},
+  "validator": {"source": "validator.cpp", "runtime": "cpp:20-gnu14"},
+  "interactor": {"source": "interactor.cpp", "runtime": "cpp:20-gnu14"},
+  "scripts": {
+    "gen": {"source": "generator.cpp", "runtime": "cpp:20-gnu14"}
+  },
+  "solutions": [
+    {"name": "binary", "source": "solution.cpp", "type": "CORRECT"},
+    {"name": "first", "source": "solution_first.cpp", "type": "WRONG_ANSWER"}
+  ],
+  "testsets": [
+    {"index": 1, "scoringMode": "EACH", "feedbackPolicy": "COMPLETE",
+     "tests": [
+       {"index": 1, "score": 20, "generator": {"script": "gen", "arguments": ["-n=1"]}},
+       {"index": 2, "score": 20, "generator": {"script": "gen", "arguments": ["-n=2", "-secret=2"]}},
+       {"index": 3, "score": 20, "generator": {"script": "gen", "arguments": ["-n=1000"]}},
+       {"index": 4, "score": 20, "generator": {"script": "gen", "arguments": ["-n=1000000"]}},
+       {"index": 5, "score": 20, "generator": {"script": "gen", "arguments": ["-n=1000000", "-secret=1000000"]}}
+     ]}
+  ]
+}

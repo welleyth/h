@@ -20,6 +20,8 @@ const usage = `eo-judge runs an Eolymp problem the way the judge does.
   eo-judge run <problem> [--solution name]   build, generate, validate, judge, score
   eo-judge check <problem> [--deep]          the whole-problem and configuration checks
   eo-judge lint <problem>                    what the header cannot see
+  eo-judge init <dir> [--type program|interactive|phases]
+                                             write a new problem that run passes
   eo-judge version                           the version of eo-judge
 
   --strict   make every warning fatal
@@ -50,6 +52,8 @@ func realMain(args []string, temp string, out, errs io.Writer) int {
 		return 0
 	}
 	switch args[0] {
+	case "init":
+		return initProblem(args[1:], out, errs)
 	case "run", "check", "lint":
 	default:
 		fmt.Fprintf(errs, "eo-judge: there is no command %q\n\n%s", args[0], usage)
@@ -82,7 +86,6 @@ type options struct {
 func parse(args []string, out, errs io.Writer) (options, int, bool) {
 	opts := options{command: args[0]}
 	flags := flag.NewFlagSet(opts.command, flag.ContinueOnError)
-	flags.SetOutput(errs)
 	flags.BoolVar(&opts.strict, "strict", false, "make every warning fatal")
 	flags.BoolVar(&opts.deep, "deep", false, "run the slow hostile outputs")
 	flags.StringVar(&opts.only, "solution", "", "judge one solution by name")
@@ -90,15 +93,22 @@ func parse(args []string, out, errs io.Writer) (options, int, bool) {
 	flags.BoolVar(&opts.verbose, "v", false, "print every run")
 	flags.BoolVar(&opts.json, "json", false, "print the result as JSON")
 	flags.BoolVar(&opts.expect, "expect", false, "fail when a solution breaks its declared type")
+	dir, code, parsed := onePositional(flags, args[1:], out, errs)
+	opts.dir = dir
+	return opts, code, parsed
+}
+
+func onePositional(flags *flag.FlagSet, args []string, out, errs io.Writer) (string, int, bool) {
+	flags.SetOutput(errs)
 	flags.Usage = func() { fmt.Fprint(errs, usage) }
 	var positional []string
-	for rest := args[1:]; ; {
+	for rest := args; ; {
 		if err := flags.Parse(rest); err != nil {
 			if errors.Is(err, flag.ErrHelp) {
 				fmt.Fprint(out, usage)
-				return opts, 0, false
+				return "", 0, false
 			}
-			return opts, 2, false
+			return "", 2, false
 		}
 		if flags.NArg() == 0 {
 			break
@@ -108,10 +118,9 @@ func parse(args []string, out, errs io.Writer) (options, int, bool) {
 	}
 	if len(positional) != 1 {
 		fmt.Fprint(errs, usage)
-		return opts, 2, false
+		return "", 2, false
 	}
-	opts.dir = positional[0]
-	return opts, 0, true
+	return positional[0], 0, true
 }
 
 type session struct {

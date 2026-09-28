@@ -327,3 +327,53 @@ func TestAnErrorIsInTheJSONReportToo(t *testing.T) {
 		t.Errorf("a missing problem exited %d, reported %+v", code, got)
 	}
 }
+
+func TestInitWritesAProblemThatPassesRunAndCheck(t *testing.T) {
+	t.Parallel()
+	needsACompiler(t)
+	for _, kind := range kinds {
+		t.Run(kind, func(t *testing.T) {
+			t.Parallel()
+			dir := filepath.Join(t.TempDir(), "new")
+			code, out, errs := invoke("init", dir, "--type", kind)
+			if code != 0 || !strings.Contains(out, "wrote "+article(kind)+" "+kind+" problem to "+dir) {
+				t.Fatalf("exit %d, printed %q, said %q", code, out, errs)
+			}
+			code, out, errs = invokeIn(t.TempDir(), "run", "--expect", "--strict", dir)
+			if code != 0 || strings.Contains(out, "declared") || !strings.Contains(out, ": ACCEPTED, 100\n") {
+				t.Errorf("run exited %d, printed %q, said %q", code, out, errs)
+			}
+			code, out, errs = invokeIn(t.TempDir(), "check", "--strict", dir)
+			if code != 0 || !strings.Contains(out, "eo-judge: 0 warning(s)") {
+				t.Errorf("check exited %d, printed %q, said %q", code, out, errs)
+			}
+		})
+	}
+}
+
+func TestInitWritesOnlyIntoANewOrEmptyDirectory(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	if code, _, errs := invoke("init", dir); code != 0 {
+		t.Fatalf("an empty directory: exit %d, said %q", code, errs)
+	}
+	code, out, errs := invoke("init", dir, "--type", "interactive")
+	if code != 2 || out != "" || !strings.Contains(errs, "already holds checker.cpp") {
+		t.Errorf("a second init exited %d, printed %q, said %q", code, out, errs)
+	}
+	code, _, errs = invoke("init", filepath.Join(dir, "other"), "--type", "batch")
+	if code != 2 || !strings.Contains(errs, `--type is "batch"; it is one of program, interactive, phases`) {
+		t.Errorf("an unknown type exited %d, said %q", code, errs)
+	}
+	if code, _, _ := invoke("init"); code != 2 {
+		t.Errorf("init with no directory exited %d", code)
+	}
+	code, out, errs = invoke("init", filepath.Join(dir, "other"), "--json")
+	if code != 2 || out != "" || errs != "eo-judge: --json applies to run, check and lint; init prints only the files it wrote\n" {
+		t.Errorf("init --json exited %d, printed %q, said %q", code, out, errs)
+	}
+	if code, out, _ := invoke("init", filepath.Join(dir, "third"), "--type", "interactive"); code != 0 ||
+		!strings.Contains(out, "wrote an interactive problem") {
+		t.Errorf("exit %d, printed %q", code, out)
+	}
+}

@@ -88,7 +88,8 @@ check: amalgamation-check
 	$(MAKE) test coverage standards e2e hostile examples codes
 	$(MAKE) budget
 
-build/eo-judge: $(wildcard judge/*.go) judge/go.mod judge/include/eolymp.h judge/include/eolymp-shapes.h
+build/eo-judge: $(wildcard judge/*.go) judge/go.mod judge/include/eolymp.h judge/include/eolymp-shapes.h \
+		$(wildcard judge/templates/*/*)
 	@mkdir -p build
 	cd judge && CGO_ENABLED=0 go build -trimpath -o ../build/eo-judge .
 
