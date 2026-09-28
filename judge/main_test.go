@@ -237,11 +237,18 @@ func TestACommunicationProblemIsRefusedBeforeAnythingRuns(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(dir, "problem.json"), []byte(body), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	for _, command := range []string{"run", "check", "lint"} {
+	if err := os.WriteFile(filepath.Join(dir, "controller.cpp"), []byte("int main() { printf(\"x\"); }\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	for _, command := range []string{"run", "check"} {
 		code, out, errs := invoke(command, dir)
 		if code != 3 || out != "" || !strings.Contains(errs, "does not run COMMUNICATION problems yet") {
 			t.Errorf("%s exited %d, printed %q, said %q", command, code, out, errs)
 		}
+	}
+	code, out, errs := invoke("lint", dir)
+	if code != 0 || !strings.Contains(out, "interactor: warning EO401") {
+		t.Errorf("lint exited %d, printed %q, said %q", code, out, errs)
 	}
 }
 

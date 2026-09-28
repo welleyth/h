@@ -144,9 +144,8 @@ func TestAProblemTypeEoJudgeCannotRunIsRefused(t *testing.T) {
 			t.Errorf("%s gave %v", kind, err)
 		}
 	}
-	err := loading(t, `{"type": "COMMUNICATION"}`)
-	if err == nil || !strings.Contains(err.Error(), "eo-judge does not run COMMUNICATION problems yet") {
-		t.Errorf("COMMUNICATION gave %v", err)
+	if err := loading(t, `{"type": "COMMUNICATION"}`); err != nil {
+		t.Errorf("COMMUNICATION, which lint reads, gave %v", err)
 	}
 }
 

@@ -289,10 +289,7 @@ func (p *Problem) checkNames() error {
 		"INTERACTIVE", "COMMUNICATION", "WIDGET"); err != nil {
 		return err
 	}
-	if p.Type == "COMMUNICATION" {
-		return fmt.Errorf("eo-judge does not run COMMUNICATION problems yet; judge one on Eolymp")
-	}
-	if p.Type != "PROGRAM" && !p.Interactive() {
+	if p.Type != "PROGRAM" && p.Type != "COMMUNICATION" && !p.Interactive() {
 		return fmt.Errorf("eo-judge does not run %s problems", p.Type)
 	}
 	for _, testset := range p.Testsets {

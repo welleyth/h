@@ -166,6 +166,10 @@ func (s *session) run() int {
 	if s.command == "lint" {
 		return s.report(Lint(problem))
 	}
+	if problem.Type == "COMMUNICATION" {
+		return s.fail(errors.New("eo-judge does not run COMMUNICATION problems yet; judge one on Eolymp, " +
+			"and lint reads its sources"))
+	}
 
 	space := s.work
 	if space == "" {
