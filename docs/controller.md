@@ -202,9 +202,9 @@ of the plumbing.
 
 - `eolymp-cms.h`, the adapter that lets a CMS manager compile unchanged on top of
   `eo::controller`.
-EO814 (hostile instances) and EO815 (the same solution twice) are run by `eo-judge check`;
-see [judge.md](judge.md), which does not drive several instances yet. The end-to-end gate
-does a small version of EO814.
+EO814 (hostile instances) and EO815 (the same solution twice) are `eo-judge check`'s, and
+[eo-judge](judge.md) refuses a `COMMUNICATION` problem until it can drive several instances,
+so neither runs on a controller yet. The end-to-end gate does a small version of EO814.
 
 ## Reference card
 
