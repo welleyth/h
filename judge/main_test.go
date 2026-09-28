@@ -188,3 +188,18 @@ func TestEoJudgeCarriesTheRepositorysVersion(t *testing.T) {
 		t.Errorf("eo-judge is %s, and src/core.h has another EOLYMP_H_VERSION; the two are one version", version)
 	}
 }
+
+func TestACommunicationProblemIsRefusedBeforeAnythingRuns(t *testing.T) {
+	dir := t.TempDir()
+	body := `{"type": "COMMUNICATION", "interactor": {"source": "controller.cpp"},
+		"solutions": [{"name": "full", "source": "full.cpp"}]}`
+	if err := os.WriteFile(filepath.Join(dir, "problem.json"), []byte(body), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	for _, command := range []string{"run", "check", "lint"} {
+		code, out, errs := invoke(command, dir)
+		if code != 3 || out != "" || !strings.Contains(errs, "does not run COMMUNICATION problems yet") {
+			t.Errorf("%s exited %d, printed %q, said %q", command, code, out, errs)
+		}
+	}
+}

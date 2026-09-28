@@ -81,7 +81,7 @@ func (p *Problem) Path(name string) string {
 }
 
 func (p *Problem) Interactive() bool {
-	return p.Type == "INTERACTIVE" || p.Type == "COMMUNICATION"
+	return p.Type == "INTERACTIVE"
 }
 
 func (p *Problem) Solution(name string) *Solution {
@@ -292,6 +292,9 @@ func (p *Problem) checkNames() error {
 	if err := oneOf("type", p.Type, "UNKNOWN_TYPE", "PROGRAM", "FUNCTION", "OUTPUT", "SQL", "ML", "QUIZ",
 		"INTERACTIVE", "COMMUNICATION", "WIDGET"); err != nil {
 		return err
+	}
+	if p.Type == "COMMUNICATION" {
+		return fmt.Errorf("eo-judge does not run COMMUNICATION problems yet; judge one on Eolymp")
 	}
 	if p.Type != "PROGRAM" && !p.Interactive() {
 		return fmt.Errorf("eo-judge does not run %s problems", p.Type)
