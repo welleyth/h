@@ -34,7 +34,7 @@ func (w *Workspace) probeChecker(ctx context.Context, made *Prepared, output str
 	}
 	status, err := run(ctx, checker.Exe, Invocation{
 		Args: []string{made.Input, output, made.Answer}, Dir: work, Stdout: file, Stderr: file,
-		LimitMS: 10000,
+		LimitMS: checkerLimit,
 		Env: map[string]string{
 			"EOLYMP": "1", "INPUT_FILE": made.Input, "OUTPUT_FILE": output, "ANSWER_FILE": made.Answer,
 			"TEST_ID": "probe", "TEST_COST": fmt.Sprint(cost), "TEST_INDEX": "1", "TEST_GROUP": "1",
@@ -237,10 +237,7 @@ func (w *Workspace) structureChecks(ctx context.Context, found *Findings) error 
 
 	for _, made := range w.sorted() {
 		where := fmt.Sprintf("test %d:%d", made.Group, made.Test.Index)
-		status, err := run(ctx, built.Exe, Invocation{
-			Args: []string{made.Input}, Dir: built.Dir, LimitMS: 30000,
-			Env: map[string]string{"EOLYMP": "1"},
-		})
+		status, err := built.jury(ctx, validatorLimit, Invocation{Args: []string{made.Input}})
 		if err != nil {
 			return err
 		}
@@ -258,10 +255,8 @@ func (w *Workspace) structureChecks(ctx context.Context, found *Findings) error 
 			if !dependsOn(w.Problem, testset, made.Group) {
 				continue
 			}
-			status, err := run(ctx, built.Exe, Invocation{
-				Args: []string{made.Input, "--group", fmt.Sprint(testset.Index)}, Dir: built.Dir,
-				LimitMS: 30000, Env: map[string]string{"EOLYMP": "1"},
-			})
+			status, err := built.jury(ctx, validatorLimit,
+				Invocation{Args: []string{made.Input, "--group", fmt.Sprint(testset.Index)}})
 			if err != nil {
 				return err
 			}
@@ -413,10 +408,7 @@ func (w *Workspace) generatorChecks(ctx context.Context, found *Findings) error 
 			}
 		}
 
-		status, err := run(ctx, built.Exe, Invocation{
-			Args: []string{"--eo-describe"}, Dir: built.Dir, LimitMS: 30000,
-			Env: map[string]string{"EOLYMP": "1"},
-		})
+		status, err := built.jury(ctx, validatorLimit, Invocation{Args: []string{"--eo-describe"}})
 		if err != nil {
 			return err
 		}
@@ -476,10 +468,7 @@ func (w *Workspace) argumentsFor(name string) [][]string {
 
 func (w *Workspace) generateOnce(ctx context.Context, built *Built, args []string) ([]byte, error) {
 	var out bytes.Buffer
-	status, err := run(ctx, built.Exe, Invocation{
-		Args: args, Dir: built.Dir, Stdout: &out, LimitMS: 60000,
-		Env: map[string]string{"EOLYMP": "1"},
-	})
+	status, err := built.jury(ctx, generatorLimit, Invocation{Args: args, Stdout: &out})
 	if err != nil {
 		return nil, err
 	}
@@ -504,9 +493,7 @@ func (w *Workspace) validateBody(ctx context.Context, body []byte) string {
 	if err := os.WriteFile(path, body, 0o644); err != nil {
 		return err.Error()
 	}
-	status, err := run(ctx, built.Exe, Invocation{
-		Args: []string{path}, Dir: built.Dir, LimitMS: 30000, Env: map[string]string{"EOLYMP": "1"},
-	})
+	status, err := built.jury(ctx, validatorLimit, Invocation{Args: []string{path}})
 	if err != nil {
 		return err.Error()
 	}

@@ -187,7 +187,7 @@ func (w *Workspace) check(ctx context.Context, one *Planned, made *Prepared, che
 
 	status, err := run(ctx, checker.Exe, Invocation{
 		Args: []string{made.Input, output, made.Answer}, Dir: work, Stdout: file, Stderr: file,
-		LimitMS: 10000,
+		LimitMS: checkerLimit,
 		Env: map[string]string{
 			"EOLYMP": "1", "INPUT_FILE": made.Input, "OUTPUT_FILE": output, "ANSWER_FILE": made.Answer,
 			"TEST_ID": reference(one), "TEST_COST": fmt.Sprint(one.Test.Score),

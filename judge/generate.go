@@ -236,10 +236,7 @@ func (w *Workspace) makeInput(ctx context.Context, made *Prepared) error {
 		return err
 	}
 
-	status, err := run(ctx, built.Exe, Invocation{
-		Args: test.Generator.Arguments, Dir: built.Dir, Stdout: file, LimitMS: 60000,
-		Env: map[string]string{"EOLYMP": "1"},
-	})
+	status, err := built.jury(ctx, generatorLimit, Invocation{Args: test.Generator.Arguments, Stdout: file})
 	closed := file.Close()
 	if err != nil {
 		return fmt.Errorf("generator %s: %w", test.Generator.Script, err)
@@ -293,10 +290,7 @@ func (w *Workspace) makeAnswer(ctx context.Context, made *Prepared) error {
 		return err
 	}
 
-	status, err := run(ctx, built.Exe, Invocation{
-		Dir: built.Dir, Stdin: input, Stdout: file, LimitMS: 60000,
-		Env: map[string]string{"EOLYMP": "1"},
-	})
+	status, err := built.jury(ctx, generatorLimit, Invocation{Stdin: input, Stdout: file})
 	closed := file.Close()
 	if err != nil {
 		return fmt.Errorf("answer generator %s: %w", test.AnswerGenerator, err)
@@ -325,9 +319,7 @@ func (w *Workspace) Validate(ctx context.Context, group bool) error {
 		if group {
 			args = append(args, "--group", fmt.Sprint(made.Group))
 		}
-		status, err := run(ctx, built.Exe, Invocation{
-			Args: args, Dir: built.Dir, LimitMS: 30000, Env: map[string]string{"EOLYMP": "1"},
-		})
+		status, err := built.jury(ctx, validatorLimit, Invocation{Args: args})
 		if err != nil {
 			return err
 		}
@@ -347,10 +339,8 @@ func (w *Workspace) describe(ctx context.Context, made *Prepared) (string, error
 	if err != nil {
 		return "", err
 	}
-	status, err := run(ctx, built.Exe, Invocation{
-		Args: []string{made.Input, "--group", fmt.Sprint(made.Group), "--eo-describe"},
-		Dir:  built.Dir, LimitMS: 30000, Env: map[string]string{"EOLYMP": "1"},
-	})
+	status, err := built.jury(ctx, validatorLimit,
+		Invocation{Args: []string{made.Input, "--group", fmt.Sprint(made.Group), "--eo-describe"}})
 	if err != nil {
 		return "", err
 	}

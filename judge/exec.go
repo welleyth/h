@@ -191,6 +191,17 @@ func run(ctx context.Context, exe string, call Invocation) (*Status, error) {
 	return status, nil
 }
 
+const (
+	checkerLimit   = 10000
+	validatorLimit = 30000
+	generatorLimit = 60000
+)
+
+func (b *Built) jury(ctx context.Context, limit int, call Invocation) (*Status, error) {
+	call.Dir, call.LimitMS, call.Env = b.Dir, limit, map[string]string{"EOLYMP": "1"}
+	return run(ctx, b.Exe, call)
+}
+
 func grouped(ctx context.Context, name string, args ...string) *exec.Cmd {
 	command := exec.CommandContext(ctx, name, args...)
 	command.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
