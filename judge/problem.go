@@ -112,15 +112,11 @@ func (p *Problem) Testset(index int) *Testset {
 	return nil
 }
 
-func (t *Testset) Limit(p *Problem) (int, int64) {
-	limit, memory := t.TimeLimit, t.MemoryLimit
-	if limit == 0 {
-		limit = p.TimeLimit
+func (t *Testset) Limit(p *Problem) int {
+	if t.TimeLimit == 0 {
+		return p.TimeLimit
 	}
-	if memory == 0 {
-		memory = p.MemoryLimit
-	}
-	return limit, memory
+	return t.TimeLimit
 }
 
 func (s *Solution) Expected() (float64, bool) {

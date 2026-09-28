@@ -36,7 +36,7 @@ func (w *Workspace) interactiveChecks(ctx context.Context, found *Findings) erro
 		return nil
 	}
 	first := made[0]
-	limit, _ := w.Problem.Testset(first.Group).Limit(w.Problem)
+	limit := w.Problem.Testset(first.Group).Limit(w.Problem)
 
 	for name, body := range hostileClients {
 		dir := filepath.Join(w.Dir, "hostile", keyOf(name))
@@ -155,7 +155,7 @@ func (w *Workspace) headroom(found *Findings, solution *Solution, attempt *Attem
 		if testset == nil {
 			continue
 		}
-		limit, _ := testset.Limit(w.Problem)
+		limit := testset.Limit(w.Problem)
 		for _, one := range group.Runs {
 			if one.Verdict == Skipped || limit == 0 {
 				continue
@@ -178,7 +178,7 @@ func (w *Workspace) Check(ctx context.Context, deep bool) (Findings, error) {
 	if err := w.Generate(ctx); err != nil {
 		return found, err
 	}
-	if err := w.Validate(ctx, true); err != nil {
+	if err := w.Validate(ctx); err != nil {
 		return found, err
 	}
 	for _, made := range w.sorted() {

@@ -143,7 +143,7 @@ func judgeAll(t *testing.T, shop *Workspace) map[string]*Attempt {
 	if err := shop.Generate(ctx); err != nil {
 		t.Fatal(err)
 	}
-	if err := shop.Validate(ctx, true); err != nil {
+	if err := shop.Validate(ctx); err != nil {
 		t.Fatal(err)
 	}
 	for _, made := range shop.sorted() {

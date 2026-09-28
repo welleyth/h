@@ -252,7 +252,7 @@ func (w *Workspace) structureChecks(ctx context.Context, found *Findings) error 
 		}
 
 		for _, testset := range w.Problem.Testsets {
-			if !dependsOn(w.Problem, testset, made.Group) {
+			if !dependsOn(testset, made.Group) {
 				continue
 			}
 			status, err := built.jury(ctx, validatorLimit,
@@ -271,7 +271,7 @@ func (w *Workspace) structureChecks(ctx context.Context, found *Findings) error 
 	return nil
 }
 
-func dependsOn(problem *Problem, testset *Testset, group int) bool {
+func dependsOn(testset *Testset, group int) bool {
 	for _, one := range testset.Dependencies {
 		if one == group {
 			return true

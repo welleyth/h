@@ -97,7 +97,7 @@ func (w *Workspace) plan() []*Planned {
 func (w *Workspace) judge(ctx context.Context, one *Planned, solution, checker, interactor *Built) (*RunResult, error) {
 	made := w.Tests[reference(one)]
 	testset := w.Problem.Testset(one.Group)
-	limit, _ := testset.Limit(w.Problem)
+	limit := testset.Limit(w.Problem)
 
 	result := &RunResult{Group: one.Group, Index: one.Test.Index, Cost: Points(one.Test.Score)}
 

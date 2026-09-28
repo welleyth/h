@@ -146,7 +146,7 @@ func runProblem(ctx context.Context, shop *Workspace, only string, strict, verbo
 		fmt.Fprintln(errs, "eo-judge:", err)
 		return 3
 	}
-	if err := shop.Validate(ctx, true); err != nil {
+	if err := shop.Validate(ctx); err != nil {
 		fmt.Fprintln(errs, "eo-judge:", err)
 		return 3
 	}

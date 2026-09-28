@@ -305,7 +305,7 @@ func (w *Workspace) makeAnswer(ctx context.Context, made *Prepared) error {
 	return nil
 }
 
-func (w *Workspace) Validate(ctx context.Context, group bool) error {
+func (w *Workspace) Validate(ctx context.Context) error {
 	if w.Problem.Validator == nil {
 		return nil
 	}
@@ -315,11 +315,8 @@ func (w *Workspace) Validate(ctx context.Context, group bool) error {
 	}
 
 	for _, made := range w.Tests {
-		args := []string{made.Input}
-		if group {
-			args = append(args, "--group", fmt.Sprint(made.Group))
-		}
-		status, err := built.jury(ctx, validatorLimit, Invocation{Args: args})
+		status, err := built.jury(ctx, validatorLimit,
+			Invocation{Args: []string{made.Input, "--group", fmt.Sprint(made.Group)}})
 		if err != nil {
 			return err
 		}
