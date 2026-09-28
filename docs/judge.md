@@ -33,7 +33,7 @@ eo-judge version           # the version of eo-judge
 | `--strict` | exit non-zero if anything raised a warning |
 | `--deep` | use the full 100 MB hostile output rather than 2 MB |
 | `--work dir` | keep the workspace instead of a temporary directory |
-| `-v` | after each testset, list every run: `1:2 WRONG_ANSWER 12ms` and the first line of what the checker or interactor said |
+| `-v` | after each testset, list every run: `1:2 WRONG_ANSWER 12ms` and the first line of what the checker or interactor said; for a solution that crashed or ran out of time, its exit code and then the interactor's line |
 | `--json` | print one JSON object on stdout instead of the text; see [below](#json) |
 | `--expect` | with `run`, exit 1 when a solution breaks its declared type; see [below](#expected-types) |
 
@@ -223,7 +223,19 @@ leaves: PARTIALLY_CORRECT, 55.767494
 ```
 
 That is the `check_solutions` oracle offline: the score a submission would get, per testset,
-before anything is uploaded.
+before anything is uploaded. The figure after "of" is the most the testset can pay under its
+`scoringMode`: the sum of its tests for `EACH` and `ALL`, its smallest test for `WORST`, its
+largest for `BEST`, and 0 for `NO_SCORE`.
+
+Every test is generated before anything is judged. A test that cannot be made stops the run
+with exit 3 once the rest have been tried, and each one that failed is named with the call
+that failed, so one run lists them all:
+
+```
+eo-judge: 2 tests could not be made, so nothing was judged:
+  test 1:1: the generator gen -n=0 exited 3: n is below 1
+  test 1:3: open problems/sum/03.in: no such file or directory
+```
 
 ## Reading a check
 
