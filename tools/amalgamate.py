@@ -85,12 +85,13 @@ def main() -> int:
     stale = []
     for name, order, banner, guard, prelude in TARGETS:
         text = build(root, order, banner, guard, prelude)
-        target = root / name
-        if checking:
-            if not target.exists() or target.read_text() != text:
-                stale.append(name)
-            continue
-        target.write_text(text)
+        for target in (root / name, root / "judge" / "include" / name):
+            if checking:
+                if not target.exists() or target.read_text() != text:
+                    stale.append(str(target.relative_to(root)))
+                continue
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_text(text)
     if stale:
         print(f"{', '.join(stale)} is out of date; run tools/amalgamate.py", file=sys.stderr)
         return 1
