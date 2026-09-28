@@ -62,8 +62,9 @@ An entry is named by the compiler (its resolved path, size and modification time
 bytes of the source and of every attached file. The headers the compiler finds on its own are
 checked rather than named: the entry lists every one the build read, with its size and
 modification time, and every place in the compiler's search path where an attached header's
-name was absent, so an updated system header, or an installed `eolymp.h` that would now win
-over an attached one, rebuilds the program. Two `eo-judge` processes that need the same
+name, or `eolymp.h` or `eolymp-shapes.h`, was absent, so an updated system header, or an
+installed `eolymp.h` that would now win over an attached or a carried one, rebuilds the
+program. Two `eo-judge` processes that need the same
 program take turns building it.
 
 Nothing is ever removed from the cache on its own; `rm -rf ~/.cache/eo-judge` empties it, and
@@ -111,10 +112,10 @@ Eolymp API, so a problem exported from the platform maps onto it one to one.
   "timeLimit": 2000,
   "memoryLimit": 268435456,
   "uniqueAnswer": true,
-  "checker":   {"source": "checker.cpp",   "runtime": "cpp:20-gnu14", "files": ["../../eolymp.h"]},
-  "validator": {"source": "validator.cpp", "runtime": "cpp:20-gnu14", "files": ["../../eolymp.h"]},
+  "checker":   {"source": "checker.cpp",   "runtime": "cpp:20-gnu14"},
+  "validator": {"source": "validator.cpp", "runtime": "cpp:20-gnu14"},
   "scripts": {
-    "gen":      {"source": "generator.cpp", "files": ["../../eolymp.h", "../../eolymp-shapes.h"]},
+    "gen":      {"source": "generator.cpp"},
     "solution": {"source": "solution_full.cpp"}
   },
   "solutions": [
@@ -163,8 +164,13 @@ loads as it is; an explicit `UNKNOWN_TYPE`, `UNKNOWN_FEEDBACK_POLICY`,
 | `runtime` | an Eolymp runtime name; only the C++ standard is read from it |
 | `files` | headers copied next to the source before compiling, exactly as the judge's `files[]` does; that directory is searched after the system's headers, so `#include <eolymp.h>` finds an installed copy first, as the judge does, and an attached one when there is none |
 
-`eo-judge` compiles on your machine, not in the judge's runtime image, so a problem that uses
-`eolymp.h` still names it in `files` here even though it attaches nothing on the judge.
+A program that uses `eolymp.h` or `eolymp-shapes.h` names neither in `files`, here as on the
+judge. The judge's runtime carries both in `/usr/include`; `eo-judge` carries the copies of its
+own release and searches them last, after the system's headers and the program's attached
+files. For `#include <eolymp.h>` an installed copy wins, then an attached one, then eo-judge's;
+for `#include "eolymp.h"` the attached copy beside the source comes first, then an installed
+one, then eo-judge's, which is the order the judge's compiler uses too. Attach a header only to
+pin a different release than the one eo-judge carries.
 
 The source is compiled as `source.cpp`, which is what the judge calls it, so a warning's line
 matches what a judge log would say.

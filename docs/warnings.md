@@ -140,7 +140,7 @@ These are the checks the platform should eventually make when a problem is saved
 | --- | --- | --- | --- | --- |
 | `EO901` | warning | `eo-judge check` | an `EACH` testset carries `ICPC` or `ICPC_EXPANDED` feedback | ICPC stops after the first test worth nothing, so the rest score 0; use `COMPLETE` |
 | `EO902` | warning | `eo-judge check` | an interactive problem has no wall `timeLimit` | the interactor is given the wall limit plus a second and nothing else bounds it |
-| `EO903` | warning | `eo-judge check` | a program includes a quoted header with no matching `files[]` entry | attach it, or the first run fails to compile and shows up only as a submission failure |
+| `EO903` | warning | `eo-judge check` | a program includes a quoted header with no matching `files[]` entry, other than `eolymp.h` and `eolymp-shapes.h`, which the judge's runtime carries | attach it, or the first run fails to compile and shows up only as a submission failure |
 | `EO904` | warning | `eo-judge check` | a testset is listed among its own dependencies | nothing in it will ever run |
 | `EO905` | warning | `eo-judge check` | an examples testset carries points, or an example is not flagged as one | samples are shown, not scored |
 | `EO906` | warning | `eo-judge check` | a `WORST` testset whose tests do not all carry the testset's full value | the group takes the smallest test score, so every test must carry it |
