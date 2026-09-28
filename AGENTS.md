@@ -73,8 +73,9 @@ with `AGENT_REPO` set the test fails instead of skipping.
 `EOLYMP_H_VERSION` in `src/core.h` is where the version is written, with
 `EOLYMP_H_VERSION_MAJOR`, `_MINOR` and `_PATCH` below it; a `static_assert` fails every build
 while the three numbers disagree with the string. `version` in `judge/main.go` is the same
-number for eo-judge, and `make version` and an eo-judge test fail while it differs. Change all
-five, run `make`, and merging to `main` publishes the release: once every other `check` job
+number for eo-judge, and `make version` and an eo-judge test fail while it differs; the same test
+holds the `version` default in `action.yml`, the eo-judge release the GitHub Action downloads,
+to it too. Change all six, run `make`, and merging to `main` publishes the release: once every other `check` job
 has passed on that commit, the `release` job reads the version, refuses to publish headers
 that are not what `src/` generates, and creates the tag `v<version>` on that commit with both
 headers attached, then `judge/v<version>` with eo-judge's binaries. It does nothing for a tag

@@ -295,6 +295,42 @@ code is the same as without it:
 | `exit` | the exit code |
 | `error` | why eo-judge could not finish, when it could not; the same line also goes to stderr |
 
+## In CI
+
+The repository is also a GitHub Action, so a repository of problems can check each one on
+every push:
+
+```yaml
+name: problems
+on: [push, pull_request]
+jobs:
+  eo-judge:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: eolymp/h@v2.1.0
+        with:
+          problem: problems/degrees
+          expect: true
+```
+
+| Input | Default | Means |
+| --- | --- | --- |
+| `problem` | — | the directory that holds `problem.json`, relative to the repository |
+| `version` | the action's own release | the eo-judge release to download |
+| `strict` | `false` | fail when `check` raises any warning, as `--strict` does |
+| `expect` | `false` | also `run --expect`, failing when a solution breaks its [declared type](#expected-types) |
+| `binary` | — | an eo-judge you built, used instead of downloading one |
+
+The action downloads eo-judge for the runner's system from the release, checks it against the
+release's `SHA256SUMS`, and keeps [the build cache](#cache) between runs, keyed by the
+problem's files, so an unchanged problem is judged without compiling anything. It runs
+`check --json`, and `run --json --expect` when asked, prints each report in the log, and turns
+it into annotations: every finding is a warning or a notice on the source line it names, or on
+`problem.json` when it names a test or a testset, and a solution that breaks its type or a
+problem that cannot be run is an error. A step fails when eo-judge exits non-zero. It runs on
+Linux and macOS runners.
+
 ## What it does not do
 
 - **It is not a sandbox.** Programs run as you, with your files and your network. Each one
