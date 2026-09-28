@@ -160,7 +160,7 @@ loads as it is; an explicit `UNKNOWN_TYPE`, `UNKNOWN_FEEDBACK_POLICY`,
 
 | Field | Default | Means |
 | --- | --- | --- |
-| `type` | `PROGRAM` | `PROGRAM` or `INTERACTIVE`; `COMMUNICATION` is refused with "eo-judge does not run COMMUNICATION problems yet", and `FUNCTION`, `OUTPUT`, `SQL`, `ML`, `QUIZ` and `WIDGET`, platform types too, with "eo-judge does not run FUNCTION problems" |
+| `type` | `PROGRAM` | `PROGRAM` or `INTERACTIVE`; `COMMUNICATION` is refused by `run` and `check` with "eo-judge does not run COMMUNICATION problems yet", and `lint` reads it; and `FUNCTION`, `OUTPUT`, `SQL`, `ML`, `QUIZ` and `WIDGET`, platform types too, with "eo-judge does not run FUNCTION problems" |
 | `runCount` | 1 | how many times a solution runs, chaining the interactor's output into the next run |
 | `timeLimit`, `cpuLimit` | — | milliseconds; a testset may override `timeLimit`; eo-judge enforces `timeLimit` as a wall-clock limit and reads `cpuLimit` without enforcing it |
 | `interactorTimeLimit` | — | read and not used: an interactor gets the solution's limit plus a second, as the agent gives it |
@@ -237,6 +237,9 @@ eo-judge: 2 tests could not be made, so nothing was judged:
   test 1:3: open problems/sum/03.in: no such file or directory
 ```
 
+A generator or an answer generator that runs out of its 60 s is not run again: the other tests
+that need it are listed as not tried, with the test it hung on.
+
 ## Reading a check
 
 Every finding carries a code, and every code is in [warnings.md](warnings.md), one
@@ -297,7 +300,8 @@ here and break there, or the other way round; give such a solution `TIMEOUT_OR_A
 ## JSON
 
 With `--json`, `run`, `check` and `lint` print nothing on stdout but one object, and the exit
-code is the same as without it:
+code is the same as without it; `version --json` prints `{"version": "2.1.0"}`, and `init`
+refuses the flag:
 
 ```json
 {
@@ -376,9 +380,9 @@ Linux and macOS runners.
 - **It does not enforce memory, or report it.** The time limit is enforced, as a wall-clock
   limit; `memoryLimit` is read and nothing measures a run against it. A memory-limit verdict
   is the judge's to give.
-- **It does not run `COMMUNICATION` problems.** It refuses one when it loads the problem,
-  exit 3, rather than drive a controller as if it were an interactor; several instances
-  behind the SPAWN handshake are not emulated yet.
+- **It does not run `COMMUNICATION` problems.** `run` and `check` refuse one, exit 3, rather
+  than drive a controller as if it were an interactor; several instances behind the SPAWN
+  handshake are not emulated yet. `lint` reads one as it reads any other.
 - **It does not fetch a problem from the platform.** The directory is written by hand, or by
   a tool that exports one.
 - **It does not read the statement**, so it cannot tell that a bound disagrees with the text.
