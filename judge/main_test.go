@@ -124,6 +124,13 @@ func TestVersionAndHelpExitZero(t *testing.T) {
 			t.Errorf("%v exited %d, printed %q", args, code, out)
 		}
 	}
+	for _, args := range [][]string{{"version", "--json"}, {"--version", "-json"}} {
+		code, out, _ := invoke(args...)
+		var said struct{ Version string }
+		if code != 0 || json.Unmarshal([]byte(out), &said) != nil || said.Version != version {
+			t.Errorf("%v exited %d, printed %q", args, code, out)
+		}
+	}
 	for _, args := range [][]string{{"help"}, {"-h"}, {"--help"}, {"run", "-h"}, {"lint", "--help"}} {
 		code, out, _ := invoke(args...)
 		if code != 0 || !strings.Contains(out, "eo-judge run <problem>") {

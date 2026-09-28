@@ -8,6 +8,7 @@ import (
 	"io"
 	"os"
 	"os/signal"
+	"slices"
 	"sort"
 	"strings"
 	"syscall"
@@ -45,6 +46,10 @@ func realMain(args []string, temp string, out, errs io.Writer) int {
 
 	switch args[0] {
 	case "version", "--version", "-version":
+		if slices.Contains(args[1:], "--json") || slices.Contains(args[1:], "-json") {
+			fmt.Fprintf(out, "{\"version\": %q}\n", version)
+			return 0
+		}
 		fmt.Fprintf(out, "eo-judge %s\n", version)
 		return 0
 	case "help", "-h", "-help", "--help":
