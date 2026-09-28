@@ -232,18 +232,21 @@ func (w *Workspace) makeInput(ctx context.Context, made *Prepared) error {
 	if err != nil {
 		return err
 	}
-	defer file.Close()
 
 	status, err := run(ctx, built.Exe, Invocation{
 		Args: test.Generator.Arguments, Dir: built.Dir, Stdout: file, LimitMS: 60000,
 		Env: map[string]string{"EOLYMP": "1"},
 	})
+	closed := file.Close()
 	if err != nil {
 		return fmt.Errorf("generator %s: %w", test.Generator.Script, err)
 	}
 	if status.ExitCode != 0 {
 		return fmt.Errorf("generator %s exited %d: %s", test.Generator.Script, status.ExitCode,
 			bytes.TrimSpace(status.Stderr))
+	}
+	if closed != nil {
+		return fmt.Errorf("test %d:%d's input could not be written: %w; check the space left for the workspace", made.Group, test.Index, closed)
 	}
 	made.Warnings = append(made.Warnings, warningsIn(test.Generator.Script, string(status.Stderr))...)
 	return nil
@@ -286,18 +289,21 @@ func (w *Workspace) makeAnswer(ctx context.Context, made *Prepared) error {
 	if err != nil {
 		return err
 	}
-	defer file.Close()
 
 	status, err := run(ctx, built.Exe, Invocation{
 		Dir: built.Dir, Stdin: input, Stdout: file, LimitMS: 60000,
 		Env: map[string]string{"EOLYMP": "1"},
 	})
+	closed := file.Close()
 	if err != nil {
 		return fmt.Errorf("answer generator %s: %w", test.AnswerGenerator, err)
 	}
 	if status.ExitCode != 0 {
 		return fmt.Errorf("answer generator %s exited %d on test %d:%d", test.AnswerGenerator,
 			status.ExitCode, made.Group, test.Index)
+	}
+	if closed != nil {
+		return fmt.Errorf("test %d:%d's answer could not be written: %w; check the space left for the workspace", made.Group, test.Index, closed)
 	}
 	return nil
 }
