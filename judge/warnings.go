@@ -67,7 +67,7 @@ func warningsIn(source string, text string) []Warning {
 		found = found[:0]
 		for _, one := range structured.Warnings {
 			severity := "warning"
-			if strings.HasPrefix(said[one.Code+" "+one.At], "") && strings.HasPrefix(one.Code, "EO") {
+			if strings.HasPrefix(one.Code, "EO") {
 				severity = severityOf(one.Code, text)
 			}
 			found = append(found, Warning{Source: source, Code: one.Code, Severity: severity,
