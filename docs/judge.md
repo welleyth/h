@@ -21,7 +21,7 @@ writes `build/eo-judge`, and `make judge` runs gofmt, go vet and the eo-judge te
 
 ```bash
 eo-judge run   <problem>   # build, generate, validate, judge every solution, score it
-eo-judge check <problem>   # EO801-EO821 and EO901-EO911
+eo-judge check <problem>   # EO801-EO821 and EO901-EO912
 eo-judge lint  <problem>   # what is only visible in the source
 eo-judge stress <problem> --args '-n=[1..8]'
                            # generated inputs until a solution breaks its type; see below
@@ -176,7 +176,8 @@ loads as it is; an explicit `UNKNOWN_TYPE`, `UNKNOWN_FEEDBACK_POLICY`,
 | `scripts` | — | named generators, whose names become directory names like a solution's; `answerGenerator` names one of them |
 | `solutions` | — | what `run` judges and `check` compares subtasks against; each has a `name`, which becomes a directory name and so cannot hold `/`, be `..`, be longer than 240 bytes or be another solution's, a `source`, an optional `type`, and an optional expected score in `scores`; `CORRECT` is a reference expected to score full marks unless `scores` says otherwise, `DONT_RUN` is left out of `run` and `check` unless `--solution` names it, and `INCORRECT`, `WRONG_ANSWER`, `TIMEOUT`, `OVERFLOW`, `TIMEOUT_OR_ACCEPTED`, `OVERFLOW_OR_ACCEPTED` and `FAILURE` are judged with no expectation checked unless `run --expect` [checks them](#expected-types) |
 | `testsets` | — | the groups |
-| `validatorTests` | — | inputs the validator must accept or refuse, which `check` runs; [see below](#tests-for-the-validator) |
+| `validatorTests` | — | inputs the validator must accept or refuse, which `check` runs; [see below](#tests-for-the-validator-and-the-checker) |
+| `checkerTests` | — | outputs and the verdict the checker must give them, which `check` runs; [see below](#tests-for-the-validator-and-the-checker) |
 
 ### Program
 
@@ -216,12 +217,13 @@ matches what a judge log would say.
 A test with no `answer` and no `answerGenerator` uses its input as the answer, which is what
 an interactive problem wants.
 
-### Tests for the validator
+### Tests for the validator and the checker
 
-`validatorTests` lists inputs and what the validator must say about them, as Polygon's
-validator tests do. `eo-judge check` runs each one and reports every test the validator
-answers otherwise as warning EO911, naming it by its place in the list; `run` does not read
-them.
+`validatorTests` lists inputs and what the validator must say about them, and `checkerTests`
+outputs and what the checker must give them, as Polygon's validator and checker tests do.
+`eo-judge check` runs each one and reports every test the program answers otherwise, as
+warning EO911 for the validator and EO912 for the checker, naming it by its place in its
+list: `validator test 2`, `checker test 1`. `run` does not read them.
 
 ```json
 "validatorTests": [
@@ -241,6 +243,29 @@ them.
 The validator is given the input with CRLF line endings folded to LF, as the judge folds a
 test's. A validator that does not finish in its 30 s breaks either
 expectation.
+
+```json
+"checkerTests": [
+  {"input": "2\n1 2\n", "output": "3\n", "answer": "3\n", "expect": "ACCEPTED"},
+  {"input": "2\n1 2\n", "output": "5\n", "answer": "3\n", "expect": "WRONG_ANSWER"},
+  {"input": "2\n1 2\n", "output": "4\n", "answer": "3\n", "expect": {"points": 20}, "cost": 40}
+]
+```
+
+| Field | Default | Means |
+| --- | --- | --- |
+| `input`, `output`, `answer` | `""` | the three files the checker is given, written out as they are |
+| `expect` | — | `ACCEPTED`, `WRONG_ANSWER`, `PARTIAL`, `FAILURE`, or `{"points": x}` with x from 0 to the test's `cost` |
+| `cost` | 100 | what the test is worth, at least 0, given as `TEST_COST` |
+| `group` | 0 | a testset's index, given as `TEST_GROUP` |
+
+The checker's exit code and log are read as a solution's run is read: exit 0 is `ACCEPTED`,
+1 and 2 `WRONG_ANSWER`, 7 the points its log names, `PARTIALLY_CORRECT` below the cost and
+`ACCEPTED` at it, and anything else, a timeout included, `FAILURE`. `PARTIAL` expects
+`PARTIALLY_CORRECT`; `{"points": x}` expects a run that pays x points and is not a failure, so
+`{"points": 0}` holds for a wrong answer and for `eo::score(0)`. On a test worth 0 every
+points exit is `ACCEPTED`, as on the judge. The checker is also given `TEST_INDEX`, the test's
+place in the list, and an empty `TEST_ID`.
 
 ## Reading a run
 

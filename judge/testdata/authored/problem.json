@@ -17,5 +17,16 @@
     {"file": "four.txt", "expect": "VALID"},
     {"input": "1\n500\n", "expect": "VALID"},
     {"input": "2\n1 2\n", "expect": "INVALID", "group": 1}
+  ],
+  "checkerTests": [
+    {"input": "2\n1 2\n", "output": "3\n", "answer": "3\n", "expect": "ACCEPTED"},
+    {"input": "2\n1 2\n", "output": "5\n", "answer": "3\n", "expect": "WRONG_ANSWER"},
+    {"input": "2\n1 2\n", "output": "4\n", "answer": "3\n", "expect": "PARTIAL"},
+    {"input": "2\n1 2\n", "output": "2\n", "answer": "3\n", "expect": {"points": 20}, "cost": 40},
+    {"input": "1\n1\n", "output": "1\n", "answer": "0\n", "expect": "FAILURE"},
+    {"output": "3\n", "answer": "3\n", "expect": {"points": 100}},
+    {"input": "2\n1 2\n", "output": "3 \n", "answer": "3\n", "expect": "WRONG_ANSWER"},
+    {"input": "2\n1 2\n", "output": "4\n", "answer": "3\n", "expect": {"points": 100}},
+    {"input": "2\n1 2\n", "output": "4\n", "answer": "3\n", "expect": "PARTIAL", "cost": 0}
   ]
 }

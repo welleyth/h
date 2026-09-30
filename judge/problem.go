@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -58,6 +59,46 @@ type ValidatorTest struct {
 	Group  *int    `json:"group"`
 }
 
+type CheckerTest struct {
+	Input  string        `json:"input"`
+	Output string        `json:"output"`
+	Answer string        `json:"answer"`
+	Expect CheckerExpect `json:"expect"`
+	Cost   *float64      `json:"cost"`
+	Group  *int          `json:"group"`
+}
+
+type CheckerExpect struct {
+	Verdict string   `json:"-"`
+	Points  *float64 `json:"points"`
+}
+
+func (e *CheckerExpect) UnmarshalJSON(body []byte) error {
+	if json.Unmarshal(body, &e.Verdict) == nil {
+		return nil
+	}
+	var scored struct {
+		Points *float64 `json:"points"`
+	}
+	decoder := json.NewDecoder(bytes.NewReader(body))
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&scored); err != nil {
+		return fmt.Errorf(`an expect is "ACCEPTED", "WRONG_ANSWER", "PARTIAL", "FAILURE" or {"points": x}: %w`, err)
+	}
+	if scored.Points == nil {
+		return errors.New(`{"points": x} needs its x, the points the checker pays`)
+	}
+	e.Points = scored.Points
+	return nil
+}
+
+func (e CheckerExpect) MarshalJSON() ([]byte, error) {
+	if e.Points != nil {
+		return json.Marshal(map[string]float64{"points": *e.Points})
+	}
+	return json.Marshal(e.Verdict)
+}
+
 type Problem struct {
 	Title               string              `json:"title"`
 	Type                string              `json:"type"`
@@ -76,6 +117,7 @@ type Problem struct {
 	Solutions           []*Solution         `json:"solutions"`
 	Testsets            []*Testset          `json:"testsets"`
 	ValidatorTests      []*ValidatorTest    `json:"validatorTests"`
+	CheckerTests        []*CheckerTest      `json:"checkerTests"`
 
 	dir string
 }
@@ -339,7 +381,10 @@ func (p *Problem) checkNames() error {
 			return err
 		}
 	}
-	return p.checkValidatorTests()
+	if err := p.checkValidatorTests(); err != nil {
+		return err
+	}
+	return p.checkCheckerTests()
 }
 
 func (p *Problem) checkValidatorTests() error {
@@ -360,6 +405,54 @@ func (p *Problem) checkValidatorTests() error {
 		if err := p.knownGroup(name, test.Group); err != nil {
 			return err
 		}
+	}
+	return nil
+}
+
+func (p *Problem) checkCheckerTests() error {
+	if len(p.CheckerTests) > 0 && p.Checker == nil {
+		return errors.New("the problem has checkerTests and no checker to run them")
+	}
+	for at, test := range p.CheckerTests {
+		name := fmt.Sprintf("checker test %d", at+1)
+		if test.Expect.Points == nil {
+			if err := oneOf(name+"'s expect", test.Expect.Verdict, "ACCEPTED", "WRONG_ANSWER", "PARTIAL",
+				"FAILURE"); err != nil {
+				return fmt.Errorf(`%w, or {"points": x}`, err)
+			}
+		}
+		if points := test.Expect.Points; points != nil {
+			if err := judgePoints(name+` expects {"points": %g}`, *points, "a run pays 0 or more"); err != nil {
+				return err
+			}
+		}
+		if test.Cost != nil {
+			if err := judgePoints(name+"'s cost is %g", *test.Cost, "a test is worth 0 or more"); err != nil {
+				return err
+			}
+		}
+		cost := 100.0
+		if test.Cost != nil {
+			cost = *test.Cost
+		}
+		if points := test.Expect.Points; points != nil && *points > cost {
+			return fmt.Errorf(`%s expects {"points": %g}, more than its cost of %g; a run pays at most what the test is worth`,
+				name, *points, cost)
+		}
+		if err := p.knownGroup(name, test.Group); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func judgePoints(what string, value float64, floor string) error {
+	said := fmt.Sprintf(what, value)
+	if value < 0 || math.Signbit(value) {
+		return fmt.Errorf("%s; %s", said, floor)
+	}
+	if value > math.MaxFloat32 {
+		return fmt.Errorf("%s, more than the judge's points can hold", said)
 	}
 	return nil
 }

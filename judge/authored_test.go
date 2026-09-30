@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -110,5 +111,85 @@ func TestAValidatorTestIsFoldedAsTheJudgeFoldsATest(t *testing.T) {
 	}
 	if len(found) != 0 {
 		t.Errorf("found %+v", found)
+	}
+}
+
+func TestCheckRunsTheCheckerTestsTheAuthorWrote(t *testing.T) {
+	t.Parallel()
+	needsACompiler(t)
+	said := authoredFindings(t, "testdata/authored", "EO912")
+	want := map[string]string{
+		"checker test 7": "it is expected WRONG_ANSWER, and the checker gives ACCEPTED, 100 of 100 points: ok the sum is 3",
+		"checker test 8": "it is expected to pay 100 of 100 points, and the checker gives PARTIALLY_CORRECT, 50 of 100 points: " +
+			"points 50 4 is one away from 3",
+		"checker test 9": "it is expected PARTIAL, and the checker gives ACCEPTED, 0 of 0 points: ",
+	}
+	if len(said) != len(want) {
+		t.Errorf("EO912 fired on %v", said)
+	}
+	for where, message := range want {
+		if !strings.HasPrefix(said[where], message) {
+			t.Errorf("%s: %q, not %q", where, said[where], message)
+		}
+	}
+}
+
+func TestACheckerTestIsReadStrictly(t *testing.T) {
+	t.Parallel()
+	checker := `"checker": {"source": "c.cpp"}, "testsets": [{"index": 1}], `
+	for body, want := range map[string]string{
+		checker + `"checkerTests": [{"output": "1", "expect": "ACCEPTED", "ouput": "1"}]}`:       `unknown field "ouput"`,
+		checker + `"checkerTests": [{"Answer": "1", "expect": "ACCEPTED"}]}`:                     `the field "answer" is spelt "Answer"`,
+		checker + `"checkerTests": [{"expect": {"Points": 1}}]}`:                                 `the field "points" is spelt "Points"`,
+		checker + `"checkerTests": [{"expect": {"points": 1, "of": 2}}]}`:                        `unknown field "of"`,
+		checker + `"checkerTests": [{"expect": {}}]}`:                                            `{"points": x} needs its x`,
+		checker + `"checkerTests": [{"expect": 7}]}`:                                             `an expect is "ACCEPTED", "WRONG_ANSWER", "PARTIAL", "FAILURE" or {"points": x}`,
+		checker + `"checkerTests": [{"expect": "PARTIALLY_CORRECT"}]}`:                           `checker test 1's expect is "PARTIALLY_CORRECT"; it is one of ACCEPTED, WRONG_ANSWER, PARTIAL, FAILURE, or {"points": x}`,
+		checker + `"checkerTests": [{"output": "1"}]}`:                                           `checker test 1's expect is ""; it is one of`,
+		checker + `"checkerTests": [{"expect": "ACCEPTED", "cost": -1}]}`:                        "checker test 1's cost is -1; a test is worth 0 or more",
+		checker + `"checkerTests": [{"expect": "ACCEPTED", "cost": -0.0}]}`:                      "checker test 1's cost is -0; a test is worth 0 or more",
+		checker + `"checkerTests": [{"expect": "ACCEPTED", "cost": 1e40}]}`:                      "checker test 1's cost is 1e+40, more than the judge's points can hold",
+		checker + `"checkerTests": [{"expect": {"points": -2}}]}`:                                `checker test 1 expects {"points": -2}; a run pays 0 or more`,
+		checker + `"checkerTests": [{"expect": {"points": -0}}]}`:                                `checker test 1 expects {"points": -0}; a run pays 0 or more`,
+		checker + `"checkerTests": [{"expect": {"points": 101}}]}`:                               `checker test 1 expects {"points": 101}, more than its cost of 100; a run pays at most what the test is worth`,
+		checker + `"checkerTests": [{"expect": {"points": 21}, "cost": 20}]}`:                    `checker test 1 expects {"points": 21}, more than its cost of 20`,
+		checker + `"checkerTests": [{"expect": {"points": 1e40}}]}`:                              `checker test 1 expects {"points": 1e+40}, more than the judge's points can hold`,
+		checker + `"checkerTests": [{"expect": "ACCEPTED"}, {"expect": "FAILURE", "group": 3}]}`: "checker test 2's group is 3, and the problem has no testset 3",
+		`"checkerTests": [{"expect": "ACCEPTED"}]}`:                                              "the problem has checkerTests and no checker to run them",
+	} {
+		if err := loading(t, `{"type": "PROGRAM", `+body); err == nil || !strings.Contains(err.Error(), want) {
+			t.Errorf("%s: %v, not %q", body, err, want)
+		}
+	}
+	problem := loaded(t, `{"type": "PROGRAM", `+checker+`"checkerTests": [{"input": "1", "expect": {"points": 2.5}, "cost": 5, "group": 1}, {"expect": "WRONG_ANSWER"}]}`)
+	tests := problem.CheckerTests
+	if len(tests) != 2 || tests[0].Input != "1" || tests[0].Expect.Points == nil || *tests[0].Expect.Points != 2.5 ||
+		*tests[0].Cost != 5 || *tests[0].Group != 1 || tests[1].Expect.Verdict != "WRONG_ANSWER" || tests[1].Cost != nil {
+		t.Errorf("read %+v", tests)
+	}
+	body, err := json.Marshal(tests)
+	if err != nil || !strings.Contains(string(body), `"expect":{"points":2.5}`) || !strings.Contains(string(body), `"expect":"WRONG_ANSWER"`) {
+		t.Errorf("wrote %s (%v)", body, err)
+	}
+}
+
+func TestACheckerTestPaysExactlyWhatItExpects(t *testing.T) {
+	t.Parallel()
+	twenty, zero := 20.0, 0.0
+	for _, one := range []struct {
+		want   *float64
+		result RunResult
+		breaks bool
+	}{
+		{&twenty, RunResult{Verdict: Partial, Cost: 40, Score: 20}, false},
+		{&twenty, RunResult{Verdict: Accepted, Cost: 40, Score: 40}, true},
+		{&twenty, RunResult{Verdict: Partial, Cost: 40, Score: 10}, true},
+		{&zero, RunResult{Verdict: WrongAnswer, Cost: 40}, false},
+		{&zero, RunResult{Verdict: Failure, Cost: 40}, true},
+	} {
+		why := checkerTestBreaks(&CheckerTest{Expect: CheckerExpect{Points: one.want}}, &one.result)
+		if (why != "") != one.breaks {
+			t.Errorf("expecting %g, %+v gave %q", *one.want, one.result, why)
+		}
 	}
 }
