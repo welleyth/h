@@ -59,20 +59,31 @@ public:
 
     bool known() const { return state_ == stated::yes; }
     bool absent() const { return state_ == stated::absent; }
-    std::string text() const { return indexed_ ? fmt("{}[{}]", text_, index_) : text_; }
-    std::string const& key() const { return text_; }
+    std::string text() const { return indexed_ ? fmt("{}[{}]", key(), index_) : key(); }
+    std::string const& key() const { return lent_ != nullptr ? *lent_ : text_; }
     bool indexed() const { return indexed_; }
     long long index() const { return index_; }
 
     value_name at(long long index) const {
         if (!known()) return *this;
-        value_name made(indexed_ ? text() : text_);
+        value_name made(indexed_ ? text() : key());
+        made.indexed_ = true;
+        made.index_ = index;
+        return made;
+    }
+
+    value_name lent_at(long long index) const {
+        if (!known() || indexed_) return at(index);
+        value_name made{unnamed};
+        made.state_ = stated::yes;
+        made.lent_ = &key();
         made.indexed_ = true;
         made.index_ = index;
         return made;
     }
 
 private:
+    std::string const* lent_ = nullptr;
     std::string text_;
     stated state_;
     bool indexed_ = false;

@@ -465,7 +465,7 @@ private:
         values.reserve(from_.room_for(count, name));
         for (long long index = 1; index <= count; index++) {
             if (index > 1) read_space();
-            values.push_back(read_one(name.at(index)));
+            values.push_back(read_one(name.lent_at(index)));
         }
         return values;
     }
@@ -474,9 +474,9 @@ private:
         std::vector<edge> edges;
         edges.reserve(static_cast<std::size_t>(std::max(count, 0)));
         for (int index = 1; index <= count; index++) {
-            int const u = whole_int(0, 0, detail::stated::deliberate, name.at(index), where);
+            int const u = whole_int(0, 0, detail::stated::deliberate, name.lent_at(index), where);
             read_space();
-            int const v = whole_int(0, 0, detail::stated::deliberate, name.at(index), where);
+            int const v = whole_int(0, 0, detail::stated::deliberate, name.lent_at(index), where);
             read_eoln();
             edges.push_back(edge{u, v});
         }

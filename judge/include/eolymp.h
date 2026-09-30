@@ -1051,20 +1051,31 @@ public:
 
     bool known() const { return state_ == stated::yes; }
     bool absent() const { return state_ == stated::absent; }
-    std::string text() const { return indexed_ ? fmt("{}[{}]", text_, index_) : text_; }
-    std::string const& key() const { return text_; }
+    std::string text() const { return indexed_ ? fmt("{}[{}]", key(), index_) : key(); }
+    std::string const& key() const { return lent_ != nullptr ? *lent_ : text_; }
     bool indexed() const { return indexed_; }
     long long index() const { return index_; }
 
     value_name at(long long index) const {
         if (!known()) return *this;
-        value_name made(indexed_ ? text() : text_);
+        value_name made(indexed_ ? text() : key());
+        made.indexed_ = true;
+        made.index_ = index;
+        return made;
+    }
+
+    value_name lent_at(long long index) const {
+        if (!known() || indexed_) return at(index);
+        value_name made{unnamed};
+        made.state_ = stated::yes;
+        made.lent_ = &key();
         made.indexed_ = true;
         made.index_ = index;
         return made;
     }
 
 private:
+    std::string const* lent_ = nullptr;
     std::string text_;
     stated state_;
     bool indexed_ = false;
@@ -2807,7 +2818,7 @@ private:
         values.reserve(from_.room_for(count, name));
         for (long long index = 1; index <= count; index++) {
             if (index > 1) read_space();
-            values.push_back(read_one(name.at(index)));
+            values.push_back(read_one(name.lent_at(index)));
         }
         return values;
     }
@@ -2816,9 +2827,9 @@ private:
         std::vector<edge> edges;
         edges.reserve(static_cast<std::size_t>(std::max(count, 0)));
         for (int index = 1; index <= count; index++) {
-            int const u = whole_int(0, 0, detail::stated::deliberate, name.at(index), where);
+            int const u = whole_int(0, 0, detail::stated::deliberate, name.lent_at(index), where);
             read_space();
-            int const v = whole_int(0, 0, detail::stated::deliberate, name.at(index), where);
+            int const v = whole_int(0, 0, detail::stated::deliberate, name.lent_at(index), where);
             read_eoln();
             edges.push_back(edge{u, v});
         }
@@ -3070,7 +3081,7 @@ public:
         std::vector<int> values;
         values.reserve(reader_.room_for(count, name));
         for (long long at = 1; at <= count; at++) {
-            values.push_back(reader_.whole_int(low, high, detail::stated::yes, name.at(at), where));
+            values.push_back(reader_.whole_int(low, high, detail::stated::yes, name.lent_at(at), where));
         }
         return values;
     }
@@ -3080,7 +3091,7 @@ public:
         std::vector<long long> values;
         values.reserve(reader_.room_for(count, name));
         for (long long at = 1; at <= count; at++)
-            values.push_back(reader_.whole_long(low, high, detail::stated::yes, name.at(at), where));
+            values.push_back(reader_.whole_long(low, high, detail::stated::yes, name.lent_at(at), where));
         return values;
     }
 
@@ -3089,7 +3100,7 @@ public:
         std::vector<long long> values;
         values.reserve(reader_.room_for(count, name));
         for (long long at = 1; at <= count; at++)
-            values.push_back(reader_.whole_long(0, 0, detail::stated::deliberate, name.at(at), where));
+            values.push_back(reader_.whole_long(0, 0, detail::stated::deliberate, name.lent_at(at), where));
         return values;
     }
 
@@ -3098,8 +3109,8 @@ public:
         std::vector<double> values;
         values.reserve(reader_.room_for(count, name));
         for (long long at = 1; at <= count; at++)
-            values.push_back(reader_.fractional(low, high, detail::stated::yes, 0, 0, false, name.at(at),
-                                                where));
+            values.push_back(
+                reader_.fractional(low, high, detail::stated::yes, 0, 0, false, name.lent_at(at), where));
         return values;
     }
 
@@ -3109,7 +3120,7 @@ public:
         std::vector<std::string> values;
         values.reserve(reader_.room_for(count, name));
         for (long long at = 1; at <= count; at++)
-            values.push_back(reader_.word(least, most, &allowed, detail::stated::yes, name.at(at), where));
+            values.push_back(reader_.word(least, most, &allowed, detail::stated::yes, name.lent_at(at), where));
         return values;
     }
 

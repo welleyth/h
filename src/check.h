@@ -195,7 +195,7 @@ public:
         std::vector<int> values;
         values.reserve(reader_.room_for(count, name));
         for (long long at = 1; at <= count; at++) {
-            values.push_back(reader_.whole_int(low, high, detail::stated::yes, name.at(at), where));
+            values.push_back(reader_.whole_int(low, high, detail::stated::yes, name.lent_at(at), where));
         }
         return values;
     }
@@ -205,7 +205,7 @@ public:
         std::vector<long long> values;
         values.reserve(reader_.room_for(count, name));
         for (long long at = 1; at <= count; at++)
-            values.push_back(reader_.whole_long(low, high, detail::stated::yes, name.at(at), where));
+            values.push_back(reader_.whole_long(low, high, detail::stated::yes, name.lent_at(at), where));
         return values;
     }
 
@@ -214,7 +214,7 @@ public:
         std::vector<long long> values;
         values.reserve(reader_.room_for(count, name));
         for (long long at = 1; at <= count; at++)
-            values.push_back(reader_.whole_long(0, 0, detail::stated::deliberate, name.at(at), where));
+            values.push_back(reader_.whole_long(0, 0, detail::stated::deliberate, name.lent_at(at), where));
         return values;
     }
 
@@ -223,8 +223,8 @@ public:
         std::vector<double> values;
         values.reserve(reader_.room_for(count, name));
         for (long long at = 1; at <= count; at++)
-            values.push_back(reader_.fractional(low, high, detail::stated::yes, 0, 0, false, name.at(at),
-                                                where));
+            values.push_back(
+                reader_.fractional(low, high, detail::stated::yes, 0, 0, false, name.lent_at(at), where));
         return values;
     }
 
@@ -234,7 +234,7 @@ public:
         std::vector<std::string> values;
         values.reserve(reader_.room_for(count, name));
         for (long long at = 1; at <= count; at++)
-            values.push_back(reader_.word(least, most, &allowed, detail::stated::yes, name.at(at), where));
+            values.push_back(reader_.word(least, most, &allowed, detail::stated::yes, name.lent_at(at), where));
         return values;
     }
 
