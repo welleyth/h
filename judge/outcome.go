@@ -10,6 +10,7 @@ type outcome struct {
 	Problem  string          `json:"problem"`
 	Invalid  []invalidTest   `json:"invalid,omitempty"`
 	Attempts []attemptResult `json:"attempts"`
+	Stress   *stressReport   `json:"stress,omitempty"`
 	Findings []findingResult `json:"findings"`
 	Exit     int             `json:"exit"`
 	Error    string          `json:"error,omitempty"`

@@ -66,6 +66,7 @@ type Workspace struct {
 
 	tools          toolchain
 	generatorLimit int
+	validatorLimit int
 }
 
 func normalise(body []byte) []byte {
@@ -84,7 +85,7 @@ func keyOf(parts ...string) string {
 func NewWorkspace(problem *Problem, dir string) *Workspace {
 	return &Workspace{Problem: problem, Dir: dir,
 		Programs: map[string]*Built{}, Tests: map[string]*Prepared{}, tools: hostToolchain(),
-		generatorLimit: generatorLimit}
+		generatorLimit: generatorLimit, validatorLimit: validatorLimit}
 }
 
 func (w *Workspace) Build(ctx context.Context, name string, program *Program) (*Built, error) {
@@ -387,12 +388,16 @@ func (w *Workspace) Validate(ctx context.Context) error {
 }
 
 func validating(ctx context.Context, built *Built, input string, flags ...string) (*Status, error) {
+	return validatingWithin(ctx, built, validatorLimit, input, flags...)
+}
+
+func validatingWithin(ctx context.Context, built *Built, limit int, input string, flags ...string) (*Status, error) {
 	test, err := os.Open(input)
 	if err != nil {
 		return nil, err
 	}
 	defer test.Close()
-	return built.jury(ctx, validatorLimit, Invocation{Args: append([]string{input}, flags...), Stdin: test})
+	return built.jury(ctx, limit, Invocation{Args: append([]string{input}, flags...), Stdin: test})
 }
 
 func (w *Workspace) describe(ctx context.Context, made *Prepared) (string, error) {

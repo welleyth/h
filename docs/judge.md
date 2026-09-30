@@ -23,6 +23,8 @@ writes `build/eo-judge`, and `make judge` runs gofmt, go vet and the eo-judge te
 eo-judge run   <problem>   # build, generate, validate, judge every solution, score it
 eo-judge check <problem>   # EO801-EO821 and EO901-EO910
 eo-judge lint  <problem>   # what is only visible in the source
+eo-judge stress <problem> --args '-n=[1..8]'
+                           # generated inputs until a solution breaks its type; see below
 eo-judge init  <dir>       # write a new problem that run and check pass
 eo-judge version           # the version of eo-judge
 ```
@@ -300,10 +302,92 @@ A solution with `scores` must also score exactly that; for `CORRECT` it takes th
 on your machine is not the judge's, so a `TIMEOUT` solution that is only slightly slow can hold
 here and break there, or the other way round; give such a solution `TIMEOUT_OR_ACCEPTED`.
 
+## Stress
+
+`eo-judge stress` does what the platform's stress run does, on your machine: it runs a
+generator with random arguments, over and over, and compares the solutions with a reference on
+every input it makes, until one of them does something its type does not allow.
+
+```
+$ eo-judge stress problems/sum --args '-n=[1..8] -max=[1..100]' --work /tmp/sum
+stress: gen -n=[1..8] -max=[1..100] against brute, comparing twin, pairs, first; at most 100 iterations in 300 s
+
+iteration 3: COUNTEREXAMPLE
+  twin: ACCEPTED 1ms: ok the sum is 115
+  pairs: WRONG_ANSWER 0ms, which breaks its type CORRECT: wrong answer the sum is 115, not 46
+  first: WRONG_ANSWER 0ms: wrong answer the sum is 115, not 32
+  "generator": {"script": "gen", "arguments": ["-n=3", "-max=73", "c83134a3824b3fe6"]}
+  kept in /tmp/sum/stress/3: input.txt, answer.txt, twin/output.txt, pairs/output.txt, first/output.txt
+
+eo-judge: 0 warning(s), 0 note(s)
+eo-judge: iteration 3 of 100 is a counterexample
+```
+
+The `"generator"` line pastes into a test in `problem.json` as it is, and makes the same input
+again: the arguments are resolved, and the seed is part of them.
+
+| Flag | Default | Means |
+| --- | --- | --- |
+| `--gen name` | the one script the tests generate with | the generator, a name from `scripts` |
+| `--args '…'` | none | its arguments, split at spaces; every `[a..b]` inside one becomes a random integer from `a` to `b`, drawn again on every iteration, and a random seed of 16 hexadecimal digits is appended, which is what [eolymp.h's generator](generator.md) recognises as a stress run |
+| `--arg '…'` | | one argument, spaces and all, with its ranges drawn the same way; give it again for the next, and give either `--arg` or `--args`; eo-judge prints one with a space in it quoted |
+| `--reference name` | the first `CORRECT` solution | the solution whose output is the answer; it must be `CORRECT`, as on the platform |
+| `--solution name` | every solution but the reference and the `DONT_RUN` ones | a solution to compare with the reference; give it again for more |
+| `--iterations n` | 100 | at most this many inputs |
+| `--timeout s` | 300 | at most this many seconds for the whole stress |
+| `--work dir` | a temporary directory | keep the workspace, and in it the iteration the stress stopped at |
+| `--continue` | | go on past an `INVALID` or a `BROKEN` iteration, keeping each, and stop only at a `COUNTEREXAMPLE` |
+| `-v` | | one line for every iteration, with its verdict and the generator's call |
+| `--json` | | the result as one object; see [below](#json) |
+
+The defaults are the platform's. The platform stops at 500 iterations and 600 seconds;
+eo-judge takes more.
+
+Every iteration makes an input with the generator and validates it, with no `--group`, as a
+stress run does on the judge. It runs the reference on the input under the problem's
+`timeLimit`, or 10 s when it has none, and takes its output as the answer, then runs each
+solution under the same limit and checks its output against that answer. The checker is given
+`TEST_COST=0`, `TEST_GROUP=0`, the iteration's number, from 1, as `TEST_INDEX` and an empty
+`TEST_ID`, which is what [checker.md](checker.md#what-the-checker-knows-about-the-test) says a
+stress run gives it; a test worth 0 accepts any points, so a partial score reads as `ACCEPTED`,
+and eolymp.h's checker says so with warning EO208. The iteration's verdict is one of the
+platform's:
+
+| Verdict | Means |
+| --- | --- |
+| `PASSED` | every solution kept its type; the iteration's files are removed and the next one starts |
+| `COUNTEREXAMPLE` | a solution broke its type |
+| `INVALID` | the validator refused the input, so the generator is at fault: its options allow an input the statement does not |
+| `BROKEN` | the generator or the reference did not finish, the validator ran out of its 30 s, or the checker failed on a solution's output |
+
+The stress stops at the first iteration that did not pass, prints it, and keeps its files under
+`--work`: at a `COUNTEREXAMPLE`, and at an `INVALID` or a `BROKEN` one too, which the
+platform's run records and goes past; its `continueOnFailure` is about counterexamples, and
+eo-judge has no such switch. With `--continue` eo-judge goes past `INVALID` and `BROKEN` as the
+platform does, printing and keeping each. What breaks a type is what the platform reads: a `CORRECT` solution that is not
+`ACCEPTED`, and a solution declared `WRONG_ANSWER`, `TIMEOUT` or `TIMEOUT_OR_ACCEPTED` that
+gets a verdict its type does not allow, as in the table of [expected
+types](#expected-types): a `WRONG_ANSWER` solution that crashes, not one that answers wrong.
+A solution with no type, `INCORRECT`, `FAILURE`, `OVERFLOW` or `OVERFLOW_OR_ACCEPTED` never
+breaks it, `OVERFLOW` because eo-judge does not measure memory; a stress that compares only
+such solutions is refused, since it could find nothing. To look for an input a solution fails
+on, declare it `CORRECT` and compare it with a brute force as the reference.
+
+It exits 0 when every iteration passed, or when `--timeout` ended the stress after one had, and
+1 when it stopped at an iteration or went past one with `--continue`; an iteration the timeout
+cut short is dropped rather than blamed on the solution it stopped. A timeout before any
+iteration passed has found nothing, so it exits 3 and names the program it cut short: `the 1 s
+timeout ended the stress in iteration 1 while the solution slow ran`. It exits 2 on a usage
+error, and 3 too when a program does not build or the problem is `INTERACTIVE` or
+`COMMUNICATION`, which `stress` does not run. The programs are built once, from [the
+cache](#cache), and the warnings the generator and the checker raise, such as EO501 for a
+generator that never draws and EO208 for a partial score on a test worth nothing, are reported
+once each, as `run` reports them.
+
 ## JSON
 
-With `--json`, `run`, `check` and `lint` print nothing on stdout but one object, and the exit
-code is the same as without it; `version --json` prints `{"version": "2.3.0"}`, and `init`
+With `--json`, `run`, `check`, `lint` and `stress` print nothing on stdout but one object, and
+the exit code is the same as without it; `version --json` prints `{"version": "2.3.0"}`, and `init`
 refuses the flag:
 
 ```json
@@ -328,7 +412,8 @@ refuses the flag:
 
 | Field | Holds |
 | --- | --- |
-| `attempts` | what `run` judged, in the order of `solutions`; empty for `check` and `lint` |
+| `attempts` | what `run` judged, in the order of `solutions`; empty for `check`, `lint` and `stress` |
+| `stress` | what `stress` did, and left out for the other commands: `generator`, `arguments` as given, `reference`, the compared `solutions`, `iterations` asked for, how many `passed`, whether the `deadline` ended it, the iterations `--continue` went past as `failed`, and the iteration it `stopped` at, left out when it stopped at none, with its `index`, `verdict`, resolved `arguments`, `why` for `INVALID` and `BROKEN`, the directory it was `kept` in under `--work`, and the `results` of the solutions, each with its `solution`, `type`, `verdict`, `ms`, the checker's `message` and whether it was `unexpected`, the platform's word for breaking its type |
 | `breaks` | under `--expect`, why the solution breaks its type; left out when it holds |
 | `type` | the solution's `type` from `problem.json`, empty when it has none |
 | `invalid` | the tests the validator refused; left out when there are none |

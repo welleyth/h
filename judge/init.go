@@ -27,7 +27,7 @@ func initProblem(args []string, out, errs io.Writer) int {
 		return code
 	}
 	if *asJSON {
-		fmt.Fprintln(errs, "eo-judge: --json applies to run, check and lint; init prints only the files it wrote")
+		fmt.Fprintln(errs, "eo-judge: --json applies to run, check, lint and stress; init prints only the files it wrote")
 		return 2
 	}
 	if !slices.Contains(kinds, *kind) {

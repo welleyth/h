@@ -1,0 +1,33 @@
+{
+  "title": "the sum of n numbers, with solutions for a stress run to tell apart",
+  "type": "PROGRAM",
+  "timeLimit": 2000,
+  "memoryLimit": 268435456,
+  "checker": {"source": "checker.cpp"},
+  "validator": {"source": "validator.cpp"},
+  "scripts": {
+    "gen": {"source": "generator.cpp"},
+    "sum": {"source": "brute.cpp"}
+  },
+  "solutions": [
+    {"name": "brute", "source": "brute.cpp", "type": "CORRECT"},
+    {"name": "twin", "source": "twin.cpp", "type": "CORRECT"},
+    {"name": "pairs", "source": "pairs.cpp", "type": "CORRECT"},
+    {"name": "first", "source": "first.cpp", "type": "WRONG_ANSWER"},
+    {"name": "crashing", "source": "crashing.cpp", "type": "WRONG_ANSWER"},
+    {"name": "untyped", "source": "first.cpp"},
+    {"name": "patient", "source": "patient.cpp", "type": "TIMEOUT_OR_ACCEPTED"},
+    {"name": "parked", "source": "pairs.cpp", "type": "DONT_RUN"},
+    {"name": "above", "source": "above.cpp", "type": "DONT_RUN"},
+    {"name": "zero", "source": "zero.cpp", "type": "DONT_RUN"},
+    {"name": "eights", "source": "eights.cpp", "type": "DONT_RUN"},
+    {"name": "sluggish", "source": "sluggish.cpp", "type": "DONT_RUN"}
+  ],
+  "testsets": [
+    {"index": 1, "scoringMode": "EACH", "feedbackPolicy": "COMPLETE",
+     "tests": [
+       {"index": 1, "score": 50, "generator": {"script": "gen", "arguments": ["-n=1", "-max=1"]}, "answerGenerator": "sum"},
+       {"index": 2, "score": 50, "generator": {"script": "gen", "arguments": ["-n=100", "-max=100"]}, "answerGenerator": "sum"}
+     ]}
+  ]
+}

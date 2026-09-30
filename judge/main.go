@@ -20,6 +20,9 @@ const usage = `eo-judge runs an Eolymp problem the way the judge does.
   eo-judge run <problem> [--solution name]   build, generate, validate, judge, score
   eo-judge check <problem> [--deep]          the whole-problem and configuration checks
   eo-judge lint <problem>                    what the header cannot see
+  eo-judge stress <problem> [--args '-n=[1..8]']
+                                             compare the solutions with a reference on
+                                             generated inputs until one breaks its type
   eo-judge init <dir> [--type program|interactive|phases]
                                              write a new problem that run passes
   eo-judge version                           the version of eo-judge
@@ -29,6 +32,10 @@ const usage = `eo-judge runs an Eolymp problem the way the judge does.
   -v         print every run of every test after its testset
   --json     print the result as one JSON object instead of text
   --expect   with run, exit 1 when a solution breaks its declared type
+
+  stress also takes --gen script, --arg one-argument (again for the next), --reference name,
+  --solution name (again for more), --iterations n (100), --timeout seconds (300) and
+  --continue, to go on past an INVALID or BROKEN input.
 
 Flags may come before or after the problem.
 `
@@ -66,7 +73,7 @@ func realMain(args []string, temp string, out, errs io.Writer) int {
 	switch args[0] {
 	case "init":
 		return initProblem(args[1:], out, errs)
-	case "run", "check", "lint":
+	case "run", "check", "lint", "stress":
 	default:
 		fmt.Fprintf(errs, "eo-judge: there is no command %q\n\n%s", args[0], usage)
 		return 2
@@ -93,18 +100,23 @@ func realMain(args []string, temp string, out, errs io.Writer) int {
 type options struct {
 	command, dir, only, work            string
 	strict, deep, verbose, json, expect bool
+	stress                              stressOptions
 }
 
 func parse(args []string, out, errs io.Writer) (options, int, bool) {
 	opts := options{command: args[0]}
 	flags := flag.NewFlagSet(opts.command, flag.ContinueOnError)
-	flags.BoolVar(&opts.strict, "strict", false, "make every warning fatal")
-	flags.BoolVar(&opts.deep, "deep", false, "run the slow hostile outputs")
-	flags.StringVar(&opts.only, "solution", "", "judge one solution by name")
+	if opts.command == "stress" {
+		opts.stress.register(flags)
+	} else {
+		flags.BoolVar(&opts.strict, "strict", false, "make every warning fatal")
+		flags.BoolVar(&opts.deep, "deep", false, "run the slow hostile outputs")
+		flags.StringVar(&opts.only, "solution", "", "judge one solution by name")
+		flags.BoolVar(&opts.expect, "expect", false, "fail when a solution breaks its declared type")
+	}
 	flags.StringVar(&opts.work, "work", "", "keep the workspace here")
 	flags.BoolVar(&opts.verbose, "v", false, "print every run")
 	flags.BoolVar(&opts.json, "json", false, "print the result as JSON")
-	flags.BoolVar(&opts.expect, "expect", false, "fail when a solution breaks its declared type")
 	dir, code, parsed := onePositional(flags, args[1:], out, errs)
 	opts.dir = dir
 	return opts, code, parsed
@@ -140,12 +152,19 @@ type session struct {
 	temp      string
 	out, errs io.Writer
 	result    *outcome
+	planned   *stressPlan
 }
 
 func (s *session) fail(err error) int {
 	fmt.Fprintln(s.errs, "eo-judge:", err)
 	s.result.Error = err.Error()
 	return 3
+}
+
+func (s *session) refuse(why string) int {
+	s.result.Error = why
+	fmt.Fprintln(s.errs, "eo-judge:", why)
+	return 2
 }
 
 func (s *session) report(found Findings) int {
@@ -182,6 +201,16 @@ func (s *session) run() int {
 		return s.fail(errors.New("eo-judge does not run COMMUNICATION problems yet; judge one on Eolymp, " +
 			"and lint reads its sources"))
 	}
+	if s.command == "stress" {
+		if problem.Interactive() {
+			return s.fail(errors.New("eo-judge stress runs PROGRAM problems only, and this one is INTERACTIVE"))
+		}
+		planned, why := s.stress.plan(problem)
+		if why != "" {
+			return s.refuse(why)
+		}
+		s.planned = planned
+	}
 
 	space := s.work
 	if space == "" {
@@ -210,6 +239,8 @@ func (s *session) run() int {
 			return s.fail(err)
 		}
 		return s.report(append(found, Lint(problem)...))
+	case "stress":
+		return s.stressTest(ctx, shop)
 	default:
 		return s.judge(ctx, shop)
 	}
