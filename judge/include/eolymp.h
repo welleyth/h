@@ -1278,9 +1278,7 @@ public:
     [[noreturn]] void refuse(value_name const& name, std::string const& what) const {
         std::string message = verdict_word() + case_prefix();
         if (!label_.empty()) message += fmt("{}, ", label_);
-        message += fmt("line {}", from_.line());
-        if (name.known()) message += fmt(", {}", name.text());
-        finish(whose_ == fault::wrong_answer ? 1 : 3, message + ": " + what);
+        finish(whose_ == fault::wrong_answer ? 1 : 3, message + line_of(name) + ": " + what);
     }
 
     bool at_end() {
@@ -1551,9 +1549,8 @@ public:
 
     [[noreturn]] void missing_separator(value_name const& name, site where, int found) {
         char const* const call = found == '\n' ? "read_eoln()" : "read_space()";
-        std::string message = fmt("{}: {}line {}", where_of(where), case_prefix(), from_.line());
-        if (name.known()) message += fmt(", {}", name.text());
-        finish(3, message + fmt(": {} follows {}; read it with {}", name_of(found), last_value(), call));
+        finish(3, fmt("{}: {}{}: {} follows {}; read it with {}", where_of(where), case_prefix(), line_of(name),
+                      name_of(found), last_value(), call));
     }
 
     static long long constexpr longest_number = 4096;
@@ -1713,6 +1710,12 @@ public:
 
 private:
     static bool fresh(char const* code, site where) { return !diagnostics::shared().again(code, where); }
+
+    std::string line_of(value_name const& name) const {
+        std::string line = fmt("line {}", from_.line());
+        if (name.known()) line += fmt(", {}", name.text());
+        return line;
+    }
 
     char const* verdict_word() const {
         if (whose_ == fault::wrong_answer) return "wrong answer: ";
