@@ -18,6 +18,7 @@ build_one() {
 }
 build_one exit_codes -O2 $warnings
 build_one exits -O2 $warnings
+build_one dies -O2 $warnings
 build_one validator -O2 $warnings
 build_one checker -O2 $warnings
 build_one swallowing_checker -O2 $warnings
@@ -87,6 +88,19 @@ expect_run() {
     wanted=$3
     shift 3
     "$@" > "$log" 2>&1
+    code=$?
+    [ "$code" = "$wanted_code" ] || { fail "$label exited $code, expected $wanted_code" "$log"; return 1; }
+    case $(cat "$log") in
+        $wanted) return 0 ;;
+    esac
+    fail "$label printed \"$(head -1 "$log")\", expected \"$wanted\""
+}
+expect_death() {
+    label=$1
+    wanted_code=$2
+    wanted=$3
+    shift 3
+    { "$@" > "$log" 2>&1 & wait $!; } 2>/dev/null
     code=$?
     [ "$code" = "$wanted_code" ] || { fail "$label exited $code, expected $wanted_code" "$log"; return 1; }
     case $(cat "$log") in
@@ -283,6 +297,29 @@ expect_run "a checker that calls exit(0) before its verdict" 3 "jury error the c
     else
         fail "a generator that called exit(0) after a line did not write it"
     fi
+dies() {
+    label=$1
+    wanted_code=$2
+    wanted=$3
+    shift 3
+    expect_death "$label" "$wanted_code" "$wanted" env "$@" EOLYMP=1 TEST_COST=40 \
+        "$build/dies" "$build/exits_out.txt" "$build/exits_out.txt" "$build/exits_out.txt"
+}
+case "${CXX:-c++}" in
+    *-fsanitize*)
+        pass "the deaths of a checker and an interactor skipped, the sanitizers take those signals themselves" ;;
+    *)
+        dies "a checker ended by an exception nothing caught" 134 "" ROLE=throws &&
+            dies "a checker ended by a thrown int" 134 "" ROLE=throws_int &&
+            dies "a checker that aborts" 134 "" ROLE=aborts &&
+            dies "a checker killed by SIGSEGV" 139 "" ROLE=segfaults &&
+            dies "a checker killed by SIGFPE" 136 "" ROLE=divides &&
+            expect_death "an interactor ended by an exception nothing caught" 134 "*the interactor lost count*" \
+                env ROLE=interactor TEST_COST=40 "$build/dies" "$build/exits_in.txt" "$build/exits_summary.txt" &&
+            pass "a checker that dies leaves an empty log, and an interactor the C++ library's words"
+        ;;
+esac
+
 expect_run "the generator given an option it never declared" 3 "*unknown option -oops*" \
     generate generated_bad.txt -n=20 -oops=1 &&
     expect_run "a large generator given an option it never declared" 3 "*unknown option -oops*" \
