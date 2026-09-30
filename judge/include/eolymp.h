@@ -1577,6 +1577,38 @@ constexpr syntax_fault first_fault(std::string_view text) {
     return parser.fault();
 }
 
+#if defined(EOLYMP_CHECK_PATTERNS) && defined(__cpp_consteval)
+
+inline void a_pattern_that_does_not_parse() {}
+
+class pattern_text {
+public:
+    template <std::size_t Size>
+    consteval pattern_text(char const (&text)[Size], char const* file = __builtin_FILE(),
+                           int line = __builtin_LINE())
+        : text_(text, Size - 1), where_{file, line} {
+        if (first_fault(text_).problem != pattern_problem::none) a_pattern_that_does_not_parse();
+    }
+
+    template <std::size_t Size>
+    pattern_text(char (&text)[Size], char const* file = __builtin_FILE(), int line = __builtin_LINE())
+        : text_(text), where_{file, line} {}
+
+    template <class T, class = std::enable_if_t<std::is_convertible_v<T const&, std::string_view> &&
+                                                !std::is_array_v<T>>>
+    pattern_text(T const& text, char const* file = __builtin_FILE(), int line = __builtin_LINE())
+        : text_(text), where_{file, line} {}
+
+    std::string_view text() const { return text_; }
+    site where() const { return where_; }
+
+private:
+    std::string_view text_;
+    site where_;
+};
+
+#else
+
 class pattern_text {
 public:
     template <class T, class = std::enable_if_t<std::is_convertible_v<T const&, std::string_view>>>
@@ -1590,6 +1622,8 @@ private:
     std::string_view text_;
     site where_;
 };
+
+#endif
 
 enum class piece_shape { one, row, either, again };
 

@@ -188,7 +188,9 @@ instead: `eo::pattern("[a-z") does not parse at column 1: the [ that opens here 
 close it`. So are the things testlib would read in a way nobody means: a `]`, `}` or `{` that
 opens or closes nothing, a repeat with nothing before it (`*a`, `a|+`), a repeat of a repeat
 (`a**`, `a{2}{3}`, `a+?`), a count above 1,000,000,000, a backslash at the end, a backslash
-before a letter or a digit, `^` and `$`, an empty class, and groups nested more than 50 deep.
+before a letter or a digit, `^` and `$`, an empty class, and groups nested more than 50 deep. Under
+C++20 with `-DEOLYMP_CHECK_PATTERNS`, a literal pattern is parsed while the program builds, and
+one that does not parse stops the build at `a_pattern_that_does_not_parse`.
 
 It differs from testlib's in five places:
 

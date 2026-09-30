@@ -81,7 +81,8 @@ its eolymp.h counterpart, for a problem moving over.
   `eo::log`, `require` and a stream's `wrong`: `eo::wrong("got %d", x)`, which otherwise runs
   with warning EO112, stops the build at
   `a_message_needs_one_placeholder_for_each_value`, and a lone brace at
-  `a_message_needs_two_braces_to_print_one`. It is opt-in because a program that built with
+  `a_message_needs_two_braces_to_print_one`; a literal `eo::pattern` that does not parse
+  stops it at `a_pattern_that_does_not_parse`. It is opt-in because a program that built with
   the last release has to build with this one. C++17, and a compiler without `consteval`,
   ignore the macro, and a message held in a `std::string` or a `char` array is still checked
   when it runs.

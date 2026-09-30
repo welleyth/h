@@ -69,6 +69,7 @@ if printf '#ifndef __cpp_consteval\n#error\n#endif\n' | $CXX $checked -fsyntax-o
     build_and_run checked_patterns $checked -Wall -Wextra -Wshadow -Werror
     refused_with pattern_count a_message_needs_one_placeholder_for_each_value $checked
     refused_with pattern_brace a_message_needs_two_braces_to_print_one $checked
+    refused_with pattern_syntax a_pattern_that_does_not_parse $checked
 else
     echo "hostile: the compile-time check of messages skipped, this compiler has no consteval"
 fi

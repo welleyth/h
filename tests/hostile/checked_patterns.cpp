@@ -25,5 +25,9 @@ int main(int argc, char**) {
     char held[16] = "{} and {}";
     if (argc > 99) held[0] = 'x';
     bool const kept = eo::fmt(held, 7) == "7 and {}";
-    return told && raised && kept && eo::detail::diagnostics::shared().raised_already("EO112") ? 0 : 1;
+    std::string const digits = argc > 99 ? "[" : "[0-9]+";
+    char grouped[8] = "(ab|c)*";
+    bool const matched = eo::pattern("[a-z]{1,3}").matches("abc") && eo::pattern(digits).matches("42") &&
+                         eo::pattern(grouped).matches("abcab");
+    return told && raised && kept && matched && eo::detail::diagnostics::shared().raised_already("EO112") ? 0 : 1;
 }
