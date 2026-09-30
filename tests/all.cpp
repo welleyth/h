@@ -24,6 +24,7 @@
 #include "fmt.inc"
 #include "parse.inc"
 #include "io.inc"
+#include "pattern.inc"
 #include "diag.inc"
 #include "validate.inc"
 #include "check.inc"

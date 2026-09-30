@@ -25,6 +25,7 @@ in the right-hand columns is in the header; the programs below are compiled by `
 | `ensuref(cond, "n is %d", n)` | `v.require(cond, "n is {}", n)` |
 | `format("a[%d]", i)` as a name | `eo::element("a", i)` |
 | `validator.group()` | `v.group()`, a `std::optional<int>` |
+| `pattern p("[a-z]{1,10}"); p.matches(s)` | `eo::pattern p("[a-z]{1,10}"); p.matches(s)`; see [Patterns](validator.md#patterns) for where the two dialects differ |
 
 ```cpp
 #include <eolymp.h>

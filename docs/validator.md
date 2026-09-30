@@ -157,6 +157,54 @@ decimals — `3`, `3.25`, `-0.5` — with no exponent, no infinity and no NaN;
 read, so nothing invalid slips through: on the input `9a`, `read_int` returns 9 and the next
 `read_eoln()` fails with `line 1: expected a line break after n, found "a"`.
 
+### Patterns
+
+`eo::pattern("[a-z]{1,10}")` is testlib's pattern syntax, and `p.matches(token)` says whether
+a whole token matches it; a pattern never matches part of one.
+
+| Write | Matches |
+| --- | --- |
+| `a`, `\.`, `\[` | that character; a backslash before any symbol means the symbol |
+| `[a-z_]`, `[^0-9]` | one character of the class, or one outside it; a `-` first or last is itself |
+| `x?`, `x*`, `x+` | at most one, any number, at least one |
+| `x{3}`, `x{1,10}`, `x{2,}` | exactly 3, from 1 to 10, at least 2 |
+| `YES\|NO`, `(ab\|cd){2}` | either side; a group repeats as one |
+
+A class is a set of bytes: `[a-z]` is 26 bytes, and a UTF-8 letter is two or more bytes, each
+of which a class or a repeat counts on its own.
+
+**What a match costs.** Matching never backtracks: it keeps the set of places in the pattern
+that the token so far can have reached, so its cost is the token's length times the number of
+those places that are live at once, which the pattern bounds. A repeat of a character or a
+class is one place at any count, so `[a-z]{1,1000000}` costs what `[a-z]` costs; a repeated
+group is one copy per count, so `(ab|cd){1,100}` holds up to 100 copies of its group. A pattern
+whose places would number more than 4,096 is refused where it is made, and the largest pattern
+in these pages, the tests and testlib's own examples needs 27. A token of a million
+characters against a pattern of 300 live places is 300 million steps. Building a pattern
+takes a few microseconds, so build it once, before the loop that uses it.
+
+A pattern that does not parse is refused where it is made, with the column and what to write
+instead: `eo::pattern("[a-z") does not parse at column 1: the [ that opens here has no ] to
+close it`. So are the things testlib would read in a way nobody means: a `]`, `}` or `{` that
+opens or closes nothing, a repeat with nothing before it (`*a`, `a|+`), a repeat of a repeat
+(`a**`, `a{2}{3}`, `a+?`), a count above 1,000,000,000, a backslash at the end, a backslash
+before a letter or a digit, `^` and `$`, an empty class, and groups nested more than 50 deep.
+
+It differs from testlib's in five places:
+
+- **It matches as a regular expression does.** testlib's matcher takes as many characters as
+  a repeat allows and never gives one back, so `[a-z]*a` matches `ba` here and nothing there.
+- **A space is a space.** testlib drops every space a backslash does not quote, so its
+  `[a-z ]` is `[a-z]`; `\ ` is a space in both.
+- **`{2,}` is two or more**, where testlib reads it as exactly two.
+- **A group can be repeated, and can stand anywhere:** testlib refuses `(ab|cd){2}` and
+  `x(ab|cd)y`.
+- **`\d`, `\w` and the like, `^`, `$` and an empty class are refused,** where testlib reads
+  the first three as the letter or the character itself, and `[]` as a class of nothing.
+
+As in testlib, `.` is a dot and not "any character", so `[^ ]` or a class says what may
+stand there.
+
 ### Looking ahead
 
 | Call | True when | Consumes |
