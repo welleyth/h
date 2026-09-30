@@ -385,6 +385,35 @@ total once, at the end: `sum of n is 200005, above 200000`. Several can live sid
 validator that uses `cases` with no `sum_limit` at all gets note EO304, because most
 multi-test statements bound the sum of `n`.
 
+### Pulling one case out
+
+A failing solution on a test of 10,000 cases is easier to debug on the one case it fails.
+`./validator test.txt --eo-case=1234` validates the whole test as usual and, when it is valid,
+writes case 1234 alone as a test to stdout: what comes before the first case, with the count
+that `v.cases` was given written as `1`, then the case's own bytes, then whatever follows the
+last case. `--eo-case 1234` says the same.
+
+```
+$ ./validator test.txt --eo-case=2 > case.txt
+```
+
+turns `3`, `2`, `1 2`, `1`, `5`, `3`, `1 2 3` into `1`, `1`, `5`. It needs one run of
+`v.cases`, the count it was given read as the last integer before it, and the test in a file:
+a path, or standard input redirected from a file. Each is refused with its reason otherwise,
+and so is a case number outside the test, and the flag given twice.
+
+With `--eo-describe`, a validator that uses `v.cases` also prints where the count and each
+case lie in the test, as byte offsets from the start of the file, the end excluded:
+
+```
+eo-describe count 3 0 1
+eo-describe case 1 2 8
+eo-describe case 2 8 12
+eo-describe case 3 12 20
+```
+
+The two flags write to the same stdout, so asking for both is refused.
+
 ## Conditions and structure
 
 Anything the reads cannot express goes through `v.require`:

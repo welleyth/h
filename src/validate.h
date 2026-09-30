@@ -124,11 +124,16 @@ public:
         if (detail::live_validator() != nullptr)
             detail::library_error(fmt("{}: this program already has a validator", detail::where_of(where)));
         detail::diagnostics::shared().start_the_clock("EO303", "validator", 30000, where);
-        std::string path;
         for (int at = 1; at < argc; at++) {
             std::string const argument = argv[at];
             if (argument == "--eo-describe") {
                 describing_ = true;
+            } else if (argument == "--eo-case") {
+                if (at + 1 >= argc) detail::library_error("--eo-case needs the number of a case after it");
+                set_case(argv[at + 1]);
+                at++;
+            } else if (argument.rfind("--eo-case=", 0) == 0) {
+                set_case(argument.substr(10));
             } else if (argument == "--group") {
                 if (at + 1 >= argc) detail::library_error("--group needs the testset index after it");
                 set_group(argv[at + 1]);
@@ -136,11 +141,13 @@ public:
             } else if (argument.rfind("--group=", 0) == 0) {
                 set_group(argument.substr(8));
             } else if (argument.rfind("-", 0) != 0) {
-                path = argument;
+                path_ = argument;
             }
         }
-        from_ = detail::reader(path.empty() ? detail::source::over_descriptor(0, false, true)
-                                             : detail::source::over_file(path.c_str(), true),
+        if (describing_ && wanted_case_.has_value())
+            detail::library_error("--eo-case and --eo-describe both write to stdout; ask for one");
+        from_ = detail::reader(path_.empty() ? detail::source::over_descriptor(0, false, true)
+                                              : detail::source::over_file(path_.c_str(), true),
                                detail::fault::invalid_test, "", false, "EO102");
         detail::live_validator() = this;
         detail::live_sums();
@@ -401,9 +408,17 @@ public:
     template <class Body>
     void cases(long long count, Body&& body) {
         used_cases_ = true;
+        case_runs_++;
+        bool const marking = case_runs_ == 1 && (describing_ || wanted_case_.has_value());
+        if (case_runs_ == 1) {
+            case_count_ = from_.last_integer();
+            cases_counted_ = count;
+        }
         for (long long index = 1; index <= count; index++) {
             detail::current_case() = index;
+            long long const began = from_.position();
             body();
+            if (marking) case_marks_.emplace_back(began, from_.position());
         }
         detail::current_case() = 0;
     }
@@ -440,6 +455,7 @@ public:
         for (detail::registered_sum* one : sums) one->verify();
         closing_warnings();
         if (describing_) describe();
+        if (wanted_case_.has_value()) write_the_case(*wanted_case_);
         detail::diagnostics::shared().emit();
     }
 
@@ -451,6 +467,47 @@ private:
     static void exited_early() {
         validator* const one = detail::live_validator();
         if (one != nullptr) one->complete();
+    }
+
+    void set_case(std::string const& text) {
+        detail::integer_read const parsed = detail::parse_integer(text);
+        if (parsed.problem != detail::number_problem::none)
+            detail::library_error(fmt("--eo-case {} is not a case number", text));
+        if (wanted_case_.has_value())
+            detail::library_error(fmt("--eo-case is given twice, as {} and {}; ask for one case", *wanted_case_,
+                                      parsed.value));
+        wanted_case_ = parsed.value;
+    }
+
+    bool counted_in_the_test() const { return case_count_.start >= 0 && case_count_.value == cases_counted_; }
+
+    void write_the_case(long long wanted) {
+        if (case_runs_ == 0) detail::library_error("--eo-case needs a validator that reads the cases with v.cases");
+        if (case_runs_ > 1)
+            detail::library_error(
+                fmt("--eo-case needs one run of v.cases, and this validator ran it {} times", case_runs_));
+        if (wanted < 1 || wanted > cases_counted_)
+            detail::library_error(fmt("--eo-case={}, but the test has {} cases", wanted, cases_counted_));
+        if (!counted_in_the_test())
+            detail::library_error(fmt("--eo-case needs the count given to v.cases, {}, to be the last integer read "
+                                      "before it, so that it can be written as 1; {}",
+                                      cases_counted_,
+                                      case_count_.start < 0 ? std::string("no integer was read before it")
+                                                            : fmt("the last one was {}", case_count_.value)));
+        int const descriptor = path_.empty() ? 0 : ::open(path_.c_str(), O_RDONLY);
+        std::pair<long long, long long> const chosen = case_marks_[static_cast<std::size_t>(wanted - 1)];
+        std::string out;
+        bool read = detail::read_range(descriptor, 0, case_count_.start, out);
+        out += "1";
+        read = read && detail::read_range(descriptor, case_count_.end, case_marks_.front().first, out) &&
+               detail::read_range(descriptor, chosen.first, chosen.second, out) &&
+               detail::read_range(descriptor, case_marks_.back().second, from_.position(), out);
+        if (!path_.empty()) ::close(descriptor);
+        if (!read)
+            detail::library_error("--eo-case needs the test in a file, and standard input is not one; give the "
+                                  "file's path");
+        std::fwrite(out.data(), 1, out.size(), stdout);
+        std::fflush(stdout);
     }
 
     void set_group(std::string const& text) {
@@ -548,10 +605,20 @@ private:
                        one.second.reached_high ? "yes" : "no");
         for (auto const& one : features_)
             out += fmt("eo-describe feature {} seen={}\n", one.first, one.second ? "yes" : "no");
+        if (counted_in_the_test())
+            out += fmt("eo-describe count {} {} {}\n", cases_counted_, case_count_.start, case_count_.end);
+        for (std::size_t at = 0; at < case_marks_.size(); at++)
+            out += fmt("eo-describe case {} {} {}\n", at + 1, case_marks_[at].first, case_marks_[at].second);
         detail::report(out.empty() ? std::string() : out.substr(0, out.size() - 1));
     }
 
     detail::reader from_;
+    std::string path_;
+    std::optional<long long> wanted_case_;
+    long long case_runs_ = 0;
+    long long cases_counted_ = 0;
+    detail::integer_span case_count_;
+    std::vector<std::pair<long long, long long>> case_marks_;
     std::optional<int> group_;
     std::map<std::string, bool> features_;
     bool completed_ = false;

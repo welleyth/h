@@ -26,6 +26,10 @@ in the right-hand columns is in the header; the programs below are compiled by `
 | `ensuref(cond, "n is %d", n)` | `v.require(cond, "n is {}", n)` |
 | `format("a[%d]", i)` as a name | `eo::element("a", i)` |
 | `validator.group()` | `v.group()`, a `std::optional<int>` |
+| `setTestCase(i)` in a loop, `unsetTestCase()` | `v.cases(t, body)` |
+| `--testCase k --testCaseFileName case.txt` | `--eo-case=k > case.txt`; see [Pulling one case out](validator.md#pulling-one-case-out) |
+| `--testMarkupFileName markup.txt` | `--eo-describe`, whose `eo-describe case k start end` lines give each case's bytes |
+| `--testOverviewLogFileName overview.txt` | `--eo-describe`, whose `eo-describe value` lines give each bound reached |
 | `pattern p("[a-z]{1,10}"); p.matches(s)` | `eo::pattern p("[a-z]{1,10}"); p.matches(s)`; see [Patterns](validator.md#patterns) for where the two dialects differ |
 
 ```cpp

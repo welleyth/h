@@ -72,6 +72,19 @@ inline void write_file(std::string const& path, std::string const& bytes, char c
         library_error(fmt("the {} could not be written to {}: {}", what, path, std::strerror(errno)));
 }
 
+inline bool read_range(int descriptor, long long from, long long to, std::string& into) {
+    char buffer[pipe_size];
+    while (from < to) {
+        std::size_t const wanted = static_cast<std::size_t>(std::min<long long>(sizeof(buffer), to - from));
+        ssize_t const got = ::pread(descriptor, buffer, wanted, static_cast<off_t>(from));
+        if (got < 0 && errno == EINTR) continue;
+        if (got <= 0) return false;
+        into.append(buffer, static_cast<std::size_t>(got));
+        from += got;
+    }
+    return true;
+}
+
 enum class absorbed { nothing, some, full };
 
 class source {
@@ -206,6 +219,7 @@ public:
 
     long long line() const { return line_; }
     long long column() const { return column_; }
+    long long position() const { return static_cast<long long>(dropped_ + begin_); }
     bool carriage_returns() const { return carriage_returns_; }
 
 private:
@@ -229,6 +243,7 @@ private:
         carriage_returns_ = other.carriage_returns_;
         pending_ = other.pending_;
         text_backed_ = other.text_backed_;
+        dropped_ = other.dropped_;
         line_ = other.line_;
         column_ = other.column_;
         other.descriptor_ = -1;
@@ -239,6 +254,7 @@ private:
 
     void compact() {
         if (begin_ == 0) return;
+        dropped_ += begin_;
         std::memmove(buffer_.data(), buffer_.data() + begin_, end_ - begin_);
         end_ -= begin_;
         begin_ = 0;
@@ -287,6 +303,7 @@ private:
     bool carriage_returns_ = false;
     std::string_view pending_;
     bool text_backed_ = false;
+    std::size_t dropped_ = 0;
     long long line_ = 1;
     long long column_ = 1;
 };
