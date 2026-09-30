@@ -12,8 +12,6 @@ const (
 	Skipped     Verdict = "SKIPPED"
 )
 
-const juryError = 3
-
 type RunResult struct {
 	Group    int
 	Index    int

@@ -242,13 +242,13 @@ func (w *Workspace) structureChecks(ctx context.Context, found *Findings) error 
 		if err != nil {
 			return err
 		}
-		if status.ExitCode == juryError {
+		if status.ExitCode != 0 && validatorBroke(status) {
 			found.warn("EO806", where,
-				fmt.Sprintf("the validator could not run: %s", firstLine(string(status.Stdout)+string(status.Stderr))),
+				fmt.Sprintf("the validator could not run: %s", validatorSaid(status)),
 				"the validator is broken, so every test reads invalid — fix the validator, not the tests")
 		} else if status.ExitCode != 0 {
 			found.warn("EO806", where,
-				fmt.Sprintf("the test is invalid with no --group: %s", firstLine(string(status.Stdout)+string(status.Stderr))),
+				fmt.Sprintf("the test is invalid with no --group: %s", validatorSaid(status)),
 				"a stress run passes no group, so this input would be called invalid")
 		}
 
@@ -263,7 +263,7 @@ func (w *Workspace) structureChecks(ctx context.Context, found *Findings) error 
 			if status.ExitCode != 0 {
 				found.warn("EO810", where,
 					fmt.Sprintf("testset %d depends on testset %d but the test is invalid there: %s",
-						testset.Index, made.Group, firstLine(string(status.Stdout)+string(status.Stderr))),
+						testset.Index, made.Group, validatorSaid(status)),
 					"the groups do not nest the way the scoring assumes")
 			}
 		}
@@ -526,7 +526,7 @@ func (w *Workspace) validateBody(ctx context.Context, body []byte) string {
 	if status.ExitCode == 0 {
 		return ""
 	}
-	return firstLine(string(status.Stdout) + string(status.Stderr))
+	return validatorSaid(status)
 }
 
 func otherCompiler(ctx context.Context, cxx string) string {

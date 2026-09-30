@@ -51,9 +51,12 @@ func (w *Workspace) validatorTestChecks(ctx context.Context, found *Findings) er
 		case status.TimedOut:
 			found.warn("EO911", where, fmt.Sprintf("%s, and the validator did not finish in %d s", expected,
 				validatorLimit/1000), fix)
+		case status.ExitCode != 0 && validatorBroke(status):
+			found.warn("EO911", where, fmt.Sprintf("%s, and the validator could not run: %s", expected,
+				validatorSaid(status)), fix)
 		case test.Expect == "VALID" && status.ExitCode != 0:
 			found.warn("EO911", where, fmt.Sprintf("%s, and the validator refuses it: %s", expected,
-				firstLine(string(status.Stdout)+string(status.Stderr))), fix)
+				validatorSaid(status)), fix)
 		case test.Expect == "INVALID" && status.ExitCode == 0:
 			found.warn("EO911", where, expected+", and the validator accepts it", fix)
 		}

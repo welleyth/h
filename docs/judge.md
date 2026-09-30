@@ -244,8 +244,8 @@ list: `validator test 2`, `checker test 1`. `run` does not read them.
 | `group` | a testset's index, passed as `--group`; without it the validator is given no group, as in a stress run |
 
 The validator is given the input with CRLF line endings folded to LF, as the judge folds a
-test's. A validator that does not finish in its 30 s breaks either
-expectation.
+test's. A validator that breaks, printing a first line that starts with `eolymp.h: `, being
+killed by a signal or not finishing in its 30 s, breaks either expectation.
 
 ```json
 "checkerTests": [
@@ -413,7 +413,7 @@ platform's:
 | `PASSED` | every solution kept its type; the iteration's files are removed and the next one starts |
 | `COUNTEREXAMPLE` | a solution broke its type |
 | `INVALID` | the validator refused the input, so the generator is at fault: its options allow an input the statement does not |
-| `BROKEN` | the generator or the reference did not finish, the validator ran out of its 30 s, or the checker failed on a solution's output |
+| `BROKEN` | the generator or the reference did not finish, the validator could not run, its first line starting with `eolymp.h: ` or killed by a signal, or ran out of its 30 s, or the checker failed on a solution's output |
 
 The stress stops at the first iteration that did not pass, prints it, and keeps its files under
 `--work`: at a `COUNTEREXAMPLE`, and at an `INVALID` or a `BROKEN` one too, which the

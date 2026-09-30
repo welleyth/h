@@ -482,9 +482,13 @@ func (w *Workspace) iterate(ctx context.Context, plan *stressPlan, index int) (*
 		case status.TimedOut:
 			one.Verdict, one.Why = stressBroken, "the validator "+ended(status, w.validatorLimit)
 			return one, nil
+		case status.ExitCode != 0 && validatorBroke(status):
+			one.Verdict = stressBroken
+			one.Why = "the validator could not run: " + validatorSaid(status)
+			return one, nil
 		case status.ExitCode != 0:
 			one.Verdict = stressInvalid
-			one.Why = "the validator refuses the input: " + firstLine(string(status.Stdout)+string(status.Stderr))
+			one.Why = "the validator refuses the input: " + validatorSaid(status)
 			return one, nil
 		}
 	}

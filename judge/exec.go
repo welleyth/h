@@ -24,6 +24,7 @@ type Built struct {
 type Status struct {
 	ExitCode int
 	Signal   bool
+	Killed   syscall.Signal
 	Wall     int
 	TimedOut bool
 	Stdout   []byte
@@ -188,7 +189,7 @@ func run(ctx context.Context, exe string, call Invocation) (*Status, error) {
 	if state := command.ProcessState; state != nil {
 		status.ExitCode = state.ExitCode()
 		if wait, ok := state.Sys().(syscall.WaitStatus); ok && wait.Signaled() {
-			status.Signal = true
+			status.Signal, status.Killed = true, wait.Signal()
 		}
 	}
 	if inner.Err() == context.DeadlineExceeded {

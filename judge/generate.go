@@ -378,9 +378,9 @@ func (w *Workspace) Validate(ctx context.Context) error {
 		}
 		said := string(status.Stdout) + string(status.Stderr)
 		made.Valid = status.ExitCode == 0
-		made.Broken = status.ExitCode == juryError
+		made.Broken = !made.Valid && validatorBroke(status)
 		if !made.Valid {
-			made.Why = firstLine(said)
+			made.Why = validatorSaid(status)
 		}
 		made.Warnings = append(made.Warnings, warningsIn("validator", said)...)
 	}
@@ -398,6 +398,18 @@ func validatingWithin(ctx context.Context, built *Built, limit int, input string
 	}
 	defer test.Close()
 	return built.jury(ctx, limit, Invocation{Args: append([]string{input}, flags...), Stdin: test})
+}
+
+func validatorBroke(status *Status) bool {
+	return status.Signal || strings.HasPrefix(firstLine(string(status.Stdout)+string(status.Stderr)), "eolymp.h: ")
+}
+
+func validatorSaid(status *Status) string {
+	said := firstLine(string(status.Stdout) + string(status.Stderr))
+	if said == "" && status.Signal {
+		return fmt.Sprintf("it was killed by signal %d, %s", int(status.Killed), status.Killed)
+	}
+	return said
 }
 
 func (w *Workspace) describe(ctx context.Context, made *Prepared) (string, error) {
