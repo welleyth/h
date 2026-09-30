@@ -450,6 +450,25 @@ public:
         was_read(name);
     }
 
+    template <class T, class Read>
+    std::vector<T> many(long long count, value_name const& name, Read read_one) {
+        std::vector<T> values;
+        values.reserve(room_for(count, name));
+        for (long long at = 1; at <= count; at++) values.push_back(read_one(name.lent_at(at)));
+        return values;
+    }
+
+    std::string choice(std::initializer_list<char const*> choices, bool fold, value_name const& name, site where) {
+        std::string found = take_word(name, where, "a token", longest_of(choices));
+        std::string listed;
+        for (char const* one : choices) {
+            listed += (listed.empty() ? "" : ", ") + std::string(one);
+            if (found == one) return found;
+            if (fold && same_folded(found, one)) return std::string(one);
+        }
+        refuse(name, fmt("\"{}\" is not one of {}", shorten(found), listed));
+    }
+
     void study(value_name const& name, long long low, long long high, stated bounds, long long type_low,
                long long type_high, char const* type_word, site where) {
         if (name.absent() && fresh("EO101", where))

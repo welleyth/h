@@ -182,60 +182,48 @@ public:
 
     std::string read_choice(std::initializer_list<char const*> choices, detail::value_name name,
                             detail::site where = detail::site::here()) {
-        return choose(choices, false, name, where);
+        return reader_.choice(choices, false, name, where);
     }
 
     std::string read_choice(std::initializer_list<char const*> choices, any_case_t, detail::value_name name,
                             detail::site where = detail::site::here()) {
-        return choose(choices, true, name, where);
+        return reader_.choice(choices, true, name, where);
     }
 
     std::vector<int> read_ints(long long count, long long low, long long high, detail::value_name name,
                                detail::site where = detail::site::here()) {
-        std::vector<int> values;
-        values.reserve(reader_.room_for(count, name));
-        for (long long at = 1; at <= count; at++) {
-            values.push_back(reader_.whole_int(low, high, detail::stated::yes, name.lent_at(at), where));
-        }
-        return values;
+        return reader_.many<int>(count, name, [&](detail::value_name const& each) {
+            return reader_.whole_int(low, high, detail::stated::yes, each, where);
+        });
     }
 
     std::vector<long long> read_longs(long long count, long long low, long long high, detail::value_name name,
                                       detail::site where = detail::site::here()) {
-        std::vector<long long> values;
-        values.reserve(reader_.room_for(count, name));
-        for (long long at = 1; at <= count; at++)
-            values.push_back(reader_.whole_long(low, high, detail::stated::yes, name.lent_at(at), where));
-        return values;
+        return reader_.many<long long>(count, name, [&](detail::value_name const& each) {
+            return reader_.whole_long(low, high, detail::stated::yes, each, where);
+        });
     }
 
     std::vector<long long> read_longs(long long count, any_t, detail::value_name name,
                                       detail::site where = detail::site::here()) {
-        std::vector<long long> values;
-        values.reserve(reader_.room_for(count, name));
-        for (long long at = 1; at <= count; at++)
-            values.push_back(reader_.whole_long(0, 0, detail::stated::deliberate, name.lent_at(at), where));
-        return values;
+        return reader_.many<long long>(count, name, [&](detail::value_name const& each) {
+            return reader_.whole_long(0, 0, detail::stated::deliberate, each, where);
+        });
     }
 
     std::vector<double> read_reals(long long count, double low, double high, detail::value_name name,
                                    detail::site where = detail::site::here()) {
-        std::vector<double> values;
-        values.reserve(reader_.room_for(count, name));
-        for (long long at = 1; at <= count; at++)
-            values.push_back(
-                reader_.fractional(low, high, detail::stated::yes, 0, 0, false, name.lent_at(at), where));
-        return values;
+        return reader_.many<double>(count, name, [&](detail::value_name const& each) {
+            return reader_.fractional(low, high, detail::stated::yes, 0, 0, false, each, where);
+        });
     }
 
     std::vector<std::string> read_tokens(long long count, long long least, long long most, charset allowed,
                                          detail::value_name name,
                                          detail::site where = detail::site::here()) {
-        std::vector<std::string> values;
-        values.reserve(reader_.room_for(count, name));
-        for (long long at = 1; at <= count; at++)
-            values.push_back(reader_.word(least, most, &allowed, detail::stated::yes, name.lent_at(at), where));
-        return values;
+        return reader_.many<std::string>(count, name, [&](detail::value_name const& each) {
+            return reader_.word(least, most, &allowed, detail::stated::yes, each, where);
+        });
     }
 
     bool at_eof() { return reader_.at_end(); }
@@ -268,19 +256,6 @@ private:
     detail::reader& inside() { return reader_; }
     bool trailing_matters() const { return trailing_matters_; }
     bool skipped() const { return skipped_; }
-
-
-    std::string choose(std::initializer_list<char const*> choices, bool fold, detail::value_name const& name,
-                       detail::site where) {
-        std::string found = reader_.take_word(name, where, "a token", reader_.longest_of(choices));
-        std::string listed;
-        for (char const* one : choices) {
-            listed += (listed.empty() ? "" : ", ") + std::string(one);
-            if (found == one) return found;
-            if (fold && detail::same_folded(found, one)) return std::string(one);
-        }
-        reader_.refuse(name, fmt("\"{}\" is not one of {}", detail::shorten(found), listed));
-    }
 
     detail::reader reader_;
     bool trailing_matters_ = true;
