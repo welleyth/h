@@ -346,19 +346,12 @@ public:
             put_the_output_back();
             let_go_of_what_was_held();
         }
-        if (delivered_) return;
-        if (std::uncaught_exceptions() == 0) fail_jury("the checker ended without a verdict");
-#ifndef EOLYMP_TESTING
-        fail_jury("an exception left the checker before its verdict; catch it inside the checker's scope "
-                  "and give a verdict there, or let it end the program");
-#endif
+        fail_closed("checker");
     }
 
     stream input;
     stream output;
     stream jury;
-
-    double cost() const final { return detail::test_cost(); }
 
     int group() const { return whole_of("TEST_GROUP"); }
     int index() const { return whole_of("TEST_INDEX"); }
@@ -678,7 +671,6 @@ private:
     answers_are declared_ = answers_are::unique;
     bool stock_ = false;
     bool compared_only_ = false;
-    bool delivered_ = false;
     int saved_out_ = -1;
     int saved_err_ = -1;
     std::FILE* held_ = nullptr;

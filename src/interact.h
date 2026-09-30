@@ -70,12 +70,7 @@ public:
         detail::live_interactor() = nullptr;
         detail::live_scorer() = nullptr;
         detail::current_case() = 0;
-        if (delivered_) return;
-        if (std::uncaught_exceptions() == 0) fail_jury("the interactor ended without a verdict");
-#ifndef EOLYMP_TESTING
-        fail_jury("an exception left the interactor before its verdict; catch it inside the interactor's scope "
-                  "and give a verdict there, or let it end the program");
-#endif
+        fail_closed("interactor");
     }
 
     stream input;
@@ -102,8 +97,6 @@ public:
         if (!deaf_) write_while_listening();
         pending_.clear();
     }
-
-    double cost() const final { return detail::test_cost(); }
 
     void value(std::string name, double what) { held_.record(std::move(name), what); }
 
@@ -240,7 +233,6 @@ private:
     summary held_;
     eo::rng dice_{0};
     bool seeded_ = false;
-    bool delivered_ = false;
     bool deaf_ = false;
     bool reported_ = false;
     bool waiting_ = false;

@@ -113,12 +113,7 @@ public:
         if (replies_ != nullptr) std::fclose(replies_);
         requests_ = nullptr;
         replies_ = nullptr;
-        if (delivered_) return;
-        if (std::uncaught_exceptions() == 0) fail_jury("the controller ended without a verdict");
-#ifndef EOLYMP_TESTING
-        fail_jury("an exception left the controller before its verdict; catch it inside the controller's scope "
-                  "and give a verdict there, or let it end the program");
-#endif
+        fail_closed("controller");
     }
 
     stream input;
@@ -159,8 +154,6 @@ public:
         team_.push_back(std::move(made));
         return *team_.back();
     }
-
-    double cost() const final { return detail::test_cost(); }
 
     void value(std::string name, double what) { held_.record(std::move(name), what); }
 
@@ -289,7 +282,6 @@ private:
     long long sent_bytes_ = 0;
     long long budgets_ = 0;
     bool seeded_ = false;
-    bool delivered_ = false;
     bool reported_ = false;
     bool budget_spent_ = false;
 };

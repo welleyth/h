@@ -2249,16 +2249,7 @@ inline bool close_enough(double expected, double found, double epsilon) {
 
 namespace detail {
 
-class scorer {
-public:
-    virtual double cost() const = 0;
-    virtual void pass(double fraction, std::string const& message) = 0;
-    virtual void fail_run(std::string const& message) = 0;
-    virtual void fail_jury(std::string const& message) = 0;
-
-protected:
-    ~scorer() = default;
-};
+class scorer;
 
 class limits_keeper {
 public:
@@ -2366,6 +2357,29 @@ inline double test_cost() {
              "points and partial scores follow from the cost; report the judge's configuration", site::here());
     return 0;
 }
+
+class scorer {
+public:
+    double cost() const { return test_cost(); }
+    virtual void pass(double fraction, std::string const& message) = 0;
+    virtual void fail_run(std::string const& message) = 0;
+    virtual void fail_jury(std::string const& message) = 0;
+
+protected:
+    ~scorer() = default;
+
+    void fail_closed(char const* role) {
+        if (delivered_) return;
+        if (std::uncaught_exceptions() == 0) fail_jury(fmt("the {} ended without a verdict", role));
+#ifndef EOLYMP_TESTING
+        fail_jury(fmt("an exception left the {} before its verdict; catch it inside the {}'s scope and give a "
+                      "verdict there, or let it end the program",
+                      role, role));
+#endif
+    }
+
+    bool delivered_ = false;
+};
 
 inline double rounded(double value, int digits) {
     if (digits > 15) return value;
@@ -3335,19 +3349,12 @@ public:
             put_the_output_back();
             let_go_of_what_was_held();
         }
-        if (delivered_) return;
-        if (std::uncaught_exceptions() == 0) fail_jury("the checker ended without a verdict");
-#ifndef EOLYMP_TESTING
-        fail_jury("an exception left the checker before its verdict; catch it inside the checker's scope "
-                  "and give a verdict there, or let it end the program");
-#endif
+        fail_closed("checker");
     }
 
     stream input;
     stream output;
     stream jury;
-
-    double cost() const final { return detail::test_cost(); }
 
     int group() const { return whole_of("TEST_GROUP"); }
     int index() const { return whole_of("TEST_INDEX"); }
@@ -3667,7 +3674,6 @@ private:
     answers_are declared_ = answers_are::unique;
     bool stock_ = false;
     bool compared_only_ = false;
-    bool delivered_ = false;
     int saved_out_ = -1;
     int saved_err_ = -1;
     std::FILE* held_ = nullptr;
@@ -3724,12 +3730,7 @@ public:
         detail::live_interactor() = nullptr;
         detail::live_scorer() = nullptr;
         detail::current_case() = 0;
-        if (delivered_) return;
-        if (std::uncaught_exceptions() == 0) fail_jury("the interactor ended without a verdict");
-#ifndef EOLYMP_TESTING
-        fail_jury("an exception left the interactor before its verdict; catch it inside the interactor's scope "
-                  "and give a verdict there, or let it end the program");
-#endif
+        fail_closed("interactor");
     }
 
     stream input;
@@ -3756,8 +3757,6 @@ public:
         if (!deaf_) write_while_listening();
         pending_.clear();
     }
-
-    double cost() const final { return detail::test_cost(); }
 
     void value(std::string name, double what) { held_.record(std::move(name), what); }
 
@@ -3894,7 +3893,6 @@ private:
     summary held_;
     eo::rng dice_{0};
     bool seeded_ = false;
-    bool delivered_ = false;
     bool deaf_ = false;
     bool reported_ = false;
     bool waiting_ = false;
@@ -4165,12 +4163,7 @@ public:
         if (replies_ != nullptr) std::fclose(replies_);
         requests_ = nullptr;
         replies_ = nullptr;
-        if (delivered_) return;
-        if (std::uncaught_exceptions() == 0) fail_jury("the controller ended without a verdict");
-#ifndef EOLYMP_TESTING
-        fail_jury("an exception left the controller before its verdict; catch it inside the controller's scope "
-                  "and give a verdict there, or let it end the program");
-#endif
+        fail_closed("controller");
     }
 
     stream input;
@@ -4211,8 +4204,6 @@ public:
         team_.push_back(std::move(made));
         return *team_.back();
     }
-
-    double cost() const final { return detail::test_cost(); }
 
     void value(std::string name, double what) { held_.record(std::move(name), what); }
 
@@ -4341,7 +4332,6 @@ private:
     long long sent_bytes_ = 0;
     long long budgets_ = 0;
     bool seeded_ = false;
-    bool delivered_ = false;
     bool reported_ = false;
     bool budget_spent_ = false;
 };
