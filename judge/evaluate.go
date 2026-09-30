@@ -203,7 +203,11 @@ func (w *Workspace) check(ctx context.Context, env map[string]string, made *Prep
 
 	result.Message = firstLine(string(said))
 	result.Warnings = warningsIn("checker", string(said))
+	checked(result, status, said)
+	return result, nil
+}
 
+func checked(result *RunResult, status *Status, said []byte) {
 	switch status.ExitCode {
 	case 0:
 		result.Verdict = Accepted
@@ -214,7 +218,7 @@ func (w *Workspace) check(ctx context.Context, env map[string]string, made *Prep
 		if err != nil {
 			result.Verdict = Failure
 			result.Message = err.Error()
-			return result, nil
+			return
 		}
 		result.Fraction = points
 		result.Verdict = verdictOfPoints(points, result.Cost)
@@ -226,7 +230,6 @@ func (w *Workspace) check(ctx context.Context, env map[string]string, made *Prep
 	if result.Verdict == Accepted {
 		result.Fraction = result.Cost
 	}
-	return result, nil
 }
 
 func runChecker(ctx context.Context, checker *Built, made *Prepared, output, work string,
