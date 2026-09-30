@@ -923,3 +923,90 @@ EO_TEST(a_warning_code_is_known_by_its_text_and_not_its_address) {
     EO_CHECK(shared.again(again.c_str(), here));
     shared.forget_everything();
 }
+
+namespace {
+
+std::string refused_by_a_validator(std::string const& text, void (*read)(eo::validator&)) {
+    return validate(text, [&](eo::validator& v) { read(v); }).text;
+}
+
+}  // namespace
+
+EO_TEST(pin_a_number_that_a_token_character_follows) {
+    auto const integer_then_line = [](eo::validator& v) {
+        v.read_int(1, 1000000, "n");
+        v.read_eoln();
+    };
+    auto const integer_then_space = [](eo::validator& v) {
+        v.read_int(1, 1000000, "n");
+        v.read_space();
+    };
+    auto const real_then_line = [](eo::validator& v) {
+        v.read_real(0, 10000, 1, 6, "p");
+        v.read_eoln();
+    };
+    auto const integers_then_line = [](eo::validator& v) {
+        v.read_ints(3, 1, 9, "a");
+        v.read_eoln();
+    };
+    auto const integer_alone = [](eo::validator& v) { v.read_int(1, 1000000, "n"); };
+    auto const unnamed_then_line = [](eo::validator& v) {
+        v.read_int(1, 1000000, eo::unnamed);
+        v.read_eoln();
+    };
+    auto const clock = [](eo::validator& v) {
+        v.read_int(0, 23, "hour");
+        v.read_char(':');
+    };
+    EO_CHECK_EQ(refused_by_a_validator("1e5\n", integer_then_line),
+                std::string("line 1: expected a line break after n, found \"e\""));
+    EO_CHECK_EQ(refused_by_a_validator("12abc 5\n", integer_then_space),
+                std::string("line 1: expected a space after n, found \"a\""));
+    EO_CHECK_EQ(refused_by_a_validator("7.5\n", integer_then_line),
+                std::string("line 1: expected a line break after n, found \".\""));
+    EO_CHECK_EQ(refused_by_a_validator("1e-3\n", real_then_line),
+                std::string("line 1, p: 1 has 0 digits after the point, not 1..6"));
+    EO_CHECK_EQ(refused_by_a_validator("0,5\n", real_then_line),
+                std::string("line 1, p: 0 has 0 digits after the point, not 1..6"));
+    EO_CHECK_EQ(refused_by_a_validator("1.5e3\n", real_then_line),
+                std::string("line 1: expected a line break after p, found \"e\""));
+    EO_CHECK_EQ(refused_by_a_validator("1.x\n", real_then_line),
+                std::string("line 1, p: expected a number, found \"1.\": it has no digits where digits are required"));
+    EO_CHECK_EQ(refused_by_a_validator("1 2x 3\n", integers_then_line),
+                std::string("line 1: expected a space after a[2], found \"x\""));
+    EO_CHECK_EQ(refused_by_a_validator("5x\n", integer_alone),
+                std::string("line 1: expected the end of the input, found \"x\""));
+    EO_CHECK_EQ(refused_by_a_validator("5x\n", unnamed_then_line),
+                std::string("line 1: expected a line break after the value before, found \"x\""));
+    EO_CHECK_EQ(refused_by_a_validator("0012\n", integer_then_line),
+                std::string("line 1, n: expected an integer, found \"0012\": it has a leading zero"));
+    EO_CHECK_EQ(refused_by_a_validator("012x\n", integer_then_line),
+                std::string("line 1, n: expected an integer, found \"012\": it has a leading zero"));
+    auto const small_then_line = [](eo::validator& v) {
+        v.read_int(1, 10, "n");
+        v.read_eoln();
+    };
+    EO_CHECK_EQ(refused_by_a_validator("100e5\n", small_then_line), std::string("line 1, n: 100 is above 10"));
+    EO_CHECK_EQ(refused_by_a_validator("12x30\n", clock), std::string("line 1: expected \":\" after hour, found \"x\""));
+    EO_CHECK_EQ(refused_by_a_validator("5\r\n", integer_then_line), std::string(""));
+    auto const on_a_stream = [](std::string const& output, void (*read)(eo::checker&)) {
+        return check_run("1\n", output, "1\n", [&](eo::checker& c) {
+                   c.input.skip_rest("not needed");
+                   c.jury.skip_rest("not needed");
+                   read(c);
+                   eo::accept();
+               })
+            .text;
+    };
+    auto const stream_integer = [](eo::checker& c) { c.output.read_int(1, 1000000, "n"); };
+    auto const stream_real = [](eo::checker& c) { c.output.read_real(0, 10, "p"); };
+    EO_CHECK_EQ(on_a_stream("1e5\n", stream_integer),
+                std::string("wrong answer: output.txt, line 1, n: expected an integer, found \"1e5\": it has a "
+                            "character that cannot be part of the number"));
+    EO_CHECK_EQ(on_a_stream("0,5\n", stream_real),
+                std::string("wrong answer: output.txt, line 1, p: expected a number, found \"0,5\": it has a "
+                            "character that cannot be part of the number"));
+    EO_CHECK_EQ(on_a_stream("12abc\n", stream_integer),
+                std::string("wrong answer: output.txt, line 1, n: expected an integer, found \"12abc\": it has a "
+                            "character that cannot be part of the number"));
+}
