@@ -613,3 +613,50 @@ EO_TEST(pin_the_bytes_a_generator_writes) {
                                          "804202973.88878155 0.870536 58452 816561419\n"
                                          "-0.000 0.50000000000000000000 1e-07 -2.5e+300\n"));
 }
+
+namespace {
+
+char const* comma_locale() {
+    for (char const* one : {"de_DE.UTF-8", "de_DE.utf8", "de_DE", "fr_FR.UTF-8", "ru_RU.UTF-8", "uk_UA.UTF-8"})
+        if (std::setlocale(LC_NUMERIC, one) != nullptr) return one;
+    return nullptr;
+}
+
+}  // namespace
+
+EO_TEST(pin_reals_read_and_written_under_another_rounding_mode) {
+    std::string const spelled[] = {"0.3", "0.1", "-2.675", "1e23", "123456789.123456789", "0." + std::string(70, '7')};
+    double const printed[] = {0.125, 2.675, -0.125, 1e22, 0.3};
+    for (int const mode : {FE_UPWARD, FE_DOWNWARD, FE_TOWARDZERO}) {
+        int const before = std::fegetround();
+        std::fesetround(mode);
+        std::vector<std::uint64_t> read;
+        std::vector<std::uint64_t> expected;
+        for (std::string const& one : spelled) {
+            read.push_back(bits_of(eo::detail::parse_real(one, true).value));
+            expected.push_back(bits_of(std::strtod(one.c_str(), nullptr)));
+        }
+        std::vector<std::string> written;
+        std::vector<std::string> by_printf;
+        for (double const one : printed)
+            for (int const digits : {0, 2, 6, 20}) {
+                written.push_back(eo::fmt("{}", eo::fixed(one, digits)));
+                by_printf.push_back(printf_fixed(one, digits));
+            }
+        std::fesetround(before);
+        EO_CHECK(read == expected);
+        EO_CHECK(written == by_printf);
+    }
+}
+
+EO_TEST(pin_reals_read_and_written_in_a_locale_with_a_decimal_comma) {
+    char const* const comma = comma_locale();
+    if (comma == nullptr) return;
+    double const read = eo::detail::parse_real("1.5", false).value;
+    double const expected = std::strtod("1.5", nullptr);
+    std::string const written = eo::fmt("{}", eo::fixed(1.5, 2));
+    std::string const by_printf = printf_fixed(1.5, 2);
+    std::setlocale(LC_NUMERIC, "C");
+    EO_CHECK_EQ(bits_of(read), bits_of(expected));
+    EO_CHECK_EQ(written, by_printf);
+}

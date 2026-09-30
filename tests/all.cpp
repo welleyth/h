@@ -1,7 +1,9 @@
 #include "../eolymp.h"
 #include "../eolymp-shapes.h"
 
+#include <cfenv>
 #include <chrono>
+#include <clocale>
 #include <cstdlib>
 #include <cstring>
 #include <string>
