@@ -95,14 +95,24 @@ func (w *Workspace) plan() []*Planned {
 	return out
 }
 
+type trial struct {
+	made  *Prepared
+	limit int
+	env   map[string]string
+	work  string
+}
+
 func (w *Workspace) judge(ctx context.Context, one *Planned, solution, checker, interactor *Built) (*RunResult, error) {
-	made := w.Tests[reference(one)]
 	testset := w.Problem.Testset(one.Group)
-	limit := testset.Limit(w.Problem)
-
+	at := trial{made: w.Tests[reference(one)], limit: testset.Limit(w.Problem), env: w.metadata(one),
+		work: filepath.Join(w.Dir, "runs", solution.Name, fmt.Sprintf("%d-%d", one.Group, one.Test.Index))}
 	result := &RunResult{Group: one.Group, Index: one.Test.Index, Cost: Points(one.Test.Score)}
+	return w.try(ctx, at, solution, checker, interactor, result)
+}
 
-	work := filepath.Join(w.Dir, "runs", solution.Name, fmt.Sprintf("%d-%d", one.Group, one.Test.Index))
+func (w *Workspace) try(ctx context.Context, at trial, solution, checker, interactor *Built,
+	result *RunResult) (*RunResult, error) {
+	made, limit, work := at.made, at.limit, at.work
 	if err := os.MkdirAll(work, 0o755); err != nil {
 		return nil, err
 	}
@@ -111,7 +121,7 @@ func (w *Workspace) judge(ctx context.Context, one *Planned, solution, checker, 
 	var status, jury *Status
 	var err error
 	if interactor != nil {
-		status, jury, err = w.interact(ctx, one, made, solution, interactor, work, output, limit)
+		status, jury, err = w.interact(ctx, at.env, made, solution, interactor, work, output, limit)
 	} else {
 		status, err = w.batch(ctx, made, solution, work, output, limit)
 	}
@@ -160,7 +170,7 @@ func (w *Workspace) judge(ctx context.Context, one *Planned, solution, checker, 
 		}
 	}
 
-	return w.check(ctx, one, made, checker, work, output, result)
+	return w.check(ctx, at.env, made, checker, work, output, result)
 }
 
 func (w *Workspace) batch(ctx context.Context, made *Prepared, solution *Built, work, output string, limit int) (*Status, error) {
@@ -184,9 +194,9 @@ func (w *Workspace) batch(ctx context.Context, made *Prepared, solution *Built, 
 	return run(ctx, solution.Exe, Invocation{Dir: alone, Stdin: input, Stdout: file, LimitMS: limit})
 }
 
-func (w *Workspace) check(ctx context.Context, one *Planned, made *Prepared, checker *Built,
+func (w *Workspace) check(ctx context.Context, env map[string]string, made *Prepared, checker *Built,
 	work, output string, result *RunResult) (*RunResult, error) {
-	status, said, err := runChecker(ctx, checker, made, output, work, w.metadata(one))
+	status, said, err := runChecker(ctx, checker, made, output, work, env)
 	if err != nil {
 		return nil, err
 	}
@@ -240,8 +250,8 @@ func runChecker(ctx context.Context, checker *Built, made *Prepared, output, wor
 	return status, said, nil
 }
 
-func (w *Workspace) interact(ctx context.Context, one *Planned, made *Prepared, solution, interactor *Built,
-	work, output string, limit int) (*Status, *Status, error) {
+func (w *Workspace) interact(ctx context.Context, env map[string]string, made *Prepared, solution,
+	interactor *Built, work, output string, limit int) (*Status, *Status, error) {
 	input := made.Input
 	var last, lastJury *Status
 
@@ -252,7 +262,7 @@ func (w *Workspace) interact(ctx context.Context, one *Planned, made *Prepared, 
 		}
 
 		status, jury, err := w.onePhase(ctx, input, summary, solution, interactor, work, limit,
-			w.metadata(one), w.answerFor(made))
+			env, w.answerFor(made))
 		if err != nil {
 			return nil, nil, err
 		}
