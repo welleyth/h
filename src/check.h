@@ -400,15 +400,17 @@ public:
     [[noreturn]] void tokens() {
         compared_only_ = true;
         long long seen = 0;
+        std::string want;
+        std::string got;
         while (true) {
             bool const jury_done = jury.at_eof();
             bool const output_done = output.at_eof();
             if (jury_done && output_done) pass(1, fmt("{} tokens", seen));
             seen++;
             if (jury_done) fail_run(fmt("the answer has {} tokens, the output has more", seen - 1));
-            std::string const want = jury.read_token(any, fmt("token {}", seen));
+            jury_token(want, detail::site::here());
             if (output_done) fail_run(fmt("the output ended after {} tokens, the answer has more", seen - 1));
-            std::string const got = contestant_token(seen, want.size());
+            contestant_token(got, want.size());
             if (got.size() > want.size())
                 fail_run(fmt("token {} is longer than the expected \"{}\"; it starts \"{}\"", seen,
                              detail::shorten(want), detail::shorten(got)));
@@ -421,16 +423,18 @@ public:
     [[noreturn]] void reals(double epsilon) {
         compared_only_ = true;
         long long seen = 0;
+        std::string want;
+        std::string got;
         while (true) {
             bool const jury_done = jury.at_eof();
             bool const output_done = output.at_eof();
             if (jury_done && output_done) pass(1, fmt("{} values", seen));
             seen++;
             if (jury_done) fail_run(fmt("the answer has {} tokens, the output has more", seen - 1));
-            std::string const want = jury.read_token(any, fmt("token {}", seen));
+            jury_token(want, detail::site::here());
             if (output_done) fail_run(fmt("the output ended after {} tokens, the answer has more", seen - 1));
             std::size_t const longest = std::max<std::size_t>(want.size(), detail::reader::longest_number);
-            std::string const got = contestant_token(seen, longest);
+            contestant_token(got, longest);
             if (got.size() > longest)
                 fail_run(fmt("token {} is longer than {} characters: \"{}\"", seen, longest, detail::shorten(got)));
             detail::real_read const wanted = detail::parse_real(want, true, true);
@@ -456,10 +460,10 @@ public:
             if (jury_done && output_done) pass(1, fmt("{} lines", seen));
             seen++;
             if (jury_done) fail_run(fmt("the answer has {} lines, the output has more", seen - 1));
-            std::string want = jury.read_line(any, fmt("line {}", seen));
+            std::string want = jury.read_line(any, unnamed);
             if (output_done) fail_run(fmt("the output ended after {} lines, the answer has more", seen - 1));
             bool longer = false;
-            std::string got = output.inside().line_up_to(want.size() + 1, longer, fmt("line {}", seen));
+            std::string got = output.inside().line_up_to(want.size() + 1, longer, unnamed);
             while (!want.empty() && trailing_blank(want.back())) want.pop_back();
             if (longer)
                 fail_run(fmt("line {} is longer than the expected \"{}\"; it starts \"{}\"", seen,
@@ -543,9 +547,13 @@ public:
 private:
     static bool trailing_blank(char one) { return one == ' ' || one == '\t' || one == '\r'; }
 
-    std::string contestant_token(long long seen, std::size_t longest) {
-        return output.inside().take_word(fmt("token {}", seen), detail::site::here(), "a token",
-                                         static_cast<long long>(longest) + 1);
+    void jury_token(std::string& want, detail::site where) {
+        jury.inside().word_into(want, 0, 0, nullptr, detail::stated::deliberate, unnamed, where);
+    }
+
+    void contestant_token(std::string& got, std::size_t longest) {
+        output.inside().take_word_into(got, unnamed, detail::site::here(), "a token",
+                                       static_cast<long long>(longest) + 1);
     }
 
     static void write_log(std::string const& verdict) {

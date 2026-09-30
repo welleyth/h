@@ -212,8 +212,15 @@ public:
 
     std::string word(long long least, long long most, charset const* allowed, stated bounds,
                      value_name const& name, site where) {
+        std::string token;
+        word_into(token, least, most, allowed, bounds, name, where);
+        return token;
+    }
+
+    void word_into(std::string& token, long long least, long long most, charset const* allowed, stated bounds,
+                   value_name const& name, site where) {
         long long const cap = bounds == stated::yes && most < long_high ? most + 1 : 0;
-        std::string const token = take_word(name, where, "a token", cap);
+        take_word_into(token, name, where, "a token", cap);
         if (name.absent() && fresh("EO101", where))
             warn("EO101", "this value is read without a name", "name it, or say eo::unnamed if it needs none",
                  where);
@@ -242,7 +249,6 @@ public:
             remember(name, "length", least, most, length == least, length == most,
                      where);
         }
-        return token;
     }
 
     std::string rest_of_line(long long least, long long most, charset const* allowed, stated bounds,
@@ -354,7 +360,8 @@ public:
 
     std::string number_here(value_name const& name, bool with_a_point, char const* expected) {
         if (lenient_) {
-            std::string const word = word_here(name, longest_number);
+            std::string word;
+            word_here(word, name, longest_number);
             if (word.empty()) refuse(name, fmt("expected {}, found nothing", expected));
             if (from_.peek() >= 0 && !is_blank(from_.peek()))
                 refuse(name, fmt("expected {}, found a token longer than {} characters: \"{}\"", expected,
@@ -387,12 +394,19 @@ public:
     }
 
     std::string take_word(value_name const& name, site where, char const* expected, long long cap = 0) {
-        start_value(name, where, expected);
-        return word_here(name, cap);
+        std::string token;
+        take_word_into(token, name, where, expected, cap);
+        return token;
     }
 
-    std::string word_here(value_name const& name, long long cap) {
-        std::string token;
+    void take_word_into(std::string& token, value_name const& name, site where, char const* expected,
+                        long long cap = 0) {
+        start_value(name, where, expected);
+        word_here(token, name, cap);
+    }
+
+    void word_here(std::string& token, value_name const& name, long long cap) {
+        token.clear();
         while (true) {
             int const next = from_.peek();
             if (next < 0 || is_blank(next)) break;
@@ -406,7 +420,6 @@ public:
             from_.skip_plain(run);
         }
         was_read(name);
-        return token;
     }
 
     void study(value_name const& name, long long low, long long high, stated bounds, long long type_low,
