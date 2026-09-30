@@ -1,5 +1,64 @@
 # Changelog
 
+## 2.4.0
+
+The header is 2.3.0's with a new version: a program built against 2.4.0 judges every run as
+it did, with the same messages, exit codes and warnings. eo-judge gains the stress run and
+tests for the jury's own validator and checker, the two things Polygon had that it did not.
+One eo-judge verdict changes: a run with a relative `--work`, which was broken, now judges as a
+run without it does.
+
+### For problem authors
+
+- **`eo-judge stress <problem> --args '-n=[1..8] -max=[1..100]'`** runs the platform's stress
+  on your machine: every `[a..b]` becomes a random integer on every iteration, a 16-hex-digit
+  seed is appended, and each input is generated, validated with no `--group`, answered by the
+  reference and judged for every compared solution, the checker given a test worth 0. It stops
+  at the first `COUNTEREXAMPLE`, a solution that breaks its type as the platform reads it, and
+  at an `INVALID` input, the generator's fault, or a `BROKEN` iteration, unless `--continue`
+  says to go past those two. It prints the resolved arguments as a `"generator"` line that
+  pastes into `problem.json` and makes the same input again. `--gen`, `--reference`,
+  `--solution` (repeatable), `--iterations` (100) and `--timeout` (300 s) follow `run_stress`;
+  `--arg` gives one argument with spaces in it, `--work` keeps the iteration it stopped at, `-v`
+  lists every iteration, and `--json` puts a `stress` object into the usual report. The
+  warnings of the generator and the checker, EO208 for a partial score on a test worth
+  nothing among them, are reported once each. It exits 1 when it stopped at an iteration, 0
+  when none was found, and 3 when the timeout came before any iteration passed. See
+  [docs/judge.md](docs/judge.md#stress).
+- **`validatorTests`** in `problem.json`, `[{"input": "…" | "file": "…", "expect": "VALID" |
+  "INVALID", "group": k}]`, and **`checkerTests`**, `[{"input", "output", "answer", "expect":
+  "ACCEPTED" | "WRONG_ANSWER" | "PARTIAL" | "FAILURE" | {"points": x}, "cost", "group"}]`, are
+  the tests Polygon keeps for a validator and a checker. `eo-judge check` runs them and reports
+  every one the program answers otherwise as the new warnings **EO911** and **EO912**; `run`
+  does not read them. Both are read as strictly as the rest of `problem.json`, and a validator
+  test's CRLF is folded as a test's is.
+- `eo-judge init` writes one test of each kind into every template.
+- **EO806 tells a validator that refused a test from one that broke.** eolymp.h's validator
+  exits 3 for both, and `check` said "the validator could not run" for every test an eolymp.h
+  validator refused. It now says "the validator rejects it" unless the first line starts with
+  `eolymp.h: ` or a signal killed the validator, which is then named. Which tests are valid does
+  not change, but a warning count can: a refused test gave the same line, "the validator could
+  not run", with its group and without one, and the report merged the two into one warning;
+  now "the validator rejects it" and "the test is invalid with no --group" are two.
+- **A relative `--work` works.** The validator, the checker and the interactor were given the
+  test's paths relative to eo-judge's directory while running in their own, so none of them
+  found its files: every test read invalid, and every run of an interactive problem was a
+  `RUNTIME_ERROR`. The workspace is now made absolute first. This is the verdict the release
+  changes, and only under a relative `--work`.
+- **A `--work` that is the problem's directory, holds it or lies inside it is refused**, since
+  eo-judge clears the directories it makes there and removed the problem's own `tests/` or
+  `stress/`; and one eo-judge uses a `--work` at a time, a second exiting 3.
+- `init --json`'s refusal names `stress` among the commands that take the flag.
+
+### For maintainers
+
+- A run's core, `try`, takes a prepared input, a limit, the metadata and a directory, so a
+  stress iteration is judged by the code a test is; `checked` reads a checker's exit code and
+  log for a solution's run and for a checker test alike; `validatorBroke` is the one place a
+  validator's breakdown is told from its refusal.
+- `judge/testdata/stress` and `judge/testdata/authored` are the fixtures of the two features.
+- The workspace lock is the cache's `flock`, through `lockPath`.
+
 ## 2.3.0
 
 Two behaviours change, both listed first: a jury program that sets a numeric locale whose

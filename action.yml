@@ -7,7 +7,7 @@ inputs:
     required: true
   version:
     description: The eo-judge release to download.
-    default: 2.3.0
+    default: 2.4.0
   strict:
     description: Fail when check raises any warning, not only when it cannot finish.
     default: "false"

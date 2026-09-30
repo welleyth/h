@@ -168,7 +168,7 @@ get between the judge's parser and the score it is looking for:
 
 ```
 points 25 matched 10 of 40
-eolymp.h 2.3.0
+eolymp.h 2.4.0
 warning EO203 ./eolymp.h:NNNN the answer file still holds "40" when the checker finished
 note EO106 checker.cpp:4 the bounds 1..200001 are one away from a round number
 eo-report {"version":1,"warnings":[{"code":"EO106","at":"checker.cpp:4","count":1},{"code":"EO203","at":"./eolymp.h:NNNN","count":1}]}
