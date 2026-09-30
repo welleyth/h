@@ -1048,3 +1048,48 @@ EO_TEST(a_warning_raised_on_one_line_of_two_files_is_counted_in_each) {
                                                   "  name it\n"));
     shared.forget_everything();
 }
+
+namespace {
+
+std::string refused_from_a_slow_pipe(char const* first, char const* second, void (*read)(eo::validator&)) {
+    int ends[2];
+    if (::pipe(ends) != 0) return "no pipe";
+    pid_t const writer = ::fork();
+    if (writer == 0) {
+        ::close(ends[0]);
+        if (::write(ends[1], first, std::strlen(first)) < 0) ::_exit(1);
+        ::usleep(300000);
+        if (::write(ends[1], second, std::strlen(second)) < 0) ::_exit(1);
+        ::_exit(0);
+    }
+    ::close(ends[1]);
+    int const kept = ::dup(0);
+    ::dup2(ends[0], 0);
+    ::close(ends[0]);
+    eo::detail::diagnostics::shared().forget_everything();
+    std::string program = "validator.cpp";
+    std::vector<char*> arguments{program.data()};
+    eot::outcome const result = eot::run_until_stop([&] {
+        eo::validator v(static_cast<int>(arguments.size()), arguments.data());
+        read(v);
+    });
+    ::dup2(kept, 0);
+    ::close(kept);
+    int status = 0;
+    ::waitpid(writer, &status, 0);
+    return result.text;
+}
+
+}  // namespace
+
+EO_TEST(pin_the_lookahead_of_a_validator_on_a_pipe_that_pauses) {
+    auto const integer_then_line = [](eo::validator& v) {
+        v.read_int(1, 9, "n");
+        v.read_eoln();
+    };
+    EO_CHECK_EQ(refused_from_a_slow_pipe("5x", "yz\n", integer_then_line),
+                std::string("line 1, n: expected an integer, found \"5x\": it has a character that cannot be part of "
+                            "the number"));
+    EO_CHECK_EQ(refused_from_a_slow_pipe("5\nx", "yz\n", integer_then_line),
+                std::string("line 2: expected the end of the input, found \"x\""));
+}
