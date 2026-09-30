@@ -96,6 +96,11 @@ verdict whatever the interactor did. Otherwise the interactor's exit code decide
 | 1 or 2 | WRONG_ANSWER; the checker does not run |
 | anything else | INTERACTION_FAILURE: the judge failed, and the submission lands in FAILURE |
 
+An exception nothing caught ends the interactor with exit 3 and
+`jury error an exception nothing caught ended the interactor: …` on its log, where the C++
+library's own abort would leave its words and a signal; the result is the same
+INTERACTION_FAILURE.
+
 **Set a wall `timeLimit`, and set it generously.** The interactor's own time is the
 solution's wall limit plus one second, so without one it is killed after about a second.
 Make `cpuLimit` the real limit for the solution: every round trip costs wall time, and the

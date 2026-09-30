@@ -452,6 +452,7 @@ public:
         detail::live_checker() = this;
         detail::live_scorer() = this;
         detail::close_on_exit(&checker::exited_early);
+        end_on_terminate();
     }
 
     checker(checker const&) = delete;
@@ -742,6 +743,8 @@ public:
                          detail::site::here());
         deliver(3, "jury error", message);
     }
+
+    char const* called() const final { return "checker"; }
 
 private:
     static bool trailing_blank(char one) { return one == ' ' || one == '\t' || one == '\r'; }

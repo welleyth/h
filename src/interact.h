@@ -102,6 +102,7 @@ protected:
         live() = &role();
         live_scorer() = this;
         close_on_exit(&Role::exited_early);
+        end_on_terminate();
     }
 
     void let_go() {
@@ -180,6 +181,8 @@ public:
     }
 
     stream contestant;
+
+    char const* called() const final { return "interactor"; }
 
     template <class... Args>
     void send(Args const&... values) {

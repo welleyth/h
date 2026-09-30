@@ -90,6 +90,8 @@ public:
         fail_closed("controller");
     }
 
+    char const* called() const final { return "controller"; }
+
     long long instance_limit() const { return detail::environment_integer("INSTANCE_LIMIT"); }
 
     channel& spawn(detail::site where = detail::site::here()) {

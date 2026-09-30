@@ -309,14 +309,22 @@ case "${CXX:-c++}" in
     *-fsanitize*)
         pass "the deaths of a checker and an interactor skipped, the sanitizers take those signals themselves" ;;
     *)
-        dies "a checker ended by an exception nothing caught" 134 "" ROLE=throws &&
-            dies "a checker ended by a thrown int" 134 "" ROLE=throws_int &&
+        dies "a checker ended by an exception nothing caught" 3 \
+            "jury error an exception nothing caught ended the checker: vector::at: 7 >= 3
+printed before the end
+logged before the end
+said on stderr
+eolymp.h *" ROLE=throws &&
+            dies "a checker ended by a thrown int" 3 \
+                "jury error an exception nothing caught ended the checker, and it is not a std::exception*" \
+                ROLE=throws_int &&
             dies "a checker that aborts" 134 "" ROLE=aborts &&
             dies "a checker killed by SIGSEGV" 139 "" ROLE=segfaults &&
             dies "a checker killed by SIGFPE" 136 "" ROLE=divides &&
-            expect_death "an interactor ended by an exception nothing caught" 134 "*the interactor lost count*" \
+            expect_death "an interactor ended by an exception nothing caught" 3 \
+                "*jury error an exception nothing caught ended the interactor: the interactor lost count*" \
                 env ROLE=interactor TEST_COST=40 "$build/dies" "$build/exits_in.txt" "$build/exits_summary.txt" &&
-            pass "a checker that dies leaves an empty log, and an interactor the C++ library's words"
+            pass "an exception nothing caught is a jury error that says what it was, in a log that keeps what the checker printed; a signal still leaves an empty log"
         ;;
 esac
 

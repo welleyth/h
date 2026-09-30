@@ -851,3 +851,16 @@ EO_TEST(a_dialogue_the_pipe_cannot_carry_is_reported) {
     EO_CHECK_EQ(noted.code, 0);
     EO_CHECK_IN(checker_warnings(), "note EO401: this run made 100001 round trips");
 }
+
+EO_TEST(an_exception_nothing_caught_ends_an_interactor_as_a_jury_error) {
+    chat const ended = talk("5\n", "", [](eo::interactor&) {
+        try {
+            throw std::runtime_error("the interactor lost count");
+        } catch (...) {
+            eo::detail::scorer::ended_by_terminate();
+        }
+    });
+    EO_CHECK_EQ(ended.code, 3);
+    EO_CHECK_EQ(ended.text, std::string("jury error an exception nothing caught ended the interactor: the interactor "
+                                        "lost count"));
+}

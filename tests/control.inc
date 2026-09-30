@@ -525,3 +525,16 @@ EO_TEST(a_channel_reads_edges_trees_and_graphs) {
         });
     EO_CHECK_EQ(result.text, std::string("ok 3 6 3 true"));
 }
+
+EO_TEST(an_exception_nothing_caught_ends_a_controller_as_a_jury_error) {
+    staged const ended = run_control("3 1\n", {}, {}, 2, [](eo::controller&) {
+        try {
+            throw std::logic_error("no instance answered");
+        } catch (...) {
+            eo::detail::scorer::ended_by_terminate();
+        }
+    });
+    EO_CHECK_EQ(ended.code, 3);
+    EO_CHECK_EQ(ended.text, std::string("jury error an exception nothing caught ended the controller: no instance "
+                                        "answered"));
+}

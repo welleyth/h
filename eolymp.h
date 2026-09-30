@@ -3367,15 +3367,44 @@ inline double test_cost() {
     return 0;
 }
 
+inline std::string what_ended(char const* role) {
+    std::exception_ptr const thrown = std::current_exception();
+    if (thrown == nullptr) return fmt("std::terminate ended the {} before its verdict", role);
+    try {
+        std::rethrow_exception(thrown);
+    } catch (std::exception const& one) {
+        return fmt("an exception nothing caught ended the {}: {}", role, shorten(one.what(), 200));
+    } catch (...) {
+        return fmt("an exception nothing caught ended the {}, and it is not a std::exception", role);
+    }
+}
+
+inline void (*&terminate_before())() {
+    static void (*kept)() = nullptr;
+    return kept;
+}
+
 class scorer {
 public:
     double cost() const { return test_cost(); }
     virtual void pass(double fraction, std::string const& message) = 0;
     virtual void fail_run(std::string const& message) = 0;
     virtual void fail_jury(std::string const& message) = 0;
+    virtual char const* called() const = 0;
+
+    static void ended_by_terminate() {
+        scorer* const one = live_scorer();
+        if (one != nullptr && !one->delivered_) one->fail_jury(what_ended(one->called()));
+        terminate_before()();
+    }
 
 protected:
     ~scorer() = default;
+
+    static void end_on_terminate() {
+        static bool const installed = (terminate_before() = std::set_terminate(&scorer::ended_by_terminate), true);
+        (void)installed;
+    }
 
     void fail_closed(char const* role) {
         if (delivered_) return;
@@ -4498,6 +4527,7 @@ public:
         detail::live_checker() = this;
         detail::live_scorer() = this;
         detail::close_on_exit(&checker::exited_early);
+        end_on_terminate();
     }
 
     checker(checker const&) = delete;
@@ -4789,6 +4819,8 @@ public:
         deliver(3, "jury error", message);
     }
 
+    char const* called() const final { return "checker"; }
+
 private:
     static bool trailing_blank(char one) { return one == ' ' || one == '\t' || one == '\r'; }
 
@@ -5079,6 +5111,7 @@ protected:
         live() = &role();
         live_scorer() = this;
         close_on_exit(&Role::exited_early);
+        end_on_terminate();
     }
 
     void let_go() {
@@ -5157,6 +5190,8 @@ public:
     }
 
     stream contestant;
+
+    char const* called() const final { return "interactor"; }
 
     template <class... Args>
     void send(Args const&... values) {
@@ -5482,6 +5517,8 @@ public:
         replies_ = nullptr;
         fail_closed("controller");
     }
+
+    char const* called() const final { return "controller"; }
 
     long long instance_limit() const { return detail::environment_integer("INSTANCE_LIMIT"); }
 

@@ -1757,3 +1757,53 @@ EO_TEST(reals_within_an_absolute_error_ignore_the_relative_one) {
     EO_CHECK_EQ(compared_by("0.500001 0.499999", "0.5 0.5", micro), std::string("ok 2 values"));
     EO_CHECK_EQ(compared_by("0.5000011", "0.5", micro), std::string("wrong answer value 1 is 0.5000011, expected 0.5"));
 }
+
+namespace {
+
+int& replaced_handler_calls() {
+    static int count = 0;
+    return count;
+}
+
+void replaced_handler() { replaced_handler_calls()++; }
+
+}  // namespace
+
+EO_TEST(an_exception_nothing_caught_ends_a_role_as_a_jury_error) {
+    eot::outcome const thrown = check_run("1\n", "1\n", "1\n", [](eo::checker&) {
+        try {
+            throw std::out_of_range("vector::at: 7 >= 3");
+        } catch (...) {
+            eo::detail::scorer::ended_by_terminate();
+        }
+    });
+    EO_CHECK_EQ(thrown.code, 3);
+    EO_CHECK_EQ(thrown.text, std::string("jury error an exception nothing caught ended the checker: vector::at: 7 >= 3"));
+    eot::outcome const odd = check_run("1\n", "1\n", "1\n", [](eo::checker&) {
+        try {
+            throw 7;
+        } catch (...) {
+            eo::detail::scorer::ended_by_terminate();
+        }
+    });
+    EO_CHECK_EQ(odd.text, std::string("jury error an exception nothing caught ended the checker, and it is not a "
+                                      "std::exception"));
+    eot::outcome const called = check_run("1\n", "1\n", "1\n", [](eo::checker&) {
+        eo::detail::scorer::ended_by_terminate();
+    });
+    EO_CHECK_EQ(called.text, std::string("jury error std::terminate ended the checker before its verdict"));
+    eot::outcome const long_winded = check_run("1\n", "1\n", "1\n", [](eo::checker&) {
+        try {
+            throw std::runtime_error(std::string(300, 'w'));
+        } catch (...) {
+            eo::detail::scorer::ended_by_terminate();
+        }
+    });
+    EO_CHECK_EQ(long_winded.text, "jury error an exception nothing caught ended the checker: " + std::string(200, 'w') + "...");
+    void (*const kept)() = eo::detail::terminate_before();
+    eo::detail::terminate_before() = &replaced_handler;
+    eo::detail::scorer::ended_by_terminate();
+    eo::detail::terminate_before() = kept;
+    EO_CHECK_EQ(replaced_handler_calls(), 1);
+    EO_CHECK(std::get_terminate() == &eo::detail::scorer::ended_by_terminate);
+}

@@ -281,6 +281,19 @@ Either of those lines would kill the parse if it reached the log before the verd
 freely with `std::cout`, `printf` or `eo::log("n = {}", n)`; debug output cannot cost a score.
 More than 64 KB of it gets note EO210, because stored logs are truncated.
 
+**An exception nothing caught still leaves a log.** While a checker, an interactor or a
+controller is live, `std::terminate` ends it as a jury error that says what the exception
+was, and a checker then writes what it held as it would after any verdict:
+
+```
+jury error an exception nothing caught ended the checker: vector::at: 7 >= 3
+printed before the end
+eolymp.h 2.2.1
+```
+
+The verdict is the judge's VERIFICATION_FAILURE, as it is when the C++ library aborts the
+program, which leaves the log empty.
+
 ## Reading the jury's answer and the contestant's with one function
 
 When several answers are correct the checker has to verify the contestant's answer on its
