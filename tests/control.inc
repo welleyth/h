@@ -41,11 +41,13 @@ staged run_control(std::string const& test, std::vector<std::string> const& repl
             continue;
         }
         towards.push_back(temporary_path());
+#if !defined(_WIN32)
         if (replies[at] == "DEAF") {
             ::unlink(towards.back().c_str());
             EO_CHECK_EQ(::mkfifo(towards.back().c_str(), 0600), 0);
             deaf_reader() = ::open(towards.back().c_str(), O_RDONLY | O_NONBLOCK);
         }
+#endif
         std::string const back = temporary_path();
         three_files::put(back, at < heard.size() ? heard[at] : std::string());
         towards.push_back(back);
@@ -186,6 +188,7 @@ EO_TEST(a_controller_refuses_a_score_that_is_not_a_number) {
     EO_CHECK_IN(result.text, "a score of -nan is not a number the judge can pay");
 }
 
+#if !defined(_WIN32)
 EO_TEST(a_controller_summary_that_cannot_be_written_whole_is_a_jury_error) {
     file_size_limit disk;
     staged const result = run_control("1\n", {}, {}, 10, [&](eo::controller& ctl) {
@@ -197,6 +200,7 @@ EO_TEST(a_controller_summary_that_cannot_be_written_whole_is_a_jury_error) {
     EO_CHECK_IN(result.text, "eolymp.h: the summary could not be written to ");
     EO_CHECK_EQ(result.summary, std::string("eolymp-summary 1\nfraction 1"));
 }
+#endif
 
 EO_TEST(a_controller_writes_points_above_the_cost_as_full_marks) {
     staged const result = run_control("1\n", {}, {}, 10, [](eo::controller& ctl) {
@@ -207,6 +211,7 @@ EO_TEST(a_controller_writes_points_above_the_cost_as_full_marks) {
     EO_CHECK_IN(result.summary, "fraction 1\n");
 }
 
+#if !defined(_WIN32)
 EO_TEST(an_instance_that_stopped_reading_is_judged_by_what_it_said) {
     staged const closed = run_control("1\n", {"DEAF"}, {"7\n"}, 10, [](eo::controller& ctl) {
         ctl.input.read_int(1, 9, "n");
@@ -243,6 +248,7 @@ EO_TEST(an_instance_that_stopped_reading_is_judged_by_what_it_said) {
     });
     EO_CHECK_EQ(left.code, 0);
 }
+#endif
 
 EO_TEST(a_controller_can_award_part_of_the_test) {
     staged const result = run_control("3 1\n", {"ok"}, {"5\n"}, 10, [](eo::controller& ctl) {

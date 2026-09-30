@@ -11,9 +11,11 @@
 #include <string>
 #include <vector>
 
+#if !defined(_WIN32)
 #include <poll.h>
 #include <sys/mman.h>
 #include <unistd.h>
+#endif
 
 namespace eot {
 
@@ -137,6 +139,7 @@ inline int watchdog_seconds() {
     return given != nullptr ? std::atoi(given) : 120;
 }
 
+#if !defined(_WIN32)
 [[noreturn]] inline void watch(pid_t suite, int alive, std::atomic<long> const& running, int seconds) {
     long seen = running.load();
     auto since = std::chrono::steady_clock::now();
@@ -179,6 +182,9 @@ inline std::atomic<long>* start_the_watchdog() {
     ::close(ends[0]);
     return watcher > 0 ? running : nullptr;
 }
+#else
+inline std::atomic<long>* start_the_watchdog() { return nullptr; }
+#endif
 
 inline int main_of_tests() {
     (void)complaints_go_to();

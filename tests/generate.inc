@@ -379,6 +379,7 @@ EO_TEST(writing_around_the_writer_is_reported) {
     EO_CHECK_IN(checker_warnings(), "warning EO503: 6 bytes reached stdout without going through g.out");
 }
 
+#if !defined(_WIN32)
 EO_TEST(a_test_sent_nowhere_is_not_counted_as_stray_bytes) {
     eo::detail::diagnostics::shared().forget_everything();
     forget_the_environment();
@@ -406,6 +407,7 @@ EO_TEST(a_test_sent_nowhere_is_not_counted_as_stray_bytes) {
     EO_CHECK(!result.stopped);
     EO_CHECK(!eot::contains(checker_warnings(), "EO503"));
 }
+#endif
 
 EO_TEST(a_test_too_big_to_store_is_reported) {
     made const result = generate({}, [](eo::generator& g) {
@@ -521,8 +523,9 @@ EO_TEST(the_random_stream_refuses_what_it_cannot_draw) {
                 std::string("eolymp.h: cannot draw 9223372036854775806 values: no vector holds that many"));
     if (!eot::sanitized()) {
         eot::outcome const vast = eot::run_until_stop([&] { (void)r.partition(1LL << 56, top, 1); });
-        EO_CHECK_EQ(vast.text, std::string("eolymp.h: cannot draw 72057594037927935 values: there is not enough "
-                                           "memory for them"));
+        std::string const refused =
+            sizeof(std::size_t) < 8 ? "no vector holds that many" : "there is not enough memory for them";
+        EO_CHECK_EQ(vast.text, "eolymp.h: cannot draw 72057594037927935 values: " + refused);
     }
     eot::outcome const many = eot::run_until_stop([&] { (void)r.ints(top, 1, 9); });
     EO_CHECK_IN(many.text, "cannot draw 9223372036854775807 values: no vector holds that many");
@@ -623,7 +626,7 @@ EO_TEST(a_class_with_nothing_visible_to_draw_is_refused) {
         (void)r.pattern("a[^!-~]");
     });
     EO_CHECK_EQ(drawn.code, 3);
-    EO_CHECK_EQ(drawn.text, "eolymp.h: tests/generate.inc:" + std::to_string(drawn_at) + std::string(": eo::pattern(\"a[^!-~]\") has a class written "
+    EO_CHECK_EQ(drawn.text, std::string("eolymp.h: ") + __FILE__ + ":" + std::to_string(drawn_at) + std::string(": eo::pattern(\"a[^!-~]\") has a class written "
                                         "with ^ that leaves nothing to draw: a draw takes only the visible characters "
                                         "! to ~ that it does not exclude"));
     for (std::uint64_t seed = 0; seed < 20; seed++) {

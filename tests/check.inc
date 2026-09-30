@@ -581,7 +581,7 @@ EO_TEST(a_real_optimum_without_a_tolerance_keeps_its_verdict_and_says_so) {
     EO_CHECK_EQ(moved.code, 1);
     EO_CHECK_EQ(moved.text, std::string("wrong answer the answer is 0.30000000000000004; the optimum is 0.3"));
     EO_CHECK_IN(checker_warnings(), "warning EO214: c.optimum compares two reals with ==");
-    EO_CHECK_IN(checker_warnings(), "tests/check.inc:");
+    EO_CHECK_IN(checker_warnings(), "check.inc:");
     eot::outcome const under = run("0.29999999999999999\n", "0.30000000000000004\n");
     EO_CHECK_EQ(under.code, 3);
     EO_CHECK_IN(under.text, "the contestant's 0.3 beats the jury's 0.30000000000000004");
@@ -1004,6 +1004,7 @@ EO_TEST(messages_inside_cases_are_numbered) {
     EO_CHECK_IN(located.text, "wrong answer: case 2: output.txt");
 }
 
+#if !defined(_WIN32)
 EO_TEST(on_the_judge_the_verdict_line_comes_first) {
     eo::detail::diagnostics::shared().forget_everything();
     forget_the_environment();
@@ -1063,7 +1064,9 @@ std::string round_trip(std::FILE* file) {
 }
 
 }  // namespace
+#endif
 
+#if !defined(_WIN32)
 EO_TEST(a_checker_finds_a_scratch_file_where_it_can) {
 #ifdef __linux__
     EO_CHECK_EQ(round_trip(eo::detail::scratch_in_memory()), std::string("held"));
@@ -1103,6 +1106,7 @@ EO_TEST(a_checker_finds_a_scratch_file_where_it_can) {
     EO_CHECK_EQ(result.code, 3);
     EO_CHECK_IN(result.text, "eolymp.h: the checker cannot open a scratch file for its own output");
 }
+#endif
 
 EO_TEST(on_the_judge_a_checker_without_a_verdict_is_a_jury_error) {
     eo::detail::diagnostics::shared().forget_everything();
@@ -1808,6 +1812,24 @@ EO_TEST(an_exception_nothing_caught_ends_a_role_as_a_jury_error) {
     EO_CHECK(std::get_terminate() == &eo::detail::scorer::ended_by_terminate);
 }
 
+namespace {
+
+using signal_handler = void (*)(int);
+
+signal_handler handler_of(int number) {
+#if defined(_WIN32)
+    signal_handler const was = std::signal(number, SIG_DFL);
+    std::signal(number, was);
+    return was;
+#else
+    struct sigaction seen {};
+    ::sigaction(number, nullptr, &seen);
+    return seen.sa_handler;
+#endif
+}
+
+}  // namespace
+
 EO_TEST(on_the_judge_a_deadly_signal_writes_the_held_log_before_the_checker_dies) {
     eo::detail::diagnostics::shared().forget_everything();
     forget_the_environment();
@@ -1818,28 +1840,29 @@ EO_TEST(on_the_judge_a_deadly_signal_writes_the_held_log_before_the_checker_dies
     std::vector<char*> arguments{program.data(), const_cast<char*>(files.input.c_str()),
                                  const_cast<char*>(files.output.c_str()),
                                  const_cast<char*>(files.answer.c_str())};
-    struct sigaction before {};
-    ::sigaction(SIGSEGV, nullptr, &before);
+    signal_handler const before = handler_of(SIGSEGV);
+#if defined(SIGBUS)
     std::string const signals[] = {"SIGSEGV", "SIGABRT", "SIGFPE", "SIGBUS", "SIGILL"};
     int const numbers[] = {SIGSEGV, SIGABRT, SIGFPE, SIGBUS, SIGILL};
-    struct sigaction before_each[5] = {};
-    for (int at = 0; at < 5; at++) ::sigaction(numbers[at], nullptr, &before_each[at]);
-    for (int at = 0; at < 5; at++) {
+#else
+    std::string const signals[] = {"SIGSEGV", "SIGABRT", "SIGFPE", "SIGILL"};
+    int const numbers[] = {SIGSEGV, SIGABRT, SIGFPE, SIGILL};
+#endif
+    int const kinds = static_cast<int>(std::size(numbers));
+    signal_handler before_each[std::size(numbers)] = {};
+    for (int at = 0; at < kinds; at++) before_each[at] = handler_of(numbers[at]);
+    for (int at = 0; at < kinds; at++) {
         bool caught = false;
         bool handed_back = false;
         eot::outcome const result = eot::run_until_stop([&] {
             eo::checker c(static_cast<int>(arguments.size()), arguments.data());
-            struct sigaction during {};
-            ::sigaction(numbers[at], nullptr, &during);
-            caught = during.sa_handler == &eo::detail::deadly_signal;
+            caught = handler_of(numbers[at]) == &eo::detail::deadly_signal;
             std::fprintf(stderr, "said before dying\n");
             c.input.read_int(1, 9, "n");
             try {
                 eo::detail::deadly_signal(numbers[at]);
             } catch (eo::detail::stop const&) {
-                struct sigaction handed_on {};
-                ::sigaction(numbers[at], nullptr, &handed_on);
-                handed_back = handed_on.sa_handler == before_each[at].sa_handler &&
+                handed_back = handler_of(numbers[at]) == before_each[at] &&
                               eo::detail::on_a_deadly_signal() == nullptr;
                 throw;
             }
@@ -1851,9 +1874,7 @@ EO_TEST(on_the_judge_a_deadly_signal_writes_the_held_log_before_the_checker_dies
         EO_CHECK_IN(result.printed, "\nsaid before dying\neolymp.h " EOLYMP_H_VERSION "\n");
     }
     forget_the_environment();
-    struct sigaction after {};
-    ::sigaction(SIGSEGV, nullptr, &after);
-    EO_CHECK(after.sa_handler == before.sa_handler);
+    EO_CHECK(handler_of(SIGSEGV) == before);
     eot::outcome const with_no_checker = eot::run_until_stop([] { eo::detail::deadly_signal(SIGFPE); });
     EO_CHECK_EQ(with_no_checker.code, 128 + SIGFPE);
     EO_CHECK_EQ(with_no_checker.printed, std::string(""));

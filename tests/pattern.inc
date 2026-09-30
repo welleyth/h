@@ -166,14 +166,13 @@ EO_TEST(a_repeat_of_a_group_that_matches_nothing_is_built_at_once) {
     EO_CHECK(!matched("(){1000000000}", "a"));
     EO_CHECK(matched("((){1000000000}){1000000000}x", "x"));
     EO_CHECK(matched("(()*){0,1000000000}x(|){7,}", "x"));
-    EO_CHECK_EQ(refusal_of("(a{0}){5000}"), std::string("eolymp.h: tests/pattern.inc:4: eo::pattern(\"(a{0}){5000}\") "
+    EO_CHECK_EQ(refusal_of("(a{0}){5000}"), std::string("eolymp.h: ") + __FILE__ + ":4: eo::pattern(\"(a{0}){5000}\") "
                                                         "needs more than 4096 steps to match; repeat a character or a "
-                                                        "class, which costs one step at any count, rather than a group"));
+                                                        "class, which costs one step at any count, rather than a group");
 }
 
 EO_TEST(a_pattern_that_does_not_parse_is_refused_at_its_column) {
-    char const* const prefix = "eolymp.h: tests/pattern.inc:4: eo::pattern(\"";
-    std::string const head = std::string(prefix);
+    std::string const head = std::string("eolymp.h: ") + __FILE__ + ":4: eo::pattern(\"";
     EO_CHECK_EQ(refusal_of("[a-z"), head + "[a-z\") does not parse at column 1: the [ that opens here has no ] "
                                           "to close it");
     EO_CHECK_EQ(refusal_of("ab[]"), head + "ab[]\") does not parse at column 3: a class needs at least one "
@@ -232,7 +231,7 @@ EO_TEST(a_pattern_that_does_not_parse_is_refused_at_its_column) {
 
 EO_TEST(a_pattern_too_large_to_match_quickly_is_refused) {
     EO_CHECK_EQ(refusal_of("(ab){3000}"),
-                "eolymp.h: tests/pattern.inc:4: eo::pattern(\"(ab){3000}\") needs more than 4096 steps to "
+                std::string("eolymp.h: ") + __FILE__ + ":4: eo::pattern(\"(ab){3000}\") needs more than 4096 steps to "
                 "match; repeat a character or a class, which costs one step at any count, rather than a group");
     EO_CHECK_IN(refusal_of("((ab){1000}){1000}"), "needs more than 4096 steps");
     EO_CHECK_IN(refusal_of("((((a|b){1000000000}){1000000000}){1000000000}){1000000000}"),

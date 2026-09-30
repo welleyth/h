@@ -72,6 +72,7 @@ EO_TEST(any_and_unnamed_are_distinct_markers) {
     EO_CHECK(std::is_same_v<decltype(eo::unnamed), eo::unnamed_t const>);
 }
 
+#if !defined(_MSC_VER) || defined(__clang__)
 EO_TEST(checked_arithmetic_by_hand_agrees_with_the_builtins) {
     long long const big = std::numeric_limits<long long>::max();
     long long const small = std::numeric_limits<long long>::min();
@@ -112,3 +113,4 @@ EO_TEST(checked_arithmetic_by_hand_agrees_with_the_builtins) {
         }
     EO_CHECK_EQ(disagreements, 0LL);
 }
+#endif

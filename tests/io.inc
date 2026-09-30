@@ -7,7 +7,8 @@ std::string drain(eo::detail::source& from) {
 }
 
 std::string temporary_path() {
-    char const* const directory = std::getenv("TMPDIR");
+    char const* directory = std::getenv("TMPDIR");
+    if (directory == nullptr) directory = std::getenv("TEMP");
     std::string pattern = std::string(directory != nullptr ? directory : "/tmp") + "/eolymp_io_XXXXXX";
     std::vector<char> buffer(pattern.begin(), pattern.end());
     buffer.push_back('\0');
@@ -16,6 +17,7 @@ std::string temporary_path() {
     return std::string(buffer.data());
 }
 
+#if !defined(_WIN32)
 int interrupted_writer = -1;
 
 void answer_the_alarm(int) {
@@ -23,6 +25,7 @@ void answer_the_alarm(int) {
     ssize_t const written = ::write(interrupted_writer, &byte, 1);
     (void)written;
 }
+#endif
 
 }  // namespace
 
@@ -180,6 +183,7 @@ EO_TEST(topping_up_a_text_source_never_waits) {
     EO_CHECK(!over.top_up());
 }
 
+#if !defined(_WIN32)
 EO_TEST(a_last_word_is_written_while_it_is_read) {
     ::signal(SIGPIPE, SIG_IGN);
     int ends[2] = {-1, -1};
@@ -228,7 +232,9 @@ EO_TEST(a_last_word_is_written_while_it_is_read) {
     EO_CHECK(std::chrono::steady_clock::now() - started < std::chrono::seconds(5));
     ::close(ends[1]);
 }
+#endif
 
+#if !defined(_WIN32)
 EO_TEST(a_last_word_gives_up_on_a_reader_that_trickles) {
     ::signal(SIGPIPE, SIG_IGN);
     int ends[2] = {-1, -1};
@@ -254,7 +260,9 @@ EO_TEST(a_last_word_gives_up_on_a_reader_that_trickles) {
     int status = 0;
     ::waitpid(reader, &status, 0);
 }
+#endif
 
+#if !defined(_WIN32)
 EO_TEST(a_non_blocking_pipe_is_waited_on_both_ways) {
     ::signal(SIGPIPE, SIG_IGN);
     int towards[2] = {-1, -1};
@@ -294,7 +302,9 @@ EO_TEST(a_non_blocking_pipe_is_waited_on_both_ways) {
     ::waitpid(echo, &status, 0);
     EO_CHECK(WIFEXITED(status) && WEXITSTATUS(status) == 0);
 }
+#endif
 
+#if !defined(_WIN32)
 EO_TEST(a_source_lets_its_descriptor_go_once_it_has_read_everything) {
     int ends[2] = {-1, -1};
     EO_CHECK_EQ(::pipe(ends), 0);
@@ -307,6 +317,7 @@ EO_TEST(a_source_lets_its_descriptor_go_once_it_has_read_everything) {
     EO_CHECK(::fcntl(ends[0], F_GETFD) < 0);
     EO_CHECK(owned.at_end());
 }
+#endif
 
 EO_TEST(a_channel_is_read_through_a_64_kb_buffer) {
     std::string const path = temporary_path();
@@ -379,6 +390,7 @@ EO_TEST(a_descriptor_that_cannot_be_read_is_a_library_error) {
     ::close(ends[1]);
 }
 
+#if !defined(_WIN32)
 EO_TEST(a_read_cut_short_by_a_signal_is_resumed) {
     int ends[2] = {-1, -1};
     EO_CHECK_EQ(::pipe(ends), 0);
@@ -400,6 +412,7 @@ EO_TEST(a_read_cut_short_by_a_signal_is_resumed) {
     ::sigaction(SIGALRM, &previous, nullptr);
     ::close(ends[1]);
 }
+#endif
 
 EO_TEST(a_source_can_be_moved) {
     eo::detail::source first = eo::detail::source::over_text("abc", false);

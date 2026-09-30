@@ -205,6 +205,38 @@ for lines in 10 5000 100000 1000000; do
         "$(path bulk_interactor) bulk.txt bsummary.txt -- $(path bulk_solution)"
     run "interactor: the summary of $lines lines" cat bsummary.txt
 done
+talk() {
+    label=$1
+    printf '%s\n' "$2" > talk.txt
+    shift 2
+    dialogue "interactor: $label" "$(path dialogue_interactor) talk.txt tsummary.txt -- $(path dialogue_solution) $*"
+}
+talk "a flood of 16 MB and 2 bytes during a 1 MB send (EO409)" "1 0" flood 2
+talk "a solution that ends after reading 100 of 300000 lines" "2 300000" early
+talk "a solution that answers and ends after reading 100 of 300000 lines" "2 300000" early_answer
+talk "a solution that closes its input and answers" "2 300000" closer
+talk "a slow solution, 50 rounds of 20 ms" "3 50" slow
+talk "last words of 60000 bytes to a solution that sleeps 4 s" "4 0" sleeper
+run "interactor: last words to a solution that never reads, given up within 4 whole seconds" sh -c "
+    printf '4 0\n' > talk.txt
+    started=\$(date +%s)
+    TEST_COST=40 timeout 300 $(program play) $(path dialogue_interactor) talk.txt tsummary.txt -- \
+        $(path dialogue_solution) sleeper_forever | sed 's/ solution .*//'
+    [ \$((\$(date +%s) - started)) -le 4 ] && echo 'within 4 s' || echo 'too slow'"
+talk "a solution still sending 1 MB when the interactor accepts (EO404)" "7 0" chatter
+talk "100000 round trips" "5 100000" echo
+printf '3\n' > cin.txt
+printf '10 20 30\n' > cans.txt
+printf '10 99 30\n' > cout.txt
+mkdir -p "tëst temp"
+native() {
+    if command -v cygpath > /dev/null; then cygpath -w "$1"; else echo "$1"; fi
+}
+check "a partial answer with TEMP in a folder that does not exist" TEMP="$(native "$PWD/no such folder")" \
+    TMP="$(native "$PWD/no such folder")"
+check "a partial answer with TEMP in a folder with a space and a letter of the ANSI code page" \
+    TEMP="$(native "$PWD/tëst temp")" TMP="$(native "$PWD/tëst temp")"
+run "the held output leaves no scratch file behind" sh -c "find . -name 'eolymp-checker-output-*' | wc -l"
 mkdir -p com
 printf '3 12345\n' > com/in.txt
 serve() {

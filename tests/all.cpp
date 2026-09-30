@@ -9,16 +9,21 @@
 #include <exception>
 #include <stdexcept>
 #include <string>
+#include <thread>
 #include <type_traits>
 #include <vector>
 
 #include <csignal>
+#if defined(_WIN32)
+#include "windows/posix.h"
+#else
 #include <sys/resource.h>
 #include <sys/stat.h>
 #include <sys/wait.h>
 #include <sys/time.h>
 #include <fcntl.h>
 #include <unistd.h>
+#endif
 
 #include "harness.h"
 

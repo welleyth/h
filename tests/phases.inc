@@ -27,6 +27,7 @@ EO_TEST(a_first_phase_hands_the_next_one_its_work) {
     EO_CHECK_IN(result.summary, "eolymp-phase 2 2\ninput 2\n7\n\n0101\n\n");
 }
 
+#if !defined(_WIN32)
 EO_TEST(a_handoff_that_cannot_be_written_whole_is_a_jury_error) {
     file_size_limit disk;
     chat const result = talk("7\n", "0101\n", [&](eo::interactor& it) {
@@ -40,6 +41,7 @@ EO_TEST(a_handoff_that_cannot_be_written_whole_is_a_jury_error) {
     EO_CHECK_IN(result.text, "eolymp.h: the handoff could not be written to ");
     EO_CHECK_EQ(result.summary.size(), static_cast<std::size_t>(20));
 }
+#endif
 
 EO_TEST(a_later_phase_reads_the_test_and_what_was_handed_on) {
     chat const result = talk(handoff_for(2, 2, "7\n", "0101\n"), "7\n", [](eo::interactor& it) {

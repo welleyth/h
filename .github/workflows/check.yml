@@ -110,6 +110,8 @@ jobs:
           path: build/transcript.txt
       - name: Every scenario gives the bytes it gives on Linux
         run: diff -u build/linux/transcript.txt build/transcript.txt
+      - name: The unit tests pass on Windows
+        run: env -u TMPDIR build/transcript/tests.exe
       - name: A program builds and runs with <windows.h> before or after the headers
         run: |
           for program in windows_first windows_last; do

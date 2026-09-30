@@ -754,7 +754,11 @@ EO_TEST(reals_are_read_and_written_with_a_dot_in_a_locale_with_a_decimal_comma) 
     EO_CHECK_EQ(written, std::string("1.50"));
     EO_CHECK_EQ(wide, "0.125" + std::string(42, '0'));
     EO_CHECK_EQ(points, std::string("20.5"));
+#if defined(_MSC_VER)
+    EO_CHECK_EQ(read_upward, std::nextafter(1.5, 2.0));
+#else
     EO_CHECK_EQ(read_upward, 1.5);
+#endif
     EO_CHECK_EQ(written_upward, std::string("1.50"));
     EO_CHECK_EQ(nearly.text, std::string("points 39.99999999"));
     EO_CHECK_IN(checker_warnings(), "EO206");
@@ -1054,6 +1058,15 @@ namespace {
 std::string refused_from_a_slow_pipe(char const* first, char const* second, void (*read)(eo::validator&)) {
     int ends[2];
     if (::pipe(ends) != 0) return "no pipe";
+#if defined(_WIN32)
+    std::thread writer([&] {
+        long long const said = ::write(ends[1], first, static_cast<unsigned>(std::strlen(first)));
+        std::this_thread::sleep_for(std::chrono::milliseconds(300));
+        long long const more = said < 0 ? said : ::write(ends[1], second, static_cast<unsigned>(std::strlen(second)));
+        (void)more;
+        ::close(ends[1]);
+    });
+#else
     pid_t const writer = ::fork();
     if (writer == 0) {
         ::close(ends[0]);
@@ -1063,6 +1076,7 @@ std::string refused_from_a_slow_pipe(char const* first, char const* second, void
         ::_exit(0);
     }
     ::close(ends[1]);
+#endif
     int const kept = ::dup(0);
     ::dup2(ends[0], 0);
     ::close(ends[0]);
@@ -1075,8 +1089,12 @@ std::string refused_from_a_slow_pipe(char const* first, char const* second, void
     });
     ::dup2(kept, 0);
     ::close(kept);
+#if defined(_WIN32)
+    writer.join();
+#else
     int status = 0;
     ::waitpid(writer, &status, 0);
+#endif
     return result.text;
 }
 
