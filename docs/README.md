@@ -54,11 +54,12 @@ its eolymp.h counterpart, for a problem moving over.
 - **It reads in constant memory.** The reader holds one fixed buffer, 1 MB, whatever the
   input's size, so a 49 MB test costs the same as a small one. A token or a line read with a
   stated maximum stops one character past it rather than holding the rest.
-- **It compiles in about two seconds.** The validator above builds with `-O2` in about 2 s and
-  leaves an object of about 166 KB, and the first checker in [checker.md](checker.md) is about
-  the same (g++ 12 and clang 14 on Linux; the standard headers alone take 0.4 s). `make budget`
-  measures the compiler's CPU time for both on every run of the gate, against the standard
-  headers built in the same run, and fails when either takes more than 9 times as much. The judge compiles the
+- **It compiles in under three seconds.** The validator above builds with `-O2` in about 2.6 s
+  and leaves an object of about 194 KB, and the first checker in [checker.md](checker.md) is
+  about the same (g++ 12 on Linux; the standard headers eolymp.h includes take 0.45 s on
+  their own). `make budget` measures the compiler's CPU time for both on every run of the
+  gate, against those standard headers built in the same run, and fails when either takes
+  more than 8.5 times as much or leaves an object over 220 KB. The judge compiles the
   validator again for every run that needs it.
 - **It keeps out of your code's way, as long as you write `eo::`.** Everything is inside
   `namespace eo`, with no global names and no macros beyond the include guard and the version.
@@ -250,7 +251,7 @@ request. This table is the one description of the gate: the rows down to `budget
 | `hostile` | both headers build after `<bits/stdc++.h>` with `using namespace std`, beside organiser-style globals, and without a warning under `-Wpedantic -Wconversion -Wsign-conversion -Wold-style-cast` and, where the compiler has it, `-Wuseless-cast`, in a program that uses every role; a program that prints a value the library cannot print fails to build with the library's own message, one built below C++17 stops at a single `#error` that names the standard, `using namespace eo` beside `using namespace std` is ambiguous, and `eo::` with `using namespace std` builds cleanly; and with libstdc++, the judge's library, a program that includes only `eolymp.h` still gets `std::function`, `std::unordered_map`, `std::hash`, `std::bind`, `std::not_fn` and `std::invoke` from it, as with 2.2.0 |
 | `examples` | every example in `docs/` compiles |
 | `codes` | every warning code the sources raise has a row in `docs/warnings.md`, and the page's count of built codes is right |
-| `budget` | how long the validator above and the first checker in checker.md take to build, and how large they are, and fails when either takes more than 9 times the compiler CPU time of the standard headers alone or leaves an object over 220 KB; CI's largest are about 8.9 times and 197 KB, on musl, and 8.8 times on g++, whose baseline alone varies from 0.18 s to 0.34 s between runs |
+| `budget` | how long the validator above and the first checker in checker.md take to build, and how large they are, and fails when either takes more than 8.5 times the compiler CPU time of the standard headers `eolymp.h` includes, read from its own `#include` lines and built alone in the same run, or leaves an object over 220 KB; here the validator is 5.8 times and 194 KB, and CI's largest object is 197 KB, on musl |
 | `bench` | how many instructions the main paths take, from reading integers to comparing tokens and writing reals, counted by `perf`; `BASE=<revision>` builds the same programs against that revision's headers and shows the change; run with `make bench` |
 | `mutants` | a changed operator or bound in either header makes the suite fail; run with `make mutants` |
 | `sanitize` | the suite and the end-to-end programs pass under ASan and UBSan; run with `make sanitize` |

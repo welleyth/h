@@ -13,29 +13,13 @@ import sys
 
 from common import ROOT, compiler, cpp_blocks, standard
 
-CEILING_RATIO = 9.0
+CEILING_RATIO = 8.5
 CEILING_KB = 220
 
-BASELINE = """\
-#include <algorithm>
-#include <array>
-#include <charconv>
-#include <chrono>
-#include <cmath>
-#include <cstddef>
-#include <cstdio>
-#include <cstdlib>
-#include <cstring>
-#include <map>
-#include <memory>
-#include <set>
-#include <string>
-#include <string_view>
-#include <type_traits>
-#include <utility>
-#include <vector>
-int main() { return 0; }
-"""
+
+def baseline(root: pathlib.Path) -> str:
+    included = [line for line in (root / "eolymp.h").read_text().splitlines() if line.startswith("#include <")]
+    return "\n".join(included) + "\nint main() { return 0; }\n"
 
 
 def first_program(page: pathlib.Path) -> str:
@@ -66,7 +50,7 @@ def main() -> int:
     build = root / "build" / "budget"
     build.mkdir(parents=True, exist_ok=True)
     programs = {
-        "baseline": BASELINE,
+        "baseline": baseline(root),
         "validator": first_program(root / "docs" / "README.md"),
         "checker": first_program(root / "docs" / "checker.md"),
     }
