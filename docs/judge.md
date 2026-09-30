@@ -529,7 +529,7 @@ times slower to build and read from. A test written on the Windows side may come
 breaks, from an editor or from Git's `core.autocrlf`; the library reads them as the judge does
 and says so with an EO110 note, and a `.gitattributes` line such as `*.txt text eol=lf` keeps
 them out of the repository. The jury programs themselves build and judge natively on Windows
-with MSVC, clang-cl and mingw-w64.
+with MSVC, clang-cl and mingw-w64; see [Windows](README.md#windows).
 
 ## What it does not do
 

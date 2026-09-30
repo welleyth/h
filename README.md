@@ -10,6 +10,11 @@ whose instances run side by side. A second, opt-in header holds the test shapes 
 draws from, and `eo-judge` runs a whole problem the way the judge does, before it is
 uploaded.
 
+**It builds on Windows too**, with MSVC for x64 and x86, clang-cl and mingw-w64, at `/W4 /WX`
+and `-Wall -Wextra -Werror`, and there it gives the verdicts, messages and exit codes it gives
+on Linux: CI runs the same scenarios on both and fails on a single byte of difference. How,
+and the few things that are Windows' own, are in [docs/README.md](docs/README.md#windows).
+
 ```cpp
 #include <eolymp.h>
 
@@ -58,8 +63,8 @@ make check
 ```
 
 `make check` is the whole C++ gate, and CI runs it on GCC, clang, musl and macOS beside
-`make judge`, `make mutants`, `make sanitize`, `make fuzz` and, on a pull request,
-`make version`. What each part proves is in
+`make judge`, `make transcript` and its comparison on Windows, `make mutants`,
+`make sanitize`, `make fuzz` and, on a pull request, `make version`. What each part proves is in
 [docs/README.md](docs/README.md#building-and-testing).
 
 ## Where to read

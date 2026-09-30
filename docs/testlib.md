@@ -173,6 +173,11 @@ See [generator.md](generator.md).
 
 ## What behaves differently
 
+- **The same verdict on Windows.** testlib reads line ends by the platform it was built on:
+  built for Windows, its strict `readEoln()` wants CR LF unless `FOR_LINUX` is defined, so a
+  validator that passes a test on Linux refuses it on Windows. eolymp.h has one rule on every
+  platform, the judge's: CRLF in the jury's files is folded, with an EO110 note, and the
+  contestant's output is read as it is; see [Windows](README.md#windows).
 - **A generator's arguments are all `-name=value`.** testlib accepts `-n 10`, `--n=10` and
   positional arguments read with `argv[1]` or `opt<int>(1)`; eolymp.h refuses each of them
   and every option it was not told about, before writing anything. A problem moved from

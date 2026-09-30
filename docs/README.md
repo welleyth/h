@@ -123,7 +123,77 @@ g++ -std=c++17 -O2 -I. -o validator validator.cpp
 ```
 
 C++17 is the floor, and the header builds unchanged as C++20 and C++23. It is tested against
-GCC and clang, on glibc, on musl — the judge's own libc — and on macOS with libc++.
+GCC and clang, on glibc, on musl — the judge's own libc — on macOS with libc++, and on
+Windows with MSVC, clang-cl and mingw-w64.
+
+## Windows
+
+The judge runs Linux; Windows is for writing and trying a problem locally, and a jury program
+built there judges as the judge does. Build it as you would anything else:
+
+```bat
+cl /std:c++17 /EHsc /O2 /W4 checker.cpp
+clang-cl /std:c++17 /EHsc /O2 /W4 checker.cpp
+g++ -std=c++17 -O2 -Wall -Wextra -o checker.exe checker.cpp
+```
+
+The header never includes `<windows.h>`, so it takes none of that header's macros into your
+program, and it builds after `<windows.h>` too, with or without `NOMINMAX`.
+
+**The verdicts are the same.** Windows opens the standard streams in text mode, which writes
+`\n` as `\r\n` and reads `\r\n` as `\n` and Ctrl-Z as the end of the file. The header switches
+standard input, output and error to binary before `main` and opens every file in binary, so a
+program reads and writes the bytes it would on Linux: the jury's files have their CRLF folded
+by the library, with an EO110 note, as on the judge; the contestant's output is read as it
+is; and a generator writes `\n`. testlib instead reads its line ends by the platform it was
+built on, so the same validator can pass a test on Linux and refuse it on Windows. The CI job
+that proves this builds every program of `make transcript` with all three compilers on
+`windows-latest`, compares its transcript with Linux's byte for byte, and runs the unit tests
+there.
+
+**What is Windows' own:**
+
+- **The stack.** Windows gives a program 1 MB of stack by default, where Linux gives 8 MB and
+  the judge more, so a deep recursion in a checker or a solution can crash only on Windows.
+  Link with a larger one: `/link /STACK:268435456` under MSVC and clang-cl,
+  `-Wl,--stack,268435456` under mingw-w64.
+- **A solution that writes after the interactor has gone** dies of SIGPIPE on Linux and gets
+  a write error on Windows, so its own exit code can differ. The interactor's verdict, which
+  is what the judge reports, does not.
+- **`quick_exit` before a verdict** is a jury error everywhere except under a mingw-w64 built
+  on the old msvcrt, which has no `at_quick_exit` for the library to hear it by, as on macOS;
+  a UCRT toolchain, MSVC and clang-cl have it.
+- **Reals under another rounding mode.** A program that switches the rounding mode with
+  `fesetround` has its reals read by the C library's `strtod`, which follows the mode. MSVC's
+  and clang-cl's runtime then rounds even a decimal that is exact one step away: `1.5` read
+  under `FE_UPWARD` is 1.5000000000000002 there, and 1.5 with glibc and with mingw-w64. Under
+  the default rounding the library reads reals with `std::from_chars` where the standard
+  library has it, the same on every platform.
+- **`long double`** is 64 bits under MSVC and 80 under mingw-w64. The library uses neither,
+  but a program of yours that does can print different digits.
+- **A round trip costs more.** Windows' pipes are slower to wake a waiting reader: 100,000
+  round trips between an interactor and a solution take about 5.5 s on `windows-latest` under
+  cl, clang-cl and mingw-w64 alike, against about 3 s on Linux, roughly twice as long (the
+  review's measurement, three runs each). The verdict does not change, but a time limit you
+  measure on Windows is not the judge's.
+- **x64 and x86.** CI builds and runs everything for x64, and for x86 with cl; a 32-bit
+  `size_t` changes one refusal, a partition too large to draw, from "not enough memory" to "no
+  vector holds that many".
+- **Last words reach a late reader in part.** An interactor that gives up on a solution that
+  is not reading, 500 ms without progress or 2 s in all, leaves in the pipe what the pipe
+  holds: 4 KB on Windows, 64 KB on Linux. A solution that reads them later sees less on
+  Windows.
+- **The rest after EO409.** Once an interactor has taken in 16 MB of answers while it writes,
+  it stops, and the rest waits in the pipe; a solution that keeps writing then blocks, and the
+  two can wait on each other. With 4 KB pipes on Windows that happens 4 KB past the 16 MB,
+  where Linux has 64 KB of room.
+- **An exception that leaves `main`** aborts the program on both, but the exit code a shell
+  sees differs: 134 (SIGABRT) on Linux, a fast-fail code such as 3221226505 (0xC0000409) on
+  Windows, or 3 under MSVC's Debug CRT.
+- **`std::ios::sync_with_stdio(false)` does nothing under MSVC**, so a generator that mixes
+  `g.out` with `std::cout` writes them in another order there than with libstdc++. EO503 says
+  so on every platform: write the test with `g.out` alone.
+- **eo-judge** runs under WSL2, not natively; see [judge.md](judge.md#on-windows).
 
 ## How a warning reaches you
 
