@@ -58,10 +58,10 @@ inline void kept_of(long long kept, long long tries, char const* what, eo::detai
     detail::at_least(made.n, 1, "a parent array");
     if (root < 1 || root > made.n)
         eo::detail::library_error(fmt("the root is {}, outside 1..{}", root, made.n));
-    std::vector<std::vector<int>> near(static_cast<std::size_t>(made.n) + 1);
+    std::vector<std::vector<int>> neighbours(static_cast<std::size_t>(made.n) + 1);
     for (edge const& one : made.edges) {
-        near[static_cast<std::size_t>(one.u)].push_back(one.v);
-        near[static_cast<std::size_t>(one.v)].push_back(one.u);
+        neighbours[static_cast<std::size_t>(one.u)].push_back(one.v);
+        neighbours[static_cast<std::size_t>(one.v)].push_back(one.u);
     }
     std::vector<int> label(static_cast<std::size_t>(made.n) + 1, 0);
     std::vector<int> came_from(static_cast<std::size_t>(made.n) + 1, 0);
@@ -72,7 +72,7 @@ inline void kept_of(long long kept, long long tries, char const* what, eo::detai
         int const here = waiting.back();
         waiting.pop_back();
         std::vector<int> children;
-        for (int const other : near[static_cast<std::size_t>(here)])
+        for (int const other : neighbours[static_cast<std::size_t>(here)])
             if (other != came_from[static_cast<std::size_t>(here)]) children.push_back(other);
         draw.shuffle(children);
         for (int const other : children) {

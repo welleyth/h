@@ -412,10 +412,10 @@ public:
             long long const each = cost(tree, piece.parts[0]);
             if (each == 0) return 0;
             long long const optional = piece.most == unbounded ? each + 2 : (piece.most - piece.least) * (each + 1);
-            return std::min(piece.least * each + optional, most_steps + 1);
+            return (std::min)(piece.least * each + optional, most_steps + 1);
         }
         long long total = piece.shape == piece_shape::either ? 2 * static_cast<long long>(piece.parts.size() - 1) : 0;
-        for (int const part : piece.parts) total = std::min(total + cost(tree, part), most_steps + 1);
+        for (int const part : piece.parts) total = (std::min)(total + cost(tree, part), most_steps + 1);
         return total;
     }
 
@@ -593,7 +593,7 @@ inline long long longest_draw(pattern_tree const& tree, int index) {
     long long total = 0;
     for (int const part : piece.parts) {
         long long const each = longest_draw(tree, part);
-        total = piece.shape == piece_shape::either ? std::max(total, each) : std::min(total + each, most_drawn + 1);
+        total = piece.shape == piece_shape::either ? (std::max)(total, each) : (std::min)(total + each, most_drawn + 1);
     }
     if (piece.shape != piece_shape::again || total == 0) return total;
     long long const copies = piece.most == unbounded ? piece.least + endless_draw : piece.most;
@@ -637,7 +637,7 @@ inline long long longest_match(pattern_tree const& tree, int index) {
     for (int const part : piece.parts) {
         long long const each = longest_match(tree, part);
         if (each == unbounded) return unbounded;
-        total = piece.shape == piece_shape::row ? total + each : std::max(total, each);
+        total = piece.shape == piece_shape::row ? total + each : (std::max)(total, each);
     }
     return total;
 }

@@ -581,7 +581,7 @@ public:
         while (!jury.at_eof()) {
             wanted.emplace_back();
             jury_token(wanted.back(), detail::site::here());
-            longest = std::max(longest, wanted.back().size());
+            longest = (std::max)(longest, wanted.back().size());
         }
         std::vector<std::string> found;
         while (!output.at_eof()) {
@@ -599,7 +599,7 @@ public:
         std::sort(found.begin(), found.end());
         auto const differ = std::mismatch(wanted.begin(), wanted.end(), found.begin());
         if (differ.first != wanted.end()) {
-            std::string const& token = std::min(*differ.first, *differ.second);
+            std::string const& token = (std::min)(*differ.first, *differ.second);
             fail_run(fmt("\"{}\" is in the answer {} and in the output {}", detail::shorten(token),
                          times_in(wanted, token), times_in(found, token)));
         }
@@ -820,9 +820,9 @@ private:
             detail::real_read const found = detail::parse_real(got, true, true);
             if (wanted.problem == detail::number_problem::none &&
                 found.problem == detail::number_problem::none) {
-                bool const near = relative ? close_enough(wanted.value, found.value, epsilon)
+                bool const within_reach = relative ? close_enough(wanted.value, found.value, epsilon)
                                            : std::fabs(wanted.value - found.value) <= epsilon + 1e-15;
-                if (!near)
+                if (!within_reach)
                     fail_run(fmt("value {} is {}, expected {}", seen, found.value, wanted.value));
                 continue;
             }

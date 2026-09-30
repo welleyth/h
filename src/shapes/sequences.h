@@ -28,7 +28,7 @@ inline void room_for_values(long long count, long long low, long long high, char
                                                          long long low, long long high) {
     detail::room_for_values(count, low, high, "a sequence of few distinct values");
     if (kinds < 1) eo::detail::library_error(fmt("few_distinct needs at least one kind, not {}", kinds));
-    std::vector<long long> const chosen = draw.distinct(std::min(kinds, high - low + 1), low, high);
+    std::vector<long long> const chosen = draw.distinct((std::min)(kinds, high - low + 1), low, high);
     std::vector<long long> values;
     values.reserve(static_cast<std::size_t>(count));
     for (long long at = 0; at < count; at++) values.push_back(draw.pick(chosen));

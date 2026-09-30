@@ -158,8 +158,8 @@ inline std::vector<long long> chained(rng& draw, long long count, long long limi
         made.push_back(point{x, y});
         x += one.x;
         y += one.y;
-        least_x = std::min(least_x, x);
-        least_y = std::min(least_y, y);
+        least_x = (std::min)(least_x, x);
+        least_y = (std::min)(least_y, y);
     }
     for (point& one : made) {
         one.x += -limit - least_x;

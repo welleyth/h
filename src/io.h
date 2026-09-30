@@ -171,7 +171,7 @@ public:
         if (patient_) have(limit);
         while (held() < limit && top_up()) {
         }
-        return std::string(buffer_.data() + begin_, std::min(limit, end_ - begin_));
+        return std::string(buffer_.data() + begin_, (std::min)(limit, end_ - begin_));
     }
 
     std::size_t held() const { return end_ - begin_; }
@@ -271,7 +271,7 @@ private:
             }
             std::size_t const room = buffer_.size() - end_;
             if (text_backed_) {
-                std::size_t const taken = std::min(room, pending_.size());
+                std::size_t const taken = (std::min)(room, pending_.size());
                 std::memcpy(buffer_.data() + end_, pending_.data(), taken);
                 pending_.remove_prefix(taken);
                 end_ += taken;

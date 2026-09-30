@@ -565,7 +565,7 @@ private:
                                  detail::site where) {
         std::vector<Edge> edges;
         edges.reserve(ends == detail::stated::yes ? from_.room_for(count, name)
-                                                  : static_cast<std::size_t>(std::max(count, 0LL)));
+                                                  : static_cast<std::size_t>((std::max)(count, 0LL)));
         detail::value_name const weight = name.field(".w");
         for (long long index = 1; index <= count; index++) {
             int const u = from_.whole_int(1, n, ends, name.lent_at(index), where);

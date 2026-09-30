@@ -119,8 +119,8 @@ public:
     std::size_t room_for(long long count, value_name const& name) {
         if (count < 0) refuse(name, fmt("a count of {} cannot be read", count));
         long long const left = from_.bytes_left();
-        if (left >= 0) return static_cast<std::size_t>(std::min(count, left / 2 + 1));
-        return static_cast<std::size_t>(std::min(count, static_cast<long long>(mebibyte)));
+        if (left >= 0) return static_cast<std::size_t>((std::min)(count, left / 2 + 1));
+        return static_cast<std::size_t>((std::min)(count, static_cast<long long>(mebibyte)));
     }
 
     void blame(fault whose) { whose_ = whose; }
@@ -338,7 +338,7 @@ public:
             std::size_t const run = plain_run();
             if (run > 0) {
                 std::size_t const room = cap == 0 ? run : seen >= cap ? 0 : static_cast<std::size_t>(cap - seen);
-                text.append(from_.window(), std::min(run, room));
+                text.append(from_.window(), (std::min)(run, room));
                 seen += static_cast<long long>(run);
                 from_.skip_plain(run);
                 continue;
@@ -371,7 +371,7 @@ public:
             std::size_t const run = plain_run();
             if (run > 0) {
                 char const* const at = from_.window();
-                std::size_t const kept = std::min(run, keep - std::min(keep, text.size()));
+                std::size_t const kept = (std::min)(run, keep - (std::min)(keep, text.size()));
                 text.append(at, kept);
                 for (std::size_t past = kept; past < run && !longer; past++)
                     if (at[past] != ' ' && at[past] != '\t') longer = true;

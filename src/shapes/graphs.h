@@ -70,7 +70,7 @@ private:
 
 inline std::vector<edge> filled_sparsely(rng& draw, int n, long long m, std::vector<edge> have) {
     pair_set seen(static_cast<std::size_t>(m));
-    for (edge const& one : have) seen.insert(std::min(one.u, one.v), std::max(one.u, one.v));
+    for (edge const& one : have) seen.insert((std::min)(one.u, one.v), (std::max)(one.u, one.v));
     long long const given = static_cast<long long>(have.size());
     long long tries = 0;
     long long const most = 32 * m + 1000;
@@ -79,7 +79,7 @@ inline std::vector<edge> filled_sparsely(rng& draw, int n, long long m, std::vec
         int const u = static_cast<int>(draw.uniform(1, n));
         int const v = static_cast<int>(draw.uniform(1, n));
         if (u == v) continue;
-        if (!seen.insert(std::min(u, v), std::max(u, v))) continue;
+        if (!seen.insert((std::min)(u, v), (std::max)(u, v))) continue;
         have.push_back(edge{u, v});
     }
     kept_of(m - given, tries, "a graph with that many edges", eo::detail::site::here());
@@ -88,7 +88,7 @@ inline std::vector<edge> filled_sparsely(rng& draw, int n, long long m, std::vec
 
 inline std::vector<edge> filled_densely(rng& draw, int n, long long m, std::vector<edge> have) {
     pair_set seen(have.size());
-    for (edge const& one : have) seen.insert(std::min(one.u, one.v), std::max(one.u, one.v));
+    for (edge const& one : have) seen.insert((std::min)(one.u, one.v), (std::max)(one.u, one.v));
     std::vector<edge> spare;
     for (int u = 1; u <= n; u++)
         for (int v = u + 1; v <= n; v++)

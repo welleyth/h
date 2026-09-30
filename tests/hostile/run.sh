@@ -15,6 +15,7 @@ build_and_run() {
 }
 
 build_and_run organiser_names -Wall -Wextra -Wshadow -Werror
+build_and_run windows_macros -Wall -Wextra -Wshadow -Werror
 
 if printf '#include <cstddef>\n#ifndef __GLIBCXX__\n#error\n#endif\n' | $CXX -std=$CXXSTD -fsyntax-only -x c++ - 2>/dev/null; then
     build_and_run header_alone -Wall -Wextra -Werror

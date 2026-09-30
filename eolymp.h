@@ -1097,7 +1097,7 @@ public:
         if (patient_) have(limit);
         while (held() < limit && top_up()) {
         }
-        return std::string(buffer_.data() + begin_, std::min(limit, end_ - begin_));
+        return std::string(buffer_.data() + begin_, (std::min)(limit, end_ - begin_));
     }
 
     std::size_t held() const { return end_ - begin_; }
@@ -1197,7 +1197,7 @@ private:
             }
             std::size_t const room = buffer_.size() - end_;
             if (text_backed_) {
-                std::size_t const taken = std::min(room, pending_.size());
+                std::size_t const taken = (std::min)(room, pending_.size());
                 std::memcpy(buffer_.data() + end_, pending_.data(), taken);
                 pending_.remove_prefix(taken);
                 end_ += taken;
@@ -1369,7 +1369,7 @@ inline bool is_round(long long value) {
 }
 
 inline bool nearly_round(long long value) {
-    if (value == std::numeric_limits<long long>::min() || value == std::numeric_limits<long long>::max())
+    if (value == (std::numeric_limits<long long>::min)() || value == (std::numeric_limits<long long>::max)())
         return false;
     return !is_round(value) && (is_round(value - 1) || is_round(value + 1));
 }
@@ -1865,10 +1865,10 @@ public:
             long long const each = cost(tree, piece.parts[0]);
             if (each == 0) return 0;
             long long const optional = piece.most == unbounded ? each + 2 : (piece.most - piece.least) * (each + 1);
-            return std::min(piece.least * each + optional, most_steps + 1);
+            return (std::min)(piece.least * each + optional, most_steps + 1);
         }
         long long total = piece.shape == piece_shape::either ? 2 * static_cast<long long>(piece.parts.size() - 1) : 0;
-        for (int const part : piece.parts) total = std::min(total + cost(tree, part), most_steps + 1);
+        for (int const part : piece.parts) total = (std::min)(total + cost(tree, part), most_steps + 1);
         return total;
     }
 
@@ -2046,7 +2046,7 @@ inline long long longest_draw(pattern_tree const& tree, int index) {
     long long total = 0;
     for (int const part : piece.parts) {
         long long const each = longest_draw(tree, part);
-        total = piece.shape == piece_shape::either ? std::max(total, each) : std::min(total + each, most_drawn + 1);
+        total = piece.shape == piece_shape::either ? (std::max)(total, each) : (std::min)(total + each, most_drawn + 1);
     }
     if (piece.shape != piece_shape::again || total == 0) return total;
     long long const copies = piece.most == unbounded ? piece.least + endless_draw : piece.most;
@@ -2090,7 +2090,7 @@ inline long long longest_match(pattern_tree const& tree, int index) {
     for (int const part : piece.parts) {
         long long const each = longest_match(tree, part);
         if (each == unbounded) return unbounded;
-        total = piece.shape == piece_shape::row ? total + each : std::max(total, each);
+        total = piece.shape == piece_shape::row ? total + each : (std::max)(total, each);
     }
     return total;
 }
@@ -2243,8 +2243,8 @@ public:
     std::size_t room_for(long long count, value_name const& name) {
         if (count < 0) refuse(name, fmt("a count of {} cannot be read", count));
         long long const left = from_.bytes_left();
-        if (left >= 0) return static_cast<std::size_t>(std::min(count, left / 2 + 1));
-        return static_cast<std::size_t>(std::min(count, static_cast<long long>(mebibyte)));
+        if (left >= 0) return static_cast<std::size_t>((std::min)(count, left / 2 + 1));
+        return static_cast<std::size_t>((std::min)(count, static_cast<long long>(mebibyte)));
     }
 
     void blame(fault whose) { whose_ = whose; }
@@ -2462,7 +2462,7 @@ public:
             std::size_t const run = plain_run();
             if (run > 0) {
                 std::size_t const room = cap == 0 ? run : seen >= cap ? 0 : static_cast<std::size_t>(cap - seen);
-                text.append(from_.window(), std::min(run, room));
+                text.append(from_.window(), (std::min)(run, room));
                 seen += static_cast<long long>(run);
                 from_.skip_plain(run);
                 continue;
@@ -2495,7 +2495,7 @@ public:
             std::size_t const run = plain_run();
             if (run > 0) {
                 char const* const at = from_.window();
-                std::size_t const kept = std::min(run, keep - std::min(keep, text.size()));
+                std::size_t const kept = (std::min)(run, keep - (std::min)(keep, text.size()));
                 text.append(at, kept);
                 for (std::size_t past = kept; past < run && !longer; past++)
                     if (at[past] != ' ' && at[past] != '\t') longer = true;
@@ -2984,12 +2984,12 @@ inline int root_of(std::vector<int>& parent, int vertex) {
     std::vector<std::pair<std::pair<int, int>, std::size_t>> placed;
     placed.reserve(loop);
     for (std::size_t at = 0; at < loop; at++)
-        placed.push_back({{std::min(edges[at].u, edges[at].v), std::max(edges[at].u, edges[at].v)}, at});
+        placed.push_back({{(std::min)(edges[at].u, edges[at].v), (std::max)(edges[at].u, edges[at].v)}, at});
     detail::first_repeat const found = detail::earliest_repeat(std::move(placed));
     if (found.second < loop) {
         edge const& one = edges[found.second];
         return check_result(fmt("edges {} and {} are both ({}, {})", found.first + 1, found.second + 1,
-                                std::min(one.u, one.v), std::max(one.u, one.v)));
+                                (std::min)(one.u, one.v), (std::max)(one.u, one.v)));
     }
     if (loop < edges.size()) return check_result(fmt("edge {} is a loop at vertex {}", loop + 1, edges[loop].u));
     return {};
@@ -4182,7 +4182,7 @@ private:
                                  detail::site where) {
         std::vector<Edge> edges;
         edges.reserve(ends == detail::stated::yes ? from_.room_for(count, name)
-                                                  : static_cast<std::size_t>(std::max(count, 0LL)));
+                                                  : static_cast<std::size_t>((std::max)(count, 0LL)));
         detail::value_name const weight = name.field(".w");
         for (long long index = 1; index <= count; index++) {
             int const u = from_.whole_int(1, n, ends, name.lent_at(index), where);
@@ -4836,7 +4836,7 @@ public:
         while (!jury.at_eof()) {
             wanted.emplace_back();
             jury_token(wanted.back(), detail::site::here());
-            longest = std::max(longest, wanted.back().size());
+            longest = (std::max)(longest, wanted.back().size());
         }
         std::vector<std::string> found;
         while (!output.at_eof()) {
@@ -4854,7 +4854,7 @@ public:
         std::sort(found.begin(), found.end());
         auto const differ = std::mismatch(wanted.begin(), wanted.end(), found.begin());
         if (differ.first != wanted.end()) {
-            std::string const& token = std::min(*differ.first, *differ.second);
+            std::string const& token = (std::min)(*differ.first, *differ.second);
             fail_run(fmt("\"{}\" is in the answer {} and in the output {}", detail::shorten(token),
                          times_in(wanted, token), times_in(found, token)));
         }
@@ -5075,9 +5075,9 @@ private:
             detail::real_read const found = detail::parse_real(got, true, true);
             if (wanted.problem == detail::number_problem::none &&
                 found.problem == detail::number_problem::none) {
-                bool const near = relative ? close_enough(wanted.value, found.value, epsilon)
+                bool const within_reach = relative ? close_enough(wanted.value, found.value, epsilon)
                                            : std::fabs(wanted.value - found.value) <= epsilon + 1e-15;
-                if (!near)
+                if (!within_reach)
                     fail_run(fmt("value {} is {}, expected {}", seen, found.value, wanted.value));
                 continue;
             }
@@ -5346,7 +5346,7 @@ public:
     [[noreturn]] void pass(double fraction, std::string const& message) final {
         if (std::isnan(fraction)) refuse_a_score(fmt("a score of {}", fraction));
         role().closing_checks(fraction);
-        held_.set_fraction(std::min(fraction, 1.0));
+        held_.set_fraction((std::min)(fraction, 1.0));
         held_.set_message(message);
         write_file(paths_[1], held_.written(), "summary");
         deliver(0, message.empty() ? "ok" : "ok " + message);

@@ -145,12 +145,12 @@ inline int root_of(std::vector<int>& parent, int vertex) {
     std::vector<std::pair<std::pair<int, int>, std::size_t>> placed;
     placed.reserve(loop);
     for (std::size_t at = 0; at < loop; at++)
-        placed.push_back({{std::min(edges[at].u, edges[at].v), std::max(edges[at].u, edges[at].v)}, at});
+        placed.push_back({{(std::min)(edges[at].u, edges[at].v), (std::max)(edges[at].u, edges[at].v)}, at});
     detail::first_repeat const found = detail::earliest_repeat(std::move(placed));
     if (found.second < loop) {
         edge const& one = edges[found.second];
         return check_result(fmt("edges {} and {} are both ({}, {})", found.first + 1, found.second + 1,
-                                std::min(one.u, one.v), std::max(one.u, one.v)));
+                                (std::min)(one.u, one.v), (std::max)(one.u, one.v)));
     }
     if (loop < edges.size()) return check_result(fmt("edge {} is a loop at vertex {}", loop + 1, edges[loop].u));
     return {};
