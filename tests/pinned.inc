@@ -1160,3 +1160,11 @@ EO_TEST(a_hyphen_that_reads_as_a_backwards_range_is_told_where_to_go) {
                               "backwards; write its low end first, or put a - that stands for itself first or "
                               "last");
 }
+
+EO_TEST(pin_the_report_line_of_a_warning_raised_in_a_windows_path) {
+    clean_slate fresh;
+    raise_warning(eo::detail::site{"C:\\Users\\author\\my \"best\" checker.cpp", 7});
+    EO_CHECK_EQ(diagnostics().report_line(),
+                std::string("eo-report {\"version\":1,\"warnings\":[{\"code\":\"EO101\",\"at\":\"C:\\Users\\author\\my "
+                            "\"best\" checker.cpp:7\",\"count\":1}]}\n"));
+}
