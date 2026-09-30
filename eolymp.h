@@ -1629,10 +1629,12 @@ private:
     }
 
     void was_read(value_name const& name) {
-        if (name.known()) last_value_ = name.key();
-        else last_value_ = "the value before";
-        last_indexed_ = name.known() && name.indexed();
-        last_index_ = name.index();
+        if (!lenient_) {
+            if (!name.known()) last_value_ = "the value before";
+            else if (last_value_ != name.key()) last_value_ = name.key();
+            last_indexed_ = name.known() && name.indexed();
+            last_index_ = name.index();
+        }
         separated_ = false;
         read_anything_ = true;
     }
