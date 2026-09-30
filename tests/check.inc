@@ -1729,3 +1729,18 @@ EO_TEST(big_integers_are_compared_exactly_at_any_length) {
     });
     EO_CHECK_EQ(loose.text, std::string("ok 4 integers"));
 }
+
+EO_TEST(yes_no_without_a_certificate_compares_every_word_in_any_case) {
+    auto const words = [](eo::checker& c) { c.yes_no(); };
+    EO_CHECK_EQ(compared_by("Yes\nno\nYES\n", "YES NO yes", words), std::string("ok 3 answers, 2 of them YES"));
+    EO_CHECK_EQ(compared_by("no", "NO", words), std::string("ok 1 answers, 0 of them YES"));
+    EO_CHECK_EQ(compared_by("yes yes", "YES NO", words), std::string("wrong answer answer 2 is YES, expected NO"));
+    EO_CHECK_EQ(compared_by("yes maybe", "YES NO", words),
+                std::string("wrong answer: output.txt, line 1: \"maybe\" is not one of YES, NO"));
+    EO_CHECK_EQ(compared_by("yes", "YES NO", words),
+                std::string("wrong answer the output ended after 1 answers, the answer has more"));
+    EO_CHECK_EQ(compared_by("yes no no", "YES NO", words),
+                std::string("wrong answer the answer has 2 answers, the output has more"));
+    EO_CHECK_EQ(compared_by("yes", "Perhaps", words),
+                std::string("jury error: answer.txt, line 1: \"Perhaps\" is not one of YES, NO"));
+}

@@ -693,6 +693,24 @@ public:
         pass(detail::clamped(mapping(said), where), said.message());
     }
 
+    [[noreturn]] void yes_no() {
+        compared_only_ = true;
+        long long seen = 0;
+        long long yes = 0;
+        while (true) {
+            bool const jury_done = jury.at_eof();
+            bool const output_done = output.at_eof();
+            if (jury_done && output_done) pass(1, fmt("{} answers, {} of them YES", seen, yes));
+            seen++;
+            if (jury_done) fail_run(fmt("the answer has {} answers, the output has more", seen - 1));
+            std::string const want = jury.read_choice({"YES", "NO"}, any_case, unnamed);
+            if (output_done) fail_run(fmt("the output ended after {} answers, the answer has more", seen - 1));
+            std::string const got = output.read_choice({"YES", "NO"}, any_case, unnamed);
+            if (want != got) fail_run(fmt("answer {} is {}, expected {}", seen, got, want));
+            if (got == "YES") yes++;
+        }
+    }
+
     template <class Certificate>
     [[noreturn]] void yes_no(Certificate certificate, char const* yes = "YES", char const* no = "NO") {
         std::string const by_the_jury = jury.read_choice({yes, no}, any_case, "verdict");
