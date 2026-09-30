@@ -31,5 +31,6 @@
 #include "control.inc"
 #include "shapes.inc"
 #include "boundaries.inc"
+#include "pinned.inc"
 
 int main() { return eot::main_of_tests(); }

@@ -1,0 +1,615 @@
+namespace {
+
+std::size_t const every_chunk[] = {64, 65, 66, 67, 70, 71, 77, 90, 100, 127, 128, 1u << 20};
+
+std::string padded(std::string const& text, std::size_t at) {
+    std::string pad;
+    for (std::size_t one = 0; one < at; one++) pad += "1 ";
+    return pad + text;
+}
+
+std::string strict_integers(std::string const& text, std::size_t chunk) {
+    std::string trace;
+    eot::outcome const ended = eot::run_until_stop([&] {
+        eo::detail::reader from(eo::detail::source::over_text(text, true, chunk), eo::detail::fault::invalid_test,
+                                "", false, "EO102");
+        while (from.peek() >= 0) {
+            trace += eo::fmt("{} ", from.whole_long(0, 0, eo::detail::stated::deliberate, "a",
+                                                    eo::detail::site{"pinned.inc", 1}));
+            if (from.peek() == ' ' || from.peek() == '\n') {
+                from.take();
+                from.mark_separated();
+            }
+        }
+        trace += eo::fmt("at line {}", from.line());
+    });
+    if (ended.stopped) trace += eo::fmt("| {} {}", ended.code, ended.text);
+    return trace;
+}
+
+std::string lenient_integers(std::string const& text, std::size_t chunk, bool normalize, bool relaxed) {
+    std::string trace;
+    eot::outcome const ended = eot::run_until_stop([&] {
+        eo::stream from(eo::detail::source::over_text(text, normalize, chunk), eo::detail::fault::wrong_answer,
+                        "output.txt");
+        if (relaxed) from.numbers(eo::lenient);
+        while (!from.at_eof()) trace += eo::fmt("{} ", from.read_long(eo::any, "a"));
+    });
+    if (ended.stopped) trace += eo::fmt("| {} {}", ended.code, ended.text);
+    return trace;
+}
+
+using reading = std::string (*)(std::string const&, std::size_t);
+
+void pin_everywhere(std::string const& expected, std::string const& text, reading read) {
+    for (std::size_t lead = 0; lead < 40; lead += 13) {
+        std::string ones;
+        for (std::size_t one = 0; one < lead; one++) ones += "1 ";
+        for (std::size_t const chunk : every_chunk) EO_CHECK_EQ(read(padded(text, lead), chunk), ones + expected);
+    }
+}
+
+void pin_lines_everywhere(std::string const& expected, std::string const& text, reading read) {
+    for (std::size_t lead = 0; lead < 130; lead += 29)
+        for (std::size_t const chunk : every_chunk)
+            EO_CHECK_EQ(read(std::string(lead, 'p') + "\n" + text, chunk), expected);
+}
+
+std::string lenient_plain(std::string const& text, std::size_t chunk) {
+    return lenient_integers(text, chunk, false, false);
+}
+
+std::string lenient_normalized(std::string const& text, std::size_t chunk) {
+    return lenient_integers(text, chunk, true, false);
+}
+
+std::string lenient_relaxed(std::string const& text, std::size_t chunk) {
+    return lenient_integers(text, chunk, false, true);
+}
+
+}  // namespace
+
+EO_TEST(pin_a_validator_reading_integers_wherever_the_buffer_ends) {
+    pin_everywhere("7 -12 0 123456789012345678 -123456789012345678 999999999999999999 1000000000000000000 "
+                   "-1000000000000000000 9223372036854775807 -9223372036854775808 at line 2",
+                   "7 -12 0 123456789012345678 -123456789012345678 999999999999999999 1000000000000000000 "
+                   "-1000000000000000000 9223372036854775807 -9223372036854775808\n",
+                   strict_integers);
+    pin_everywhere("| 3 line 1, a: expected an integer, found \"007\": it has a leading zero", "007\n",
+                   strict_integers);
+    pin_everywhere("| 3 line 1, a: expected an integer, found \"-0\": it is zero written with a minus", "-0\n",
+                   strict_integers);
+    pin_everywhere("| 3 line 1, a: expected an integer, found \"+5\"", "+5\n", strict_integers);
+    pin_everywhere("12 | 3 line 1, a: expected an integer, found \"a\"", "12a\n", strict_integers);
+    pin_everywhere("| 3 line 1, a: expected an integer, found \"-\"", "-\n", strict_integers);
+    pin_everywhere("| 3 line 1, a: expected an integer, found \"9223372036854775808\": it does not fit the type it "
+                   "is read into",
+                   "9223372036854775808\n", strict_integers);
+    pin_everywhere("| 3 line 1, a: expected an integer, found \"-9223372036854775809\": it does not fit the type "
+                   "it is read into",
+                   "-9223372036854775809\n", strict_integers);
+    pin_everywhere("| 3 line 1, a: expected an integer, found \"12345678901234567890123\": it does not fit the "
+                   "type it is read into",
+                   "12345678901234567890123\n", strict_integers);
+    pin_everywhere("1 | 3 line 1, a: expected an integer, found a space", "1  2\n", strict_integers);
+    pin_everywhere("5 6 at line 3", "5\r\n6\r\n", strict_integers);
+    pin_everywhere("5 | 3 pinned.inc:1: line 1, a: a carriage return follows a; read it with read_space()",
+                   "5\r6\n", strict_integers);
+    pin_everywhere("1 2 3 at line 1", "1 2 3", strict_integers);
+    pin_everywhere("5 | 3 line 1, a: expected an integer, found \".5\"", "5.5\n", strict_integers);
+}
+
+EO_TEST(pin_a_stream_reading_integers_wherever_the_buffer_ends) {
+    pin_everywhere("7 -12 0 123456789012345678 5 999999999999999999 1000000000000000000 -5 ",
+                   "7\t-12  0\r\n123456789012345678\n\n5 999999999999999999 1000000000000000000 -5",
+                   lenient_plain);
+    pin_everywhere("7 | 1 wrong answer: output.txt, line 1, a: expected an integer, found \"007\": it has a "
+                   "leading zero",
+                   "7 007 8\n", lenient_plain);
+    pin_everywhere("| 1 wrong answer: output.txt, line 1, a: expected an integer, found \"-0\": it is zero written "
+                   "with a minus",
+                   "-0\n", lenient_plain);
+    pin_everywhere("| 1 wrong answer: output.txt, line 1, a: expected an integer, found \"+5\": it has a character "
+                   "that cannot be part of the number",
+                   "+5\n", lenient_plain);
+    pin_everywhere("| 1 wrong answer: output.txt, line 1, a: expected an integer, found \"12abc\": it has a "
+                   "character that cannot be part of the number",
+                   "12abc 5\n", lenient_plain);
+    pin_everywhere("| 1 wrong answer: output.txt, line 1, a: expected an integer, found \"-\": it has no digits "
+                   "where digits are required",
+                   "- 5\n", lenient_plain);
+    pin_everywhere("5 6 ", "5\r\n6\r\n", lenient_normalized);
+    pin_everywhere("5 6 ", "5\r\n6\r\n", lenient_plain);
+    pin_everywhere("5 7 0 0 -7 ", "+5 007 -0 +0 -007\n", lenient_relaxed);
+    pin_everywhere("| 1 wrong answer: output.txt, line 1, a: expected an integer, found \"9223372036854775808\": it "
+                   "does not fit the type it is read into",
+                   "9223372036854775808\n", lenient_plain);
+    pin_everywhere("| 1 wrong answer: output.txt, line 1, a: expected an integer, found a token longer than 4096 "
+                   "characters: \"1111111111111111111111111111111111111111...\"",
+                   std::string(4097, '1') + "\n", lenient_plain);
+    pin_everywhere("| 1 wrong answer: output.txt, line 1, a: expected an integer, found \"" + std::string(40, '1') +
+                       "...\": it does not fit the type it is read into",
+                   std::string(4096, '1') + "\n", lenient_plain);
+}
+
+EO_TEST(pin_the_warnings_and_counts_of_bounds_read_again_and_again) {
+    eot::outcome const result = validate("1 2 3\n4 5 6\n7 8 9\n1 2 3\n5 6 7\n8 9 1\n", [](eo::validator& v) {
+        v.read_ints(3, 1, 999999, "a", eo::detail::site{"pinned.inc", 10});
+        v.read_eoln();
+        v.read_ints(3, 1, 1000000, "b", eo::detail::site{"pinned.inc", 11});
+        v.read_eoln();
+        v.read_ints(3, -2147483647 - 1, 2147483647, "c", eo::detail::site{"pinned.inc", 12});
+        v.read_eoln();
+        for (int at = 0; at < 3; at++) {
+            if (at > 0) v.read_space();
+            v.read_long(1, 3000000000LL, "d", eo::detail::site{"pinned.inc", 13});
+        }
+        v.read_eoln();
+        for (int at = 0; at < 3; at++) {
+            if (at > 0) v.read_space();
+            v.read_int(1, 3000000000LL, "e", eo::detail::site{"pinned.inc", 14});
+            v.read_int(1, 1000000, "b", eo::detail::site{"pinned.inc", 15});
+            if (at < 2) v.read_space();
+        }
+        v.read_eoln();
+    });
+    EO_CHECK_EQ(result.text, std::string("pinned.inc:15: line 5, b: a space follows e; read it with read_space()"));
+    eot::outcome const kept = validate("1 2 3\n4 5 6\n7 8 9\n1 2 3\n5 6 7 8 9 1\nxy\n", [](eo::validator& v) {
+        v.read_ints(3, 1, 999999, "a", eo::detail::site{"pinned.inc", 10});
+        v.read_eoln();
+        v.read_ints(3, 1, 1000000, "b", eo::detail::site{"pinned.inc", 11});
+        v.read_eoln();
+        v.read_ints(3, -2147483647 - 1, 2147483647, "c", eo::detail::site{"pinned.inc", 12});
+        v.read_eoln();
+        for (int at = 0; at < 3; at++) {
+            if (at > 0) v.read_space();
+            v.read_long(1, 3000000000LL, "d", eo::detail::site{"pinned.inc", 13});
+        }
+        v.read_eoln();
+        for (int at = 0; at < 3; at++) {
+            if (at > 0) v.read_space();
+            v.read_int(1, 3000000000LL, "e", eo::detail::site{"pinned.inc", 14});
+            v.read_space();
+            v.read_int(1, 1000000, "b", eo::detail::site{"pinned.inc", 15});
+        }
+        v.read_eoln();
+        v.read_ints(0, 1, 999999, "a", eo::detail::site{"pinned.inc", 16});
+        v.read_token(1, 5, eo::charset("a-z"), "b", eo::detail::site{"pinned.inc", 17});
+        v.read_eoln();
+    });
+    EO_CHECK_EQ(kept.text, std::string(""));
+    EO_CHECK_EQ(warnings_of_last_run(),
+                std::string("pinned.inc:12: warning EO104: the bounds are the whole range of an int (3 times)\n"
+                            "  say eo::any if any value is allowed\n"
+                            "pinned.inc:14: warning EO105: the bounds 1..3000000000 do not fit an int (3 times)\n"
+                            "  read a wider type\n"
+                            "pinned.inc:17: warning EO107: \"b\" is read as a length here and as an integer elsewhere\n"
+                            "  read it one way\n"
+                            "pinned.inc:10: note EO106: the bounds 1..999999 are one away from a round number (3 "
+                            "times)\n"
+                            "  compare them with the statement\n"));
+}
+
+EO_TEST(pin_a_value_read_as_an_integer_and_then_as_a_token) {
+    EO_CHECK_EQ(validate("5 ab\n", [](eo::validator& v) {
+                    v.read_int(1, 10, "x", eo::detail::site{"pinned.inc", 60});
+                    v.read_space();
+                    v.read_token(1, 10, eo::charset("a-z"), "x", eo::detail::site{"pinned.inc", 61});
+                    v.read_eoln();
+                }).text,
+                std::string(""));
+    EO_CHECK_EQ(warnings_of_last_run(),
+                std::string("pinned.inc:61: warning EO107: \"x\" is read as a length here and as an integer "
+                            "elsewhere\n  read it one way\n"));
+}
+
+EO_TEST(pin_a_count_below_zero) {
+    EO_CHECK_EQ(validate("1\n", [](eo::validator& v) { v.read_ints(-1, 1, 9, "a"); }).text,
+                std::string("line 1, a: a count of -1 cannot be read"));
+    EO_CHECK_EQ(check_run("1\n", "1\n", "1\n", [](eo::checker& c) {
+                    c.output.read_longs(-1, eo::any, "a");
+                    eo::accept();
+                }).text,
+                std::string("wrong answer: output.txt, line 1, a: a count of -1 cannot be read"));
+}
+
+EO_TEST(pin_the_note_on_a_token_of_a_mebibyte) {
+    std::size_t const mebibyte = std::size_t{1} << 20;
+    for (std::size_t const length : {mebibyte, mebibyte + 1}) {
+        EO_CHECK_EQ(validate(std::string(length, 'z') + "\n", [](eo::validator& v) {
+                        v.read_token(1, 2000000, eo::charset("a-z"), "s", eo::detail::site{"pinned.inc", 62});
+                        v.read_eoln();
+                    }).text,
+                    std::string(""));
+        EO_CHECK_EQ(warnings_of_last_run(),
+                    length == mebibyte ? std::string("")
+                                       : std::string("pinned.inc:62: note EO111: a token of 1048577 bytes was held "
+                                                     "in memory\n  bound its length if the format allows\n"));
+    }
+}
+
+EO_TEST(pin_the_round_trips_an_interactor_counts_after_each_kind_of_read) {
+    chat const number = talk("1\n", "5\n6\n", [](eo::interactor& it) {
+        it.input.read_int(1, 1, "n");
+        it.send(1);
+        it.contestant.read_int(1, 9, "x");
+        it.send(2);
+        it.flush();
+        it.contestant.read_int(1, 9, "y");
+        eo::accept("{} round trips", it.round_trips());
+    });
+    EO_CHECK_EQ(number.text, std::string("ok 2 round trips"));
+    chat const real = talk("1\n", "5\n6\n", [](eo::interactor& it) {
+        it.input.read_int(1, 1, "n");
+        it.send(1);
+        it.contestant.read_real(0, 9, "x");
+        it.send(2);
+        it.flush();
+        it.contestant.read_real(0, 9, "y");
+        eo::accept("{} round trips", it.round_trips());
+    });
+    EO_CHECK_EQ(real.text, std::string("ok 2 round trips"));
+    chat const token = talk("1\n", "5\n6\n", [](eo::interactor& it) {
+        it.input.read_int(1, 1, "n");
+        it.send(1);
+        it.contestant.read_token(eo::any, "x");
+        it.send(2);
+        it.flush();
+        it.contestant.read_token(eo::any, "y");
+        eo::accept("{} round trips", it.round_trips());
+    });
+    EO_CHECK_EQ(token.text, std::string("ok 1 round trips"));
+    chat const lenient = talk("1\n", "007\n6\n", [](eo::interactor& it) {
+        it.input.read_int(1, 1, "n");
+        it.contestant.numbers(eo::lenient);
+        it.send(1);
+        it.contestant.read_int(1, 9, "x");
+        it.send(2);
+        it.flush();
+        it.contestant.read_int(1, 9, "y");
+        eo::accept("{} round trips", it.round_trips());
+    });
+    EO_CHECK_EQ(lenient.text, std::string("ok 2 round trips"));
+}
+
+EO_TEST(pin_the_names_of_elements_in_messages) {
+    EO_CHECK_EQ(validate("3\n1 0 3\n", [](eo::validator& v) {
+                    int const n = v.read_int(1, 9, "n");
+                    v.read_eoln();
+                    v.read_ints(n, 1, 9, "a");
+                }).text,
+                std::string("line 2, a[2]: 0 is below 1"));
+    EO_CHECK_EQ(validate("1 0\n", [](eo::validator& v) { v.read_ints(2, 1, 9, eo::element("m", 4)); }).text,
+                std::string("line 1, m[4][2]: 0 is below 1"));
+    EO_CHECK_EQ(validate("1 2\n", [](eo::validator& v) {
+                    v.read_ints(1, 1, 9, "a", eo::detail::site{"pinned.inc", 20});
+                    v.read_int(1, 9, "b", eo::detail::site{"pinned.inc", 21});
+                }).text,
+                std::string("pinned.inc:21: line 1, b: a space follows a[1]; read it with read_space()"));
+    EO_CHECK_EQ(validate("1 2\n3\n", [](eo::validator& v) { v.read_ints(3, 1, 9, "a"); }).text,
+                std::string("line 1: expected a space after a[2], found a line break"));
+    EO_CHECK_EQ(validate("1 2\n3 3\n", [](eo::validator& v) { v.read_tree(3, "edge"); }).text,
+                std::string("line 3: edge: edge 2 is a loop at vertex 3"));
+    EO_CHECK_EQ(validate("1 2\n2 x\n", [](eo::validator& v) { v.read_tree(3, "edge"); }).text,
+                std::string("line 2, edge[2]: expected an integer, found \"x\""));
+    EO_CHECK_EQ(validate("1 2 3\n", [](eo::validator& v) {
+                    v.read_ints(2, 1, 9, "a", eo::detail::site{"pinned.inc", 22});
+                    v.read_space();
+                    v.read_ints(1, 1, 8, "a", eo::detail::site{"pinned.inc", 23});
+                    v.read_eoln();
+                }).text,
+                std::string(""));
+    EO_CHECK_EQ(warnings_of_last_run(),
+                std::string("pinned.inc:23: warning EO107: \"a\" is read as 1..8 here and as 1..9 elsewhere\n"
+                            "  constrain it one way\n"));
+    EO_CHECK_EQ(validate("ab cd\n", [](eo::validator& v) {
+                    v.read_tokens(2, 1, 1, eo::charset("a-z"), "w");
+                }).text,
+                std::string("line 1, w[1]: \"ab\" is longer than 1 characters"));
+    EO_CHECK_EQ(check_run("1\n", "1 2 x\n", "1 2 3\n", [](eo::checker& c) {
+                    c.output.read_ints(3, 1, 9, "a");
+                    eo::accept();
+                }).text,
+                std::string("wrong answer: output.txt, line 1, a[3]: expected an integer, found \"x\": it has a "
+                            "character that cannot be part of the number"));
+    EO_CHECK_EQ(check_run("1\n", "1 2 x\n", "1 2 3\n", [](eo::checker& c) {
+                    c.output.read_reals(3, 0, 9, eo::element("r", 7));
+                    eo::accept();
+                }).text,
+                std::string("wrong answer: output.txt, line 1, r[7][3]: expected a number, found \"x\": it has no "
+                            "digits where digits are required"));
+}
+
+EO_TEST(pin_what_the_stock_comparisons_say) {
+    auto compared = [](std::string const& out, std::string const& ans, int how) {
+        return check_run("1\n", out, ans, [&](eo::checker& c) {
+                   c.input.skip_rest("not needed");
+                   if (how == 0) c.tokens();
+                   if (how == 1) c.reals(1e-6);
+                   c.lines();
+               })
+            .text;
+    };
+    std::string const long_word = std::string(30, 'q') + "z";
+    std::string const huge_word = std::string(5000, 'w');
+    EO_CHECK_EQ(compared("a bb\nccc\n", "a  bb ccc", 0), std::string("ok 3 tokens"));
+    EO_CHECK_EQ(compared("a bx ccc", "a bb ccc", 0), std::string("wrong answer token 2 is \"bx\", expected \"bb\""));
+    EO_CHECK_EQ(compared("a bbb", "a bb", 0),
+                std::string("wrong answer token 2 is longer than the expected \"bb\"; it starts \"bbb\""));
+    EO_CHECK_EQ(compared("a", "a b", 0),
+                std::string("wrong answer the output ended after 1 tokens, the answer has more"));
+    EO_CHECK_EQ(compared("a b c", "a b", 0), std::string("wrong answer the answer has 2 tokens, the output has more"));
+    EO_CHECK_EQ(compared(long_word + "x " + long_word, long_word + "y " + long_word, 0),
+                "wrong answer token 1 is \"" + std::string(30, 'q') + "zx\", expected \"" + std::string(30, 'q') +
+                    "zy\"");
+    EO_CHECK_EQ(compared(huge_word + "v", huge_word + "u", 0),
+                "wrong answer token 1 is \"" + std::string(40, 'w') + "...\", expected \"" + std::string(40, 'w') +
+                    "...\"");
+    EO_CHECK_EQ(compared(huge_word + " " + huge_word, huge_word + " " + huge_word, 0), std::string("ok 2 tokens"));
+    EO_CHECK_EQ(compared(huge_word + "w", huge_word, 0),
+                "wrong answer token 1 is longer than the expected \"" + std::string(40, 'w') + "...\"; it starts \"" +
+                    std::string(40, 'w') + "...\"");
+    EO_CHECK_EQ(compared("1.0000001 2 x", "1 2 x", 1), std::string("ok 3 values"));
+    EO_CHECK_EQ(compared("1 2.5", "1 2", 1), std::string("wrong answer value 2 is 2.5, expected 2"));
+    EO_CHECK_EQ(compared("1 y", "1 x", 1), std::string("wrong answer token 2 is \"y\", expected \"x\""));
+    EO_CHECK_EQ(compared("1 " + huge_word, "1 2", 1),
+                "wrong answer token 2 is longer than 4096 characters: \"" + std::string(40, 'w') + "...\"");
+    EO_CHECK_EQ(compared("0." + std::string(4094, '1'), "0.1111111111111111", 1), std::string("ok 1 values"));
+    EO_CHECK_EQ(compared("0." + std::string(4095, '1'), "0.1", 1),
+                "wrong answer token 1 is longer than 4096 characters: \"0." + std::string(38, '1') + "...\"");
+    EO_CHECK_EQ(compared("-0.0 1e-7", "0 0", 1), std::string("ok 2 values"));
+    EO_CHECK_EQ(compared("a b  \r\nc\t\n", "a b\nc\n", 2), std::string("ok 2 lines"));
+    EO_CHECK_EQ(compared("a b\nc d\n", "a b\nc\n", 2),
+                std::string("wrong answer line 2 is longer than the expected \"c\"; it starts \"c \""));
+    EO_CHECK_EQ(compared("a b\nd\n", "a b\nc\n", 2), std::string("wrong answer line 2 is \"d\", expected \"c\""));
+    EO_CHECK_EQ(compared("a b\n", "a b\nc\n", 2),
+                std::string("wrong answer the output ended after 1 lines, the answer has more"));
+    EO_CHECK_EQ(compared("a\nb\nc\n", "a\nb\n", 2),
+                std::string("wrong answer the answer has 2 lines, the output has more"));
+    EO_CHECK_EQ(compared(huge_word + " \t \r\n", huge_word + "\n", 2), std::string("ok 1 lines"));
+    EO_CHECK_EQ(compared(huge_word + " x\n", huge_word + "\n", 2),
+                "wrong answer line 1 is longer than the expected \"" + std::string(40, 'w') + "...\"; it starts \"" +
+                    std::string(40, 'w') + "...\"");
+    EO_CHECK_EQ(compared("a\r\n\r\n", "a\n\n", 2), std::string("ok 1 lines"));
+}
+
+namespace {
+
+std::uint64_t bits_of(double value) {
+    std::uint64_t bits = 0;
+    std::memcpy(&bits, &value, sizeof(bits));
+    return bits;
+}
+
+std::string spelled_number(eo::rng& dice) {
+    std::string text = dice.chance(0.4) ? "-" : "";
+    long long const whole = dice.uniform(1, dice.chance(0.1) ? 90 : 12);
+    for (long long at = 0; at < whole; at++)
+        text.push_back(static_cast<char>('0' + dice.uniform(at == 0 && whole > 1 ? 1 : 0, 9)));
+    if (dice.chance(0.8)) {
+        text.push_back('.');
+        long long const fraction = dice.uniform(1, dice.chance(0.1) ? 90 : 18);
+        for (long long at = 0; at < fraction; at++) text.push_back(static_cast<char>('0' + dice.uniform(0, 9)));
+    }
+    if (dice.chance(0.3)) {
+        text += dice.chance(0.5) ? "e" : "E-";
+        text += std::to_string(dice.uniform(0, 330));
+    }
+    return text;
+}
+
+std::string printf_real(double value) {
+    char buffer[48];
+    std::snprintf(buffer, sizeof(buffer), "%.15g", value);
+    if (std::strtod(buffer, nullptr) != value) std::snprintf(buffer, sizeof(buffer), "%.17g", value);
+    return buffer;
+}
+
+std::string printf_fixed(double value, int digits) {
+    std::vector<char> buffer(static_cast<std::size_t>(std::snprintf(nullptr, 0, "%.*f", digits, value)) + 1);
+    std::snprintf(buffer.data(), buffer.size(), "%.*f", digits, value);
+    return buffer.data();
+}
+
+double drawn_real(eo::rng& dice) {
+    switch (dice.uniform(0, 5)) {
+        case 0: {
+            std::uint64_t const bits = dice.next();
+            double value = 0;
+            std::memcpy(&value, &bits, sizeof(value));
+            return std::isfinite(value) ? value : 1.5;
+        }
+        case 1: return static_cast<double>(dice.uniform(-1000000000, 1000000000)) / 1000.0;
+        case 2: return dice.real(-1e9, 1e9);
+        case 3: return static_cast<double>(dice.uniform(0, 1000)) / 8.0;
+        case 4: {
+            double const mantissa = static_cast<double>(dice.uniform(1, 1 << 20));
+            return std::ldexp(mantissa, static_cast<int>(dice.uniform(-1074, 1000)));
+        }
+        default: {
+            double const mantissa = static_cast<double>(dice.uniform(-99999, 99999));
+            return mantissa * std::pow(10.0, static_cast<double>(dice.uniform(-20, 20)));
+        }
+    }
+}
+
+}  // namespace
+
+EO_TEST(pin_a_real_as_strtod_reads_it_at_every_length) {
+    eo::rng dice(20260929);
+    for (int one = 0; one < 20000; one++) {
+        std::string const text = spelled_number(dice);
+        eo::detail::real_read const read = eo::detail::parse_real(text, true, true);
+        double const expected = std::strtod(text.c_str(), nullptr);
+        if (!std::isfinite(expected)) {
+            EO_CHECK(read.problem == eo::detail::number_problem::out_of_range);
+            continue;
+        }
+        EO_CHECK(read.problem == eo::detail::number_problem::none);
+        EO_CHECK_EQ(bits_of(read.value), bits_of(expected == 0 ? 0.0 : expected));
+    }
+    std::string const long_fraction = "0." + std::string(70, '3');
+    EO_CHECK_EQ(bits_of(eo::detail::parse_real(long_fraction, false).value),
+                bits_of(std::strtod(long_fraction.c_str(), nullptr)));
+    EO_CHECK_EQ(eo::detail::parse_real(long_fraction, false).decimals, 70);
+    std::string const long_whole = "-" + std::string(80, '9') + ".5";
+    EO_CHECK_EQ(bits_of(eo::detail::parse_real(long_whole, false).value),
+                bits_of(std::strtod(long_whole.c_str(), nullptr)));
+    std::string const too_big = "1" + std::string(400, '0');
+    EO_CHECK(eo::detail::parse_real(too_big, false).problem == eo::detail::number_problem::out_of_range);
+    std::string const tiny = "0." + std::string(400, '0') + "1";
+    EO_CHECK(eo::detail::parse_real(tiny, false).value == 0);
+    EO_CHECK_EQ(eo::detail::parse_real(tiny, false).decimals, 401);
+    std::string const negative_tiny = "-" + tiny;
+    EO_CHECK(eo::detail::parse_real(negative_tiny, false).problem == eo::detail::number_problem::redundant_minus);
+    EO_CHECK(!std::signbit(eo::detail::parse_real(negative_tiny, false, true).value));
+    std::string const exact_63 = "1." + std::string(61, '0');
+    std::string const exact_64 = "1." + std::string(62, '0');
+    EO_CHECK(eo::detail::parse_real(exact_63, false).value == 1.0);
+    EO_CHECK(eo::detail::parse_real(exact_64, false).value == 1.0);
+    for (char const* edge : {"2.2250738585072011e-308", "4.9406564584124654e-324", "2.4703282292062328e-324"})
+        EO_CHECK_EQ(bits_of(eo::detail::parse_real(edge, true).value), bits_of(std::strtod(edge, nullptr)));
+    EO_CHECK(eo::detail::parse_real("1.7976931348623159e308", true).problem ==
+             eo::detail::number_problem::out_of_range);
+    EO_CHECK_EQ(validate("0." + std::string(70, '5') + "\n", [](eo::validator& v) {
+                    v.read_real(0, 1, 0, 80, "r");
+                    v.read_eoln();
+                }).text,
+                std::string(""));
+    EO_CHECK_EQ(validate("0." + std::string(70, '5') + "\n",
+                         [](eo::validator& v) { v.read_real(0, 1, 0, 6, "r"); })
+                    .text,
+                "line 1, r: 0." + std::string(38, '5') + "... has 70 digits after the point, not 0..6");
+}
+
+EO_TEST(pin_a_real_written_as_printf_writes_it) {
+    eo::rng dice(20260930);
+    for (int one = 0; one < 20000; one++) {
+        double const value = drawn_real(dice);
+        EO_CHECK_EQ(eo::fmt("{}", value), printf_real(value));
+        int const digits = static_cast<int>(dice.chance(0.9) ? dice.uniform(0, 45) : dice.uniform(46, 340));
+        EO_CHECK_EQ(eo::fmt("{}", eo::fixed(value, digits)), printf_fixed(value, digits));
+    }
+    EO_CHECK_EQ(eo::fmt("{}", -0.0), std::string("-0"));
+    EO_CHECK_EQ(eo::fmt("{}", eo::fixed(-0.0, 2)), std::string("-0.00"));
+    EO_CHECK_EQ(eo::fmt("{}", eo::fixed(-0.001, 2)), std::string("-0.00"));
+    EO_CHECK_EQ(eo::fmt("{}", eo::fixed(0.125, 2)), std::string("0.12"));
+    EO_CHECK_EQ(eo::fmt("{}", eo::fixed(0.375, 2)), std::string("0.38"));
+    EO_CHECK_EQ(eo::fmt("{}", eo::fixed(2.5, 0)), std::string("2"));
+    EO_CHECK_EQ(eo::fmt("{}", eo::fixed(3.5, 0)), std::string("4"));
+    EO_CHECK_EQ(eo::fmt("{}", eo::fixed(2.675, 2)), std::string("2.67"));
+    EO_CHECK_EQ(eo::fmt("{}", eo::fixed(2.5, -1)), std::string("2.500000"));
+    EO_CHECK_EQ(eo::fmt("{}", eo::fixed(5e-324, 40)), "0." + std::string(40, '0'));
+    EO_CHECK_EQ(eo::fmt("{}", eo::fixed(1e22, 40)), "10000000000000000000000." + std::string(40, '0'));
+    EO_CHECK_EQ(eo::fmt("{}", eo::fixed(1e300, 40)), printf_fixed(1e300, 40));
+    EO_CHECK_EQ(eo::fmt("{}", eo::fixed(0.1, 41)), printf_fixed(0.1, 41));
+    EO_CHECK_EQ(eo::fmt("{}", eo::fixed(123456789.123456789f, 3)), std::string("123456792.000"));
+    EO_CHECK_EQ(eo::fmt("{} {}", 1e21, 123456789012345678.0), std::string("1e+21 1.2345678901234568e+17"));
+    EO_CHECK_EQ(eo::fmt("{} {}", 0.1, 1.0 / 3), std::string("0.1 0.33333333333333331"));
+}
+
+EO_TEST(pin_the_complaint_about_a_graph_that_is_not_a_tree) {
+    EO_CHECK_EQ(eo::is_tree(4, {{1, 2}, {2, 3}, {3, 1}}).message(),
+                std::string("vertex 4 cannot be reached from vertex 1"));
+    EO_CHECK_EQ(eo::is_tree(5, {{4, 5}, {1, 2}, {2, 3}, {3, 1}}).message(),
+                std::string("vertex 4 cannot be reached from vertex 1"));
+    EO_CHECK_EQ(eo::is_tree(4, {{1, 2}, {2, 1}, {3, 4}}).message(), std::string("edges 1 and 2 are both (1, 2)"));
+    EO_CHECK_EQ(eo::is_tree(4, {{1, 2}, {3, 3}, {2, 4}}).message(), std::string("edge 2 is a loop at vertex 3"));
+    EO_CHECK_EQ(eo::is_tree(4, {{1, 2}, {2, 5}, {3, 4}}).message(), std::string("edge 2 is (2, 5), outside 1..4"));
+    EO_CHECK_EQ(eo::is_tree(4, {{1, 2}, {2, 3}}).message(), std::string("a tree on 4 vertices has 3 edges, not 2"));
+    EO_CHECK_EQ(eo::is_tree(0, {}).message(), std::string("a tree on 0 vertices has -1 edges, not 0"));
+    EO_CHECK(static_cast<bool>(eo::is_tree(1, {})));
+    EO_CHECK(static_cast<bool>(eo::is_tree(4, {{4, 3}, {1, 3}, {2, 1}})));
+    eo::rng dice(7);
+    for (int one = 0; one < 20000; one++) {
+        int const n = static_cast<int>(dice.uniform(1, dice.chance(0.1) ? 40 : 7));
+        std::vector<eo::edge> edges;
+        for (int at = 2; at <= n; at++) {
+            int const other = static_cast<int>(dice.chance(0.85) ? dice.uniform(1, at - 1) : dice.uniform(0, n + 1));
+            edges.push_back(dice.chance(0.5) ? eo::edge{at, other} : eo::edge{other, at});
+        }
+        dice.shuffle(edges);
+        eo::check_result const simple = eo::is_simple_graph(n, edges);
+        std::string const expected = !simple ? simple.message() : eo::is_connected(n, edges).message();
+        EO_CHECK_EQ(eo::is_tree(n, edges).message(), expected);
+    }
+}
+
+namespace {
+
+std::string strict_lines(std::string const& text, std::size_t chunk) {
+    std::string trace;
+    eot::outcome const ended = eot::run_until_stop([&] {
+        eo::detail::reader from(eo::detail::source::over_text(text, true, chunk), eo::detail::fault::invalid_test,
+                                "", false, "EO102");
+        eo::charset const letters("a-z ");
+        from.rest_of_line(0, 0, nullptr, eo::detail::stated::deliberate, "pad", eo::detail::site{"pinned.inc", 29});
+        for (int at = 0; from.peek() >= 0; at++) {
+            if (at % 3 == 2) trace += "<" + from.rest_of_line(0, 0, nullptr, eo::detail::stated::deliberate, "t",
+                                                            eo::detail::site{"pinned.inc", 30}) + ">";
+            else trace += "<" + from.rest_of_line(0, 8, at % 3 == 0 ? &letters : nullptr, eo::detail::stated::yes, "t",
+                                                  eo::detail::site{"pinned.inc", 31}) + ">";
+        }
+    });
+    if (ended.stopped) trace += eo::fmt("| {} {}", ended.code, ended.text);
+    return trace;
+}
+
+std::string lenient_lines(std::string const& text, std::size_t chunk) {
+    std::string trace;
+    eot::outcome const ended = eot::run_until_stop([&] {
+        eo::detail::reader from(eo::detail::source::over_text(text, false, chunk), eo::detail::fault::wrong_answer,
+                                "output.txt", true, "EO103");
+        from.rest_of_line(0, 0, nullptr, eo::detail::stated::deliberate, "pad", eo::detail::site{"pinned.inc", 29});
+        for (int at = 0; from.peek() >= 0; at++) {
+            if (at % 2 == 0) {
+                trace += "<" + from.rest_of_line(0, 0, nullptr, eo::detail::stated::deliberate, "t",
+                                                 eo::detail::site{"pinned.inc", 32}) + ">";
+            } else {
+                bool longer = false;
+                std::string const kept = from.line_up_to(4, longer, "t");
+                trace += "<" + kept + (longer ? "+" : "") + ">";
+            }
+        }
+    });
+    if (ended.stopped) trace += eo::fmt("| {} {}", ended.code, ended.text);
+    return trace;
+}
+
+}  // namespace
+
+EO_TEST(pin_lines_read_wherever_the_buffer_ends) {
+    pin_lines_everywhere("<abc><a\tb><long line of text>", "abc\na\tb\nlong line of text\n", strict_lines);
+    pin_lines_everywhere("<ab>| 3 line 3, t: the line is longer than 8 characters", "ab\nabcdefghi\n", strict_lines);
+    pin_lines_everywhere("<ab>| 3 line 3, t: the line is longer than 8 characters", "ab\nabcdefgh\r\r\n", strict_lines);
+    pin_lines_everywhere("<ab><abcdefg\r>| 3 line 4, t: the line has no line break at its end", "ab\nabcdefg\r\r\nxyz",
+                   strict_lines);
+    pin_lines_everywhere("| 3 line 2, t: the line holds \"\\x0d\", which is not in \"a-z \"", "a\rb\n", strict_lines);
+    pin_lines_everywhere("<a b><><>", "a b\r\n\r\n\n", strict_lines);
+    pin_lines_everywhere("| 3 line 2, t: the line holds \"B\", which is not in \"a-z \"", "aB\n", strict_lines);
+    pin_lines_everywhere("<abc><abcd><x y ><abcd+><>", "abc\r\nabcd \t\r\nx y \nabcdx  \n\n", lenient_lines);
+    pin_lines_everywhere("<><ab c>", "\r\nab c", lenient_lines);
+    pin_lines_everywhere("<" + std::string(3000, 'k') + ">", std::string(3000, 'k') + "\r\n", lenient_lines);
+}
+
+EO_TEST(pin_the_bytes_a_generator_writes) {
+    made const result = generate({"-n=4"}, [](eo::generator& g) {
+        int const n = g.option<int>("n", 1, 10);
+        eo::rng& dice = g.rng();
+        g.out.line(n);
+        for (int at = 0; at < n; at++) {
+            double const wide = dice.real(-1e9, 1e9);
+            double const narrow = dice.real(-1, 1);
+            double const whole = dice.real(0, 1e6);
+            long long const count = dice.uniform(1, 1000000000);
+            g.out.line(wide, eo::fixed(narrow, 6), eo::fixed(whole, 0), count);
+        }
+        g.out.line(eo::fixed(-0.0, 3), eo::fixed(0.5, 20), 1e-7, -2.5e300);
+    });
+    EO_CHECK_EQ(result.test, std::string("4\n"
+                                         "-573328408.78539562 -0.010385 509083 339616102\n"
+                                         "-293751400.63464117 0.922791 103021 475097425\n"
+                                         "19180572.649808884 -0.995856 571445 971211752\n"
+                                         "804202973.88878155 0.870536 58452 816561419\n"
+                                         "-0.000 0.50000000000000000000 1e-07 -2.5e+300\n"));
+}
