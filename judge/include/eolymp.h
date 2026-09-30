@@ -6208,9 +6208,9 @@ private:
         char const* const in = detail::environment("CONTROL_INPUT_FILE");
         if (out == nullptr || in == nullptr)
             fail_jury("this problem is not set up for instances: there is no control channel");
-        requests_ = std::fopen(out, "w");
+        requests_ = std::fopen(out, "wb");
         if (requests_ == nullptr) fail_jury("cannot reach the judge's control channel");
-        replies_ = std::fopen(in, "r");
+        replies_ = std::fopen(in, "rb");
         if (replies_ == nullptr) fail_jury("cannot hear the judge's control channel");
     }
 

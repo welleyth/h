@@ -1,6 +1,7 @@
 #include "../../eolymp.h"
 
-#include <unistd.h>
+#include <chrono>
+#include <thread>
 
 int main(int argc, char** argv) {
     eo::controller ctl(argc, argv);
@@ -10,7 +11,7 @@ int main(int argc, char** argv) {
     eo::channel& first = ctl.spawn();
     first.send("first", secret);
     std::string message = first.read_token(1, 20, eo::charset("a-z"), "message");
-    ::usleep(20000);
+    std::this_thread::sleep_for(std::chrono::milliseconds(20));
     first.send("thanks");
     first.close();
 

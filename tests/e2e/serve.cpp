@@ -25,7 +25,9 @@ void stop_everyone(int) {
 }
 
 void remember(pid_t child) {
-    if (started < most_children) children[started++] = child;
+    if (started >= most_children) return;
+    children[started] = child;
+    started = started + 1;
 }
 
 void wait_for(pid_t child, int& status) {

@@ -205,4 +205,25 @@ for lines in 10 5000 100000 1000000; do
         "$(path bulk_interactor) bulk.txt bsummary.txt -- $(path bulk_solution)"
     run "interactor: the summary of $lines lines" cat bsummary.txt
 done
+mkdir -p com
+printf '3 12345\n' > com/in.txt
+serve() {
+    label=$1
+    limit=$2
+    shift 2
+    run "controller: $label" sh -c "TEST_COST=40 timeout 120 $(program serve) com $limit $*"
+}
+serve "a correct relay" 10 "$(path relay) com/in.txt com/summary.txt -- $(path relay_solution)"
+run "controller: the summary it wrote" cat com/summary.txt
+run "the stock checker on the relay's summary" env TEST_COST=40 $(program stock_checker) com/in.txt com/summary.txt \
+    com/in.txt
+serve "an instance beyond the limit" 2 "$(path relay) com/in.txt com/summary.txt -- $(path relay_solution)"
+serve "an instance that says nothing" 10 "$(path relay) com/in.txt com/summary.txt -- $(path relay_solution) mute"
+serve "an instance that lies" 10 "$(path relay) com/in.txt com/summary.txt -- $(path relay_solution) liar"
+for lines in 1000 100000; do
+    printf '%s\n' "$lines" > com/bulk.txt
+    serve "$lines lines sent to an instance that answers each as it reads it" 1 \
+        "$(path bulk) com/bulk.txt com/summary.txt -- $(path bulk_solution)"
+done
+run "a controller that calls exit(0)" env ROLE=controller TEST_COST=40 $(program exits) ein.txt esummary.txt
 echo "== $count scenarios"
