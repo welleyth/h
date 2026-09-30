@@ -831,3 +831,17 @@ EO_TEST(pin_what_a_controller_reads_from_an_instance) {
                 }),
                 std::string("ok"));
 }
+
+EO_TEST(pin_that_a_warning_code_is_told_apart_by_its_address) {
+    eo::detail::diagnostics& shared = eo::detail::diagnostics::shared();
+    shared.forget_everything();
+    std::string const spelled = "EO101";
+    eo::detail::site const here{"pinned.inc", 50};
+    eo::detail::warn("EO101", "a value without a name", "name it", here);
+    eo::detail::warn(spelled.c_str(), "a value without a name", "name it", here);
+    EO_CHECK_EQ(shared.all().size(), static_cast<std::size_t>(2));
+    EO_CHECK_EQ(shared.all().front().count, 1LL);
+    std::string const again = "EO101";
+    EO_CHECK(!shared.again(again.c_str(), here));
+    shared.forget_everything();
+}
