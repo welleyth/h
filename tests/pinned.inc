@@ -932,7 +932,7 @@ std::string refused_by_a_validator(std::string const& text, void (*read)(eo::val
 
 }  // namespace
 
-EO_TEST(pin_a_number_that_a_token_character_follows) {
+EO_TEST(a_number_that_a_token_character_follows_is_named_whole) {
     auto const integer_then_line = [](eo::validator& v) {
         v.read_int(1, 1000000, "n");
         v.read_eoln();
@@ -959,29 +959,29 @@ EO_TEST(pin_a_number_that_a_token_character_follows) {
         v.read_char(':');
     };
     EO_CHECK_EQ(refused_by_a_validator("1e5\n", integer_then_line),
-                std::string("line 1: expected a line break after n, found \"e\""));
+                std::string("line 1, n: expected an integer, found \"1e5\": it has a character that cannot be part of the number"));
     EO_CHECK_EQ(refused_by_a_validator("12abc 5\n", integer_then_space),
-                std::string("line 1: expected a space after n, found \"a\""));
+                std::string("line 1, n: expected an integer, found \"12abc\": it has a character that cannot be part of the number"));
     EO_CHECK_EQ(refused_by_a_validator("7.5\n", integer_then_line),
-                std::string("line 1: expected a line break after n, found \".\""));
+                std::string("line 1, n: expected an integer, found \"7.5\": it has a character that cannot be part of the number"));
     EO_CHECK_EQ(refused_by_a_validator("1e-3\n", real_then_line),
-                std::string("line 1, p: 1 has 0 digits after the point, not 1..6"));
+                std::string("line 1, p: expected a number, found \"1e-3\": it has a character that cannot be part of the number"));
     EO_CHECK_EQ(refused_by_a_validator("0,5\n", real_then_line),
-                std::string("line 1, p: 0 has 0 digits after the point, not 1..6"));
+                std::string("line 1, p: expected a number, found \"0,5\": it has a character that cannot be part of the number"));
     EO_CHECK_EQ(refused_by_a_validator("1.5e3\n", real_then_line),
-                std::string("line 1: expected a line break after p, found \"e\""));
+                std::string("line 1, p: expected a number, found \"1.5e3\": it has a character that cannot be part of the number"));
     EO_CHECK_EQ(refused_by_a_validator("1.x\n", real_then_line),
-                std::string("line 1, p: expected a number, found \"1.\": it has no digits where digits are required"));
+                std::string("line 1, p: expected a number, found \"1.x\": it has no digits where digits are required"));
     EO_CHECK_EQ(refused_by_a_validator("1 2x 3\n", integers_then_line),
-                std::string("line 1: expected a space after a[2], found \"x\""));
+                std::string("line 1, a[2]: expected an integer, found \"2x\": it has a character that cannot be part of the number"));
     EO_CHECK_EQ(refused_by_a_validator("5x\n", integer_alone),
-                std::string("line 1: expected the end of the input, found \"x\""));
+                std::string("line 1, n: expected an integer, found \"5x\": it has a character that cannot be part of the number"));
     EO_CHECK_EQ(refused_by_a_validator("5x\n", unnamed_then_line),
-                std::string("line 1: expected a line break after the value before, found \"x\""));
+                std::string("line 1: expected an integer, found \"5x\": it has a character that cannot be part of the number"));
     EO_CHECK_EQ(refused_by_a_validator("0012\n", integer_then_line),
                 std::string("line 1, n: expected an integer, found \"0012\": it has a leading zero"));
     EO_CHECK_EQ(refused_by_a_validator("012x\n", integer_then_line),
-                std::string("line 1, n: expected an integer, found \"012\": it has a leading zero"));
+                std::string("line 1, n: expected an integer, found \"012x\": it has a character that cannot be part of the number"));
     auto const small_then_line = [](eo::validator& v) {
         v.read_int(1, 10, "n");
         v.read_eoln();

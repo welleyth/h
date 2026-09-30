@@ -157,8 +157,16 @@ decimals — `3`, `3.25`, `-0.5` — with no exponent, no infinity and no NaN;
 
 **A number read consumes the number, not the rest of the token.** That is what makes
 `read_char(':')` work on `12:30`. Anything the number does not consume is still yours to
-read, so nothing invalid slips through: on the input `9a`, `read_int` returns 9 and the next
-`read_eoln()` fails with `line 1: expected a line break after n, found "a"`.
+read, so nothing invalid slips through, and when what follows a number is not the space or
+the line break the validator expects, the message names the whole token and the value, as
+it would for any other malformed number: on the input `9a`, `read_int` returns 9 and the
+next `read_eoln()` fails with
+`line 1, n: expected an integer, found "9a": it has a character that cannot be part of the number`.
+`1e5` read as an int, and `1e-3`, `0,5` or `1.5e3` read as a real, are named the same way. A
+bound is checked first, so `100e5` read with bounds 1..10 is `100 is above 10`. The reason is
+the whole token's, so it can stand where a narrower one would have: `-0x` is "a character
+that cannot be part of the number" rather than "zero written with a minus", and a number too
+long for its type followed by a letter the same, rather than "does not fit".
 
 ### Patterns
 

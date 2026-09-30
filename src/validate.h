@@ -467,6 +467,7 @@ private:
             from_.mark_separated();
             return;
         }
+        if (description != nullptr) from_.refuse_a_number_that_goes_on(here);
         std::string const want = description != nullptr ? std::string(description) : fmt("\"{}\"", wanted);
         std::string const after =
             from_.last_value().empty() ? std::string() : fmt(" after {}", from_.last_value());
@@ -517,6 +518,7 @@ private:
 
     void check_the_end() {
         if (from_.peek() < 0) return;
+        from_.refuse_a_number_that_goes_on(from_.peek());
         from_.refuse(detail::value_name(unnamed),
                      fmt("expected the end of the input, found \"{}\"",
                          detail::shorten(from_.rest_of_the_input())));

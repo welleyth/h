@@ -198,8 +198,9 @@ c.output.numbers(eo::lenient);
 c.output.reals(eo::plain);
 ```
 
-A number read consumes the number, not the rest of the token, so anything it does not
-consume is still there to be read — and, at the end, to be complained about.
+A number read on a stream reads the whole token, so `1e5` read as an int, or `0,5` read as a
+real, is named whole: `expected an integer, found "1e5": it has a character that cannot be
+part of the number`.
 
 ### Looking ahead
 

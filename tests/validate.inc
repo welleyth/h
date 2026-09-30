@@ -63,7 +63,7 @@ EO_TEST(a_value_that_is_not_a_number_says_what_is_wrong_with_it) {
         EO_CHECK_EQ(v.read_int(1, 10, "n"), 9);
         v.read_eoln();
     });
-    EO_CHECK_EQ(suffix.text, std::string("line 1: expected a line break after n, found \"a\""));
+    EO_CHECK_EQ(suffix.text, std::string("line 1, n: expected an integer, found \"9a\": it has a character that cannot be part of the number"));
     eot::outcome const plus = validate("+5\n", [](eo::validator& v) { v.read_int(1, 10, "n"); });
     EO_CHECK_EQ(plus.text, std::string("line 1, n: expected an integer, found \"+5\""));
     eot::outcome const zeroes = validate("007\n", [](eo::validator& v) { v.read_int(1, 10, "n"); });
@@ -227,7 +227,7 @@ EO_TEST(numbers_are_read_with_their_digits_declared) {
         v.read_real(0.0, 1e9, 0, 6, "p");
         v.read_eoln();
     });
-    EO_CHECK_EQ(broken.text, std::string("line 1: expected a line break after p, found \"e\""));
+    EO_CHECK_EQ(broken.text, std::string("line 1, p: expected a number, found \"1e5\": it has a character that cannot be part of the number"));
     eot::outcome const nothing = validate("x\n", [](eo::validator& v) { v.read_real(0.0, 1.0, 1, 1, "p"); });
     EO_CHECK_EQ(nothing.text, std::string("line 1, p: expected a number, found \"x\""));
 }
