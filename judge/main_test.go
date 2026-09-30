@@ -7,7 +7,6 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
-	"syscall"
 	"testing"
 )
 
@@ -525,7 +524,7 @@ func TestAWorkspaceIsUsedByOneEoJudgeAtATime(t *testing.T) {
 	if err := os.MkdirAll(work, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	unlock, err := lockPath(filepath.Join(work, ".eo-judge.lock"), syscall.LOCK_EX|syscall.LOCK_NB)
+	unlock, err := lockPath(filepath.Join(work, ".eo-judge.lock"), lockExclusive|lockNoWait)
 	if err != nil {
 		t.Fatal(err)
 	}

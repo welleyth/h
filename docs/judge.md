@@ -512,6 +512,25 @@ it into annotations: every finding is a warning or a notice on the source line i
 problem that cannot be run is an error. A step fails when eo-judge exits non-zero. It runs on
 Linux and macOS runners.
 
+## On Windows
+
+eo-judge does not run natively on Windows: a Windows build stops at once with a message that
+points here. Run the Linux eo-judge under [WSL2](https://learn.microsoft.com/windows/wsl/install),
+which is the Linux judge's own toolchain and gives the same results:
+
+```bash
+wsl --install                     # once, from an administrator's PowerShell
+git clone <your problems> ~/problems && cd ~/problems
+eo-judge run <problem>
+```
+
+Keep the checkout in WSL's own file system, under `~`, rather than on `/mnt/c`, which is many
+times slower to build and read from. A test written on the Windows side may come with CRLF line
+breaks, from an editor or from Git's `core.autocrlf`; the library reads them as the judge does
+and says so with an EO110 note, and a `.gitattributes` line such as `*.txt text eol=lf` keeps
+them out of the repository. The jury programs themselves build and judge natively on Windows
+with MSVC, clang-cl and mingw-w64.
+
 ## What it does not do
 
 - **It is not a sandbox.** Programs run as you, with your files and your network. Each one

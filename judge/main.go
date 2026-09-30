@@ -227,7 +227,7 @@ func (s *session) run() int {
 	} else if err := os.MkdirAll(space, 0o755); err != nil {
 		return s.fail(err)
 	} else {
-		unlock, err := lockPath(filepath.Join(space, ".eo-judge.lock"), syscall.LOCK_EX|syscall.LOCK_NB)
+		unlock, err := lockPath(filepath.Join(space, ".eo-judge.lock"), lockExclusive|lockNoWait)
 		if errors.Is(err, syscall.EWOULDBLOCK) {
 			return s.fail(fmt.Errorf("another eo-judge is using the workspace %s; wait for it to finish, "+
 				"or give this one another --work", s.work))

@@ -213,18 +213,6 @@ func (b *Built) jury(ctx context.Context, limit int, call Invocation) (*Status, 
 	return run(ctx, b.Exe, call)
 }
 
-func grouped(ctx context.Context, name string, args ...string) *exec.Cmd {
-	command := exec.CommandContext(ctx, name, args...)
-	command.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
-	command.Cancel = func() error { return killGroup(command) }
-	command.WaitDelay = 250 * time.Millisecond
-	return command
-}
-
-func killGroup(command *exec.Cmd) error {
-	return syscall.Kill(-command.Process.Pid, syscall.SIGKILL)
-}
-
 func flatten(env map[string]string) []string {
 	out := make([]string, 0, len(env))
 	for key, value := range env {

@@ -15,7 +15,6 @@ import (
 	"slices"
 	"strings"
 	"sync"
-	"syscall"
 	"time"
 )
 
@@ -202,7 +201,7 @@ func lockEntry(entry string) (func(), error) {
 	if err := os.MkdirAll(entry, 0o755); err != nil {
 		return nil, err
 	}
-	return lockPath(entry+".lock", syscall.LOCK_EX)
+	return lockPath(entry+".lock", lockExclusive)
 }
 
 func lockPath(path string, how int) (func(), error) {
@@ -210,12 +209,12 @@ func lockPath(path string, how int) (func(), error) {
 	if err != nil {
 		return nil, err
 	}
-	if err := syscall.Flock(int(file.Fd()), how); err != nil {
+	if err := lockFile(file, how); err != nil {
 		file.Close()
 		return nil, err
 	}
 	return func() {
-		syscall.Flock(int(file.Fd()), syscall.LOCK_UN)
+		unlockFile(file)
 		file.Close()
 	}, nil
 }

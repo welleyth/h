@@ -114,7 +114,8 @@ build/eo-judge: $(wildcard judge/*.go) judge/go.mod judge/include/eolymp.h judge
 judge: eolymp.h eolymp-shapes.h
 	cd judge && unformatted=$$(gofmt -l .) && \
 		if [ -n "$$unformatted" ]; then echo "judge: gofmt would change $$unformatted" >&2; exit 1; fi && \
-		go vet ./... && go test -count=1 -parallel $(JUDGE_PARALLEL) ./...
+		go vet ./... && GOOS=windows GOARCH=amd64 go build -o /dev/null . && \
+		go test -count=1 -parallel $(JUDGE_PARALLEL) ./...
 
 pin:
 	cd judge && AGENT_REPO=$(or $(AGENT_REPO),../../agent) go test -count=1 -run TestTheCopiedPointsParser -v ./...
