@@ -8,6 +8,7 @@ import (
 	"io"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"sort"
 	"strings"
 	"syscall"
@@ -219,6 +220,8 @@ func (s *session) run() int {
 			return s.fail(err)
 		}
 		defer os.RemoveAll(space)
+	} else if space, err = filepath.Abs(space); err != nil {
+		return s.fail(err)
 	} else if err := os.MkdirAll(space, 0o755); err != nil {
 		return s.fail(err)
 	}

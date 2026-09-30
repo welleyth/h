@@ -410,3 +410,26 @@ func TestVerboseShowsTheInteractorNextToACrash(t *testing.T) {
 		t.Errorf("printed %q", out)
 	}
 }
+
+func TestARelativeWorkspaceIsWhereTheProgramsFindTheirFiles(t *testing.T) {
+	t.Parallel()
+	needsACompiler(t)
+	here, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	relative, err := filepath.Rel(here, filepath.Join(t.TempDir(), "work"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	code, out, errs := invoke("run", "testdata/authored", "--work", relative)
+	if code != 0 || strings.Contains(out, "invalid") || !strings.Contains(out, "sum: ACCEPTED, 100") {
+		t.Errorf("run --work %s exited %d, printed %q, said %q", relative, code, out, errs)
+	}
+	code, out, errs = invoke("stress", "testdata/stress", "--args", "-n=[3..8] -max=[1..100]", "--solution", "pairs",
+		"--work", relative)
+	if code != 1 || !strings.Contains(out, "iteration 1: COUNTEREXAMPLE") ||
+		!strings.Contains(out, "kept in "+filepath.Join(relative, "stress", "1")+": ") {
+		t.Errorf("stress --work %s exited %d, printed %q, said %q", relative, code, out, errs)
+	}
+}
