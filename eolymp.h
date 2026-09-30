@@ -293,6 +293,16 @@ inline void add_to_line(std::string& line, T const& value, bool& first) {
     }
 }
 
+template <class Items, class Spell>
+inline std::string joined(Items const& items, Spell spell) {
+    std::string out;
+    for (auto const& one : items) {
+        if (!out.empty()) out += ", ";
+        out += spell(one);
+    }
+    return out;
+}
+
 using appender = void (*)(std::string&, void const*);
 
 class pattern {
@@ -1670,13 +1680,12 @@ public:
 
     std::string choice(std::initializer_list<char const*> choices, bool fold, value_name const& name, site where) {
         std::string found = take_word(name, where, "a token", longest_of(choices));
-        std::string listed;
         for (char const* one : choices) {
-            listed += (listed.empty() ? "" : ", ") + std::string(one);
             if (found == one) return found;
             if (fold && same_folded(found, one)) return std::string(one);
         }
-        refuse(name, fmt("\"{}\" is not one of {}", shorten(found), listed));
+        refuse(name, fmt("\"{}\" is not one of {}", shorten(found),
+                         joined(choices, [](char const* one) { return std::string(one); })));
     }
 
     void study(value_name const& name, long long low, long long high, stated bounds, long long type_low,
@@ -3024,9 +3033,8 @@ inline Limits subtask_table<Limits>::without_group(Limits fallback) {
     if (!chosen.has_value()) return fallback;
     for (subtask_row<Limits> const& row : rows_)
         if (row.group == *chosen) return row.limits;
-    std::string listed;
-    for (subtask_row<Limits> const& row : rows_)
-        listed += (listed.empty() ? "" : ", ") + std::to_string(row.group);
+    std::string const listed =
+        detail::joined(rows_, [](subtask_row<Limits> const& row) { return std::to_string(row.group); });
     detail::finish(3, fmt("{}: no subtask {}; known: {}", detail::where_of(where_), *chosen, listed));
 }
 

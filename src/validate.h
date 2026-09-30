@@ -519,9 +519,8 @@ inline Limits subtask_table<Limits>::without_group(Limits fallback) {
     if (!chosen.has_value()) return fallback;
     for (subtask_row<Limits> const& row : rows_)
         if (row.group == *chosen) return row.limits;
-    std::string listed;
-    for (subtask_row<Limits> const& row : rows_)
-        listed += (listed.empty() ? "" : ", ") + std::to_string(row.group);
+    std::string const listed =
+        detail::joined(rows_, [](subtask_row<Limits> const& row) { return std::to_string(row.group); });
     detail::finish(3, fmt("{}: no subtask {}; known: {}", detail::where_of(where_), *chosen, listed));
 }
 

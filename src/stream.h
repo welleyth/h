@@ -458,13 +458,12 @@ public:
 
     std::string choice(std::initializer_list<char const*> choices, bool fold, value_name const& name, site where) {
         std::string found = take_word(name, where, "a token", longest_of(choices));
-        std::string listed;
         for (char const* one : choices) {
-            listed += (listed.empty() ? "" : ", ") + std::string(one);
             if (found == one) return found;
             if (fold && same_folded(found, one)) return std::string(one);
         }
-        refuse(name, fmt("\"{}\" is not one of {}", shorten(found), listed));
+        refuse(name, fmt("\"{}\" is not one of {}", shorten(found),
+                         joined(choices, [](char const* one) { return std::string(one); })));
     }
 
     void study(value_name const& name, long long low, long long high, stated bounds, long long type_low,

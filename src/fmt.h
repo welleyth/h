@@ -128,6 +128,16 @@ inline void add_to_line(std::string& line, T const& value, bool& first) {
     }
 }
 
+template <class Items, class Spell>
+inline std::string joined(Items const& items, Spell spell) {
+    std::string out;
+    for (auto const& one : items) {
+        if (!out.empty()) out += ", ";
+        out += spell(one);
+    }
+    return out;
+}
+
 using appender = void (*)(std::string&, void const*);
 
 class pattern {
