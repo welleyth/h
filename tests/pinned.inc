@@ -1031,3 +1031,17 @@ EO_TEST(a_number_that_a_token_character_follows_is_named_whole) {
                 std::string("wrong answer: output.txt, line 1, n: expected an integer, found \"12abc\": it has a "
                             "character that cannot be part of the number"));
 }
+
+EO_TEST(pin_a_warning_raised_on_one_line_of_two_files) {
+    eo::detail::diagnostics& shared = eo::detail::diagnostics::shared();
+    shared.forget_everything();
+    eo::detail::warn("EO101", "a value without a name", "name it", eo::detail::site{"validator.cpp", 12});
+    eo::detail::warn("EO101", "a value without a name", "name it", eo::detail::site{"common.h", 12});
+    std::string const other = "common.h";
+    eo::detail::warn("EO101", "a value without a name", "name it", eo::detail::site{other.c_str(), 12});
+    EO_CHECK_EQ(shared.all().size(), static_cast<std::size_t>(1));
+    EO_CHECK_EQ(shared.all().front().count, 3LL);
+    EO_CHECK_EQ(shared.local_block(), std::string("validator.cpp:12: warning EO101: a value without a name (3 times)\n"
+                                                  "  name it\n"));
+    shared.forget_everything();
+}
