@@ -119,6 +119,7 @@ public:
 
     void blame(fault whose) { whose_ = whose; }
     void relaxed(bool loose) { relaxed_ = loose; }
+    bool relaxed() const { return relaxed_; }
 
     int peek() { return from_.peek(); }
     int take() { return from_.take(); }

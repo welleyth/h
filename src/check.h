@@ -35,6 +35,7 @@ struct plain_t {};
 struct any_case_t {};
 struct exact_t {};
 struct any_order_t {};
+struct big_t {};
 
 inline constexpr ignore_t ignore{};
 inline constexpr lenient_t lenient{};
@@ -42,6 +43,7 @@ inline constexpr plain_t plain{};
 inline constexpr any_case_t any_case{};
 inline constexpr exact_t exact{};
 inline constexpr any_order_t any_order{};
+inline constexpr big_t big{};
 
 enum class answers_are { unique, many };
 
@@ -568,6 +570,34 @@ public:
         }
     }
 
+    [[noreturn]] void integers(big_t) {
+        compared_only_ = true;
+        long long seen = 0;
+        std::string want;
+        std::string got;
+        while (true) {
+            bool const jury_done = jury.at_eof();
+            bool const output_done = output.at_eof();
+            if (jury_done && output_done) pass(1, fmt("{} integers", seen));
+            seen++;
+            if (jury_done) fail_run(fmt("the answer has {} integers, the output has more", seen - 1));
+            jury_token(want, detail::site::here());
+            spelled_as_an_integer(jury, want);
+            if (output_done) fail_run(fmt("the output ended after {} integers, the answer has more", seen - 1));
+            std::size_t const longest = std::max<std::size_t>(want.size(), detail::reader::longest_number);
+            contestant_token(got, longest);
+            if (got.size() > longest)
+                fail_run(fmt("token {} is longer than {} characters: \"{}\"", seen, longest, detail::shorten(got)));
+            spelled_as_an_integer(output, got);
+            if (want == got) continue;
+            if (want.size() <= 40 && got.size() <= 40) fail_run(fmt("integer {} is {}, expected {}", seen, got, want));
+            std::size_t same = 0;
+            while (want[same] == got[same]) same++;
+            fail_run(fmt("integer {} is {} characters long and the answer's {}; they differ first at character {}",
+                         seen, got.size(), want.size(), same + 1));
+        }
+    }
+
     [[noreturn]] void reals(double epsilon) {
         compared_only_ = true;
         long long seen = 0;
@@ -722,6 +752,13 @@ public:
 
 private:
     static bool trailing_blank(char one) { return one == ' ' || one == '\t' || one == '\r'; }
+
+    static void spelled_as_an_integer(stream& side, std::string& token) {
+        detail::number_problem const problem = detail::integer_spelling(token, side.inside().relaxed());
+        if (problem != detail::number_problem::none)
+            side.wrong("expected an integer, found \"{}\": {}", detail::shorten(token), detail::describe(problem));
+        detail::canonical_integer(token);
+    }
 
     static std::string times_in(std::vector<std::string> const& sorted, std::string const& token) {
         auto const range = std::equal_range(sorted.begin(), sorted.end(), token);

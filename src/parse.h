@@ -44,15 +44,35 @@ struct integer_read {
 
 inline bool is_digit(char c) { return c >= '0' && c <= '9'; }
 
-inline integer_read parse_integer(std::string_view text, bool relaxed = false) {
-    if (text.empty()) return {0, number_problem::empty};
-    std::size_t const start = text[0] == '-' || (relaxed && text[0] == '+') ? 1u : 0u;
-    bool const negative = text[0] == '-';
-    if (start == text.size()) return {0, number_problem::missing_digits};
+inline std::size_t integer_start(std::string_view text, bool relaxed) {
+    return text[0] == '-' || (relaxed && text[0] == '+') ? 1u : 0u;
+}
+
+inline number_problem integer_spelling(std::string_view text, bool relaxed) {
+    if (text.empty()) return number_problem::empty;
+    std::size_t const start = integer_start(text, relaxed);
+    if (start == text.size()) return number_problem::missing_digits;
     for (std::size_t at = start; at < text.size(); at++)
-        if (!is_digit(text[at])) return {0, number_problem::bad_character};
-    if (!relaxed && text[start] == '0' && text.size() - start > 1)
-        return {0, number_problem::leading_zero};
+        if (!is_digit(text[at])) return number_problem::bad_character;
+    if (!relaxed && text[start] == '0' && text.size() - start > 1) return number_problem::leading_zero;
+    if (!relaxed && start == 1 && text[1] == '0') return number_problem::redundant_minus;
+    return number_problem::none;
+}
+
+inline void canonical_integer(std::string& text) {
+    std::size_t const start = integer_start(text, true);
+    std::size_t digits = start;
+    while (digits + 1 < text.size() && text[digits] == '0') digits++;
+    bool const minus = text[0] == '-' && text[digits] != '0';
+    text.erase(0, digits);
+    if (minus) text.insert(0, 1, '-');
+}
+
+inline integer_read parse_integer(std::string_view text, bool relaxed = false) {
+    number_problem const spelled = integer_spelling(text, relaxed);
+    if (spelled != number_problem::none) return {0, spelled};
+    std::size_t const start = integer_start(text, relaxed);
+    bool const negative = text[0] == '-';
     unsigned long long const limit = negative ? 9223372036854775808ull : 9223372036854775807ull;
     unsigned long long magnitude = 0;
     for (std::size_t at = start; at < text.size(); at++) {
@@ -60,7 +80,6 @@ inline integer_read parse_integer(std::string_view text, bool relaxed = false) {
         if (magnitude > (limit - digit) / 10) return {0, number_problem::out_of_range};
         magnitude = magnitude * 10 + digit;
     }
-    if (!relaxed && negative && magnitude == 0) return {0, number_problem::redundant_minus};
     return {negative ? static_cast<long long>(0ull - magnitude) : static_cast<long long>(magnitude),
             number_problem::none};
 }

@@ -1686,3 +1686,46 @@ EO_TEST(integers_are_compared_as_numbers_one_by_one) {
     });
     EO_CHECK_EQ(loose.text, std::string("ok 3 integers"));
 }
+
+EO_TEST(big_integers_are_compared_exactly_at_any_length) {
+    auto const huge = [](eo::checker& c) { c.integers(eo::big); };
+    std::string const googol = "1" + std::string(100, '0');
+    EO_CHECK_EQ(compared_by(googol + "\n-" + googol + " 0\n", googol + " -" + googol + " 0", huge),
+                std::string("ok 3 integers"));
+    EO_CHECK_EQ(compared_by("123456789012345678901234567890 5", "123456789012345678901234567890 6", huge),
+                std::string("wrong answer integer 2 is 5, expected 6"));
+    EO_CHECK_EQ(compared_by(googol + "1", googol + "2", huge),
+                std::string("wrong answer integer 1 is 102 characters long and the answer's 102; they differ first "
+                            "at character 102"));
+    EO_CHECK_EQ(compared_by("-" + googol, googol, huge),
+                std::string("wrong answer integer 1 is 102 characters long and the answer's 101; they differ first "
+                            "at character 1"));
+    EO_CHECK_EQ(compared_by("1", "1 2", huge),
+                std::string("wrong answer the output ended after 1 integers, the answer has more"));
+    EO_CHECK_EQ(compared_by("1 2", "1", huge), std::string("wrong answer the answer has 1 integers, the output has more"));
+    EO_CHECK_EQ(compared_by("-0", "0", huge),
+                std::string("wrong answer: output.txt, line 1: expected an integer, found \"-0\": it is zero written "
+                            "with a minus"));
+    EO_CHECK_EQ(compared_by("1 012", "1 12", huge),
+                std::string("wrong answer: output.txt, line 1: expected an integer, found \"012\": it has a leading zero"));
+    EO_CHECK_EQ(compared_by("1 1x", "1 12", huge),
+                std::string("wrong answer: output.txt, line 1: expected an integer, found \"1x\": it has a character "
+                            "that cannot be part of the number"));
+    EO_CHECK_EQ(compared_by("+", "1", huge),
+                std::string("wrong answer: output.txt, line 1: expected an integer, found \"+\": it has a character "
+                            "that cannot be part of the number"));
+    EO_CHECK_EQ(compared_by("-", "1", huge),
+                std::string("wrong answer: output.txt, line 1: expected an integer, found \"-\": it has no digits "
+                            "where digits are required"));
+    EO_CHECK_EQ(compared_by(std::string(5000, '7'), "7", huge),
+                "wrong answer token 1 is longer than 4096 characters: \"" + std::string(40, '7') + "...\"");
+    EO_CHECK_EQ(compared_by("1", "0x1", huge),
+                std::string("jury error: answer.txt, line 1: expected an integer, found \"0x1\": it has a character "
+                            "that cannot be part of the number"));
+    eot::outcome const loose = check_run("1\n", "+5 0007 -000 -01\n", "5 7 0 -1\n", [](eo::checker& c) {
+        c.input.skip_rest("not needed");
+        c.output.numbers(eo::lenient);
+        c.integers(eo::big);
+    });
+    EO_CHECK_EQ(loose.text, std::string("ok 4 integers"));
+}

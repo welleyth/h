@@ -497,15 +497,35 @@ struct integer_read {
 
 inline bool is_digit(char c) { return c >= '0' && c <= '9'; }
 
-inline integer_read parse_integer(std::string_view text, bool relaxed = false) {
-    if (text.empty()) return {0, number_problem::empty};
-    std::size_t const start = text[0] == '-' || (relaxed && text[0] == '+') ? 1u : 0u;
-    bool const negative = text[0] == '-';
-    if (start == text.size()) return {0, number_problem::missing_digits};
+inline std::size_t integer_start(std::string_view text, bool relaxed) {
+    return text[0] == '-' || (relaxed && text[0] == '+') ? 1u : 0u;
+}
+
+inline number_problem integer_spelling(std::string_view text, bool relaxed) {
+    if (text.empty()) return number_problem::empty;
+    std::size_t const start = integer_start(text, relaxed);
+    if (start == text.size()) return number_problem::missing_digits;
     for (std::size_t at = start; at < text.size(); at++)
-        if (!is_digit(text[at])) return {0, number_problem::bad_character};
-    if (!relaxed && text[start] == '0' && text.size() - start > 1)
-        return {0, number_problem::leading_zero};
+        if (!is_digit(text[at])) return number_problem::bad_character;
+    if (!relaxed && text[start] == '0' && text.size() - start > 1) return number_problem::leading_zero;
+    if (!relaxed && start == 1 && text[1] == '0') return number_problem::redundant_minus;
+    return number_problem::none;
+}
+
+inline void canonical_integer(std::string& text) {
+    std::size_t const start = integer_start(text, true);
+    std::size_t digits = start;
+    while (digits + 1 < text.size() && text[digits] == '0') digits++;
+    bool const minus = text[0] == '-' && text[digits] != '0';
+    text.erase(0, digits);
+    if (minus) text.insert(0, 1, '-');
+}
+
+inline integer_read parse_integer(std::string_view text, bool relaxed = false) {
+    number_problem const spelled = integer_spelling(text, relaxed);
+    if (spelled != number_problem::none) return {0, spelled};
+    std::size_t const start = integer_start(text, relaxed);
+    bool const negative = text[0] == '-';
     unsigned long long const limit = negative ? 9223372036854775808ull : 9223372036854775807ull;
     unsigned long long magnitude = 0;
     for (std::size_t at = start; at < text.size(); at++) {
@@ -513,7 +533,6 @@ inline integer_read parse_integer(std::string_view text, bool relaxed = false) {
         if (magnitude > (limit - digit) / 10) return {0, number_problem::out_of_range};
         magnitude = magnitude * 10 + digit;
     }
-    if (!relaxed && negative && magnitude == 0) return {0, number_problem::redundant_minus};
     return {negative ? static_cast<long long>(0ull - magnitude) : static_cast<long long>(magnitude),
             number_problem::none};
 }
@@ -2117,6 +2136,7 @@ public:
 
     void blame(fault whose) { whose_ = whose; }
     void relaxed(bool loose) { relaxed_ = loose; }
+    bool relaxed() const { return relaxed_; }
 
     int peek() { return from_.peek(); }
     int take() { return from_.take(); }
@@ -4014,6 +4034,7 @@ struct plain_t {};
 struct any_case_t {};
 struct exact_t {};
 struct any_order_t {};
+struct big_t {};
 
 inline constexpr ignore_t ignore{};
 inline constexpr lenient_t lenient{};
@@ -4021,6 +4042,7 @@ inline constexpr plain_t plain{};
 inline constexpr any_case_t any_case{};
 inline constexpr exact_t exact{};
 inline constexpr any_order_t any_order{};
+inline constexpr big_t big{};
 
 enum class answers_are { unique, many };
 
@@ -4547,6 +4569,34 @@ public:
         }
     }
 
+    [[noreturn]] void integers(big_t) {
+        compared_only_ = true;
+        long long seen = 0;
+        std::string want;
+        std::string got;
+        while (true) {
+            bool const jury_done = jury.at_eof();
+            bool const output_done = output.at_eof();
+            if (jury_done && output_done) pass(1, fmt("{} integers", seen));
+            seen++;
+            if (jury_done) fail_run(fmt("the answer has {} integers, the output has more", seen - 1));
+            jury_token(want, detail::site::here());
+            spelled_as_an_integer(jury, want);
+            if (output_done) fail_run(fmt("the output ended after {} integers, the answer has more", seen - 1));
+            std::size_t const longest = std::max<std::size_t>(want.size(), detail::reader::longest_number);
+            contestant_token(got, longest);
+            if (got.size() > longest)
+                fail_run(fmt("token {} is longer than {} characters: \"{}\"", seen, longest, detail::shorten(got)));
+            spelled_as_an_integer(output, got);
+            if (want == got) continue;
+            if (want.size() <= 40 && got.size() <= 40) fail_run(fmt("integer {} is {}, expected {}", seen, got, want));
+            std::size_t same = 0;
+            while (want[same] == got[same]) same++;
+            fail_run(fmt("integer {} is {} characters long and the answer's {}; they differ first at character {}",
+                         seen, got.size(), want.size(), same + 1));
+        }
+    }
+
     [[noreturn]] void reals(double epsilon) {
         compared_only_ = true;
         long long seen = 0;
@@ -4701,6 +4751,13 @@ public:
 
 private:
     static bool trailing_blank(char one) { return one == ' ' || one == '\t' || one == '\r'; }
+
+    static void spelled_as_an_integer(stream& side, std::string& token) {
+        detail::number_problem const problem = detail::integer_spelling(token, side.inside().relaxed());
+        if (problem != detail::number_problem::none)
+            side.wrong("expected an integer, found \"{}\": {}", detail::shorten(token), detail::describe(problem));
+        detail::canonical_integer(token);
+    }
 
     static std::string times_in(std::vector<std::string> const& sorted, std::string const& token) {
         auto const range = std::equal_range(sorted.begin(), sorted.end(), token);

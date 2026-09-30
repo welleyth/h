@@ -379,6 +379,7 @@ Each of these gives the verdict and ends the program.
 | `c.lines()` | the output has the answer's non-blank lines, in order, compared without the spaces, tabs and carriage returns at the start and the end of each line; blank lines are skipped on both sides, and spacing inside a line counts |
 | `c.lines(eo::exact)` | line k of the output is line k of the answer, blank lines and the blanks that start a line included; only the spaces, tabs and carriage returns that end a line, and the blank lines that end a file, are ignored |
 | `c.integers()` | token by token, every token of both is an integer that fits a `long long`, in the stream's syntax, and the numbers are equal; with `c.output.numbers(eo::lenient)`, `+5` and `007` are 5 and 7 |
+| `c.integers(eo::big)` | the same at any length: every token is an integer of any number of digits, compared exactly; with `numbers(eo::lenient)` on a stream, its `+`, leading zeros and `-0` are dropped first |
 | `c.reals(eps)` | token by token: numbers agree within an absolute or relative error of `eps`, other tokens are equal; a token longer than 4096 characters and than the answer's is wrong |
 | `c.yes_no(certificate)` | a `YES`/`NO` answer, with a certificate after `YES` |
 | `c.yes_no(certificate, "POSSIBLE", "IMPOSSIBLE")` | the same with other words |
@@ -577,7 +578,7 @@ Nothing a checker reads is missing.
 | `c.answers(eo::unique)`, `c.answers(eo::many)` | how many answers are correct |
 | `c.optimum(by_the_jury, found, eo::minimize)`, `eo::maximize` | compare and end |
 | `c.optimum(by_the_jury, found, eo::minimize, eo::within(eps))` | the same for reals, equal within `eps` |
-| `c.tokens()`, `c.tokens(eo::any_case)`, `c.tokens(eo::any_order)`, `c.integers()`, `c.lines()`, `c.lines(eo::exact)`, `c.reals(eps)`, `c.yes_no(certificate)` | ready-made comparisons |
+| `c.tokens()`, `c.tokens(eo::any_case)`, `c.tokens(eo::any_order)`, `c.integers()`, `c.integers(eo::big)`, `c.lines()`, `c.lines(eo::exact)`, `c.reals(eps)`, `c.yes_no(certificate)` | ready-made comparisons |
 | `c.cost()`, `c.group()`, `c.index()`, `c.test_id()` | the test |
 | `c.cases(t, body)` | numbers the messages of a multi-test output |
 

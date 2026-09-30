@@ -70,6 +70,7 @@ input itself. See [validator.md](validator.md).
 | `wcmp` with `upperCase` on both tokens | `c.tokens(eo::any_case)` |
 | `uncmp` | `c.tokens(eo::any_order)`, which compares the tokens as text: the same verdict on integers, since neither side takes `+`, a leading zero or `-0`, and any other token too, where `uncmp` refuses it |
 | `ncmp`, `icmp` | `c.integers()`, which reads a `long long` where `icmp` reads an `int` |
+| `hcmp` | `c.integers(eo::big)`, which compares every token where `hcmp` compares one |
 | `rcmp6`, `rcmp9` | `c.reals(1e-6)`, `c.reals(1e-9)` |
 | `lcmp` | `c.lines(eo::exact)`, which keeps blank lines as `lcmp` does, and compares a line character by character where `lcmp` compares its words |
 
