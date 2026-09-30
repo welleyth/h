@@ -392,6 +392,9 @@ for `*`. That is kept as it is, because changing it would reject runs it accepts
 blank lines or indentation are part of the answer — a grid with empty rows, a drawing, a
 pretty-printed tree — use `c.lines(eo::exact)`.
 
+testlib's 21 stock checkers map onto these, one call each; the table is in
+[testlib.md](testlib.md#testlibs-stock-checkers).
+
 Eolymp also has built-in `TOKENS` and `LINES` checkers that need no program at all. Use them
 when they are enough — but note that the built-in `TOKENS` fails with a system failure on a
 token over 64 KB, where `c.tokens()` has no such limit: it reads a contestant token only one

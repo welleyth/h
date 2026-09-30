@@ -66,15 +66,8 @@ input itself. See [validator.md](validator.md).
 | a `readAns(ouf)` / `readAns(ans)` pair, then `quitf(_fail)` if the contestant beats the jury | `c.read_both(reader)` and `c.optimum(by_the_jury, found, eo::minimize)` |
 | `doubleCompare(expected, result, 1e-9)` | `eo::close_enough(expected, found, 1e-9)` |
 | `doubleCompare` on an optimum, then `quitf(_fail)` if the contestant's is better | `c.optimum(by_the_jury, found, eo::minimize, eo::within(1e-9))` |
-| `wcmp` | `c.tokens()` |
 | `wcmp` with `upperCase` on both tokens | `c.tokens(eo::any_case)` |
-| `uncmp` | `c.tokens(eo::any_order)`, which compares the tokens as text: the same verdict on integers, since neither side takes `+`, a leading zero or `-0`, and any other token too, where `uncmp` refuses it |
-| `ncmp`, `icmp` | `c.integers()`, which reads a `long long` where `icmp` reads an `int` |
-| `hcmp` | `c.integers(eo::big)`, which compares every token where `hcmp` compares one |
-| `rcmp6`, `rcmp9` | `c.reals(1e-6)`, `c.reals(1e-9)` |
-| `rcmp`, `acmp`, `rncmp` | `c.reals(1.5e-6, eo::absolute)`, and `c.reals(1.5e-5, eo::absolute)` for `rncmp` |
-| `yesno`, `nyesno` | `c.yes_no()`: one word or many, each `YES` or `NO` in any case; a word that is neither is a wrong answer where testlib's is a presentation error |
-| `lcmp` | `c.lines(eo::exact)`, which keeps blank lines as `lcmp` does, and compares a line character by character where `lcmp` compares its words |
+| one of the 21 checkers in testlib's `checkers/` | the call in the table below |
 
 ```cpp
 #include <eolymp.h>
@@ -94,10 +87,30 @@ int main(int argc, char** argv) {
 }
 ```
 
-`c.tokens()` compares tokens as text, as `wcmp` does; `c.integers()` compares them as
-numbers, as `ncmp` does. Nothing needs `ouf.seekEof()`: text after the
-answer is a wrong answer unless the stream says `trailing(eo::ignore)`. See
-[checker.md](checker.md).
+Nothing needs `ouf.seekEof()`: text after the answer is a wrong answer unless the stream says
+`trailing(eo::ignore)`. See [checker.md](checker.md).
+
+### testlib's stock checkers
+
+Each of the 21 is one call, which gives the verdict and ends the checker. They all compare
+the whole output, token after token, where several of testlib's read one value. A word or a
+number that testlib reads as a presentation error is a wrong answer: Eolymp has none.
+
+| testlib | eolymp.h | Where they differ |
+| --- | --- | --- |
+| `wcmp` | `c.tokens()` | |
+| `ncmp` | `c.integers()` | |
+| `icmp` | `c.integers()` | a `long long` where `icmp` reads an `int` |
+| `hcmp` | `c.integers(eo::big)` | |
+| `uncmp` | `c.tokens(eo::any_order)` | the tokens are compared as text, which on integers is `uncmp`'s verdict, since neither takes `+`, a leading zero or `-0`, and any other token is compared too, where `uncmp` refuses it |
+| `rcmp4`, `rcmp6`, `rcmp9`, `dcmp` | `c.reals(1e-4)`, `c.reals(1e-6)`, `c.reals(1e-9)`, `c.reals(1e-6)` | a real is read in the stream's syntax, so `+1.5`, `.5`, `5.` and `05` are text and not numbers, and differ from the answer's `1.5`, `0.5`, `5` and `5`, where testlib reads them all as numbers; a token that is not a number must be equal |
+| `rcmp`, `acmp` | `c.reals(1.5e-6, eo::absolute)` | as above; the error allowed is `eps + 1e-15`, as testlib's is |
+| `rncmp` | `c.reals(1.5e-5, eo::absolute)` | as above |
+| `yesno`, `nyesno` | `c.yes_no()` | every word of the answer is read, so an answer file with anything but YES and NO in it, a comment after the words say, is a jury error, where testlib's `nyesno`, once the output has ended, counts the answer's remaining words without reading them and calls the run a wrong answer |
+| `lcmp` | `c.lines(eo::exact)` | a line is compared character by character, where `lcmp` compares its words; the blanks that end a line are ignored |
+| `fcmp` | `c.lines(eo::exact)` | the blanks that end a line, and the blank lines that end the file, are ignored |
+| `caseicmp`, `casencmp`, `casewcmp` | `c.tokens()` | `Case`, `1:` and every value are compared as text, which on integers is the same verdict; a missing or misnumbered `Case k:` is a wrong answer at that token rather than a message about the case |
+| `pointscmp`, `pointsinfo` | `eo::points(p)` | these two are examples of a scoring checker rather than comparisons; `eo::score(f)` pays a fraction of the test instead, and Eolymp has no `points_info` |
 
 ## Interactor
 
