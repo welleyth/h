@@ -14,7 +14,7 @@
 #ifndef EOLYMP_H_INCLUDED
 #define EOLYMP_H_INCLUDED
 
-#if __cplusplus < 201703L
+#if (defined(_MSVC_LANG) ? _MSVC_LANG : __cplusplus) < 201703L
 #error "eolymp.h needs C++17 or later: build with -std=c++17"
 #else
 

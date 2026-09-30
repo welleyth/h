@@ -16,7 +16,7 @@
 
 #include "eolymp.h"
 
-#if __cplusplus >= 201703L
+#if (defined(_MSVC_LANG) ? _MSVC_LANG : __cplusplus) >= 201703L
 
 #include <algorithm>
 #include <cmath>
