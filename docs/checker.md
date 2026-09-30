@@ -274,7 +274,7 @@ a line that ends in a space
 
 and a blank line above
 n = 3
-eolymp.h 2.2.1
+eolymp.h 2.3.0
 ```
 
 Either of those lines would kill the parse if it reached the log before the verdict. Print
@@ -288,7 +288,7 @@ was, and a checker then writes what it held as it would after any verdict:
 ```
 jury error an exception nothing caught ended the checker: vector::at: 7 >= 3
 printed before the end
-eolymp.h 2.2.1
+eolymp.h 2.3.0
 ```
 
 A checker on the judge that dies of a signal — `SIGSEGV`, a stack overflow included, `SIGABRT`

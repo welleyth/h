@@ -68,7 +68,8 @@ its eolymp.h counterpart, for a problem moving over.
 
   **`using namespace eo;` is outside that, and outside the compatibility promise.** A minor
   release adds names to `eo` the way a C++ standard adds names to `std`, and a program that
-  opens `eo` can meet an ambiguity it did not have before. Some names are in both namespaces
+  opens `eo` can meet an ambiguity it did not have before; 2.3.0 adds `pattern`, `any_order`,
+  `big` and `absolute`. Some names are in both namespaces
   already. `unique`, `ignore`, `any` and `ratio` are a value in one and a
   type or a function in the other, so once both are open an unqualified use, such as
   `c.answers(unique)`, is ambiguous and does not compile; `log`, `is_sorted` and
@@ -167,7 +168,7 @@ get between the judge's parser and the score it is looking for:
 
 ```
 points 25 matched 10 of 40
-eolymp.h 2.2.1
+eolymp.h 2.3.0
 warning EO203 ./eolymp.h:NNNN the answer file still holds "40" when the checker finished
 note EO106 checker.cpp:4 the bounds 1..200001 are one away from a round number
 eo-report {"version":1,"warnings":[{"code":"EO106","at":"checker.cpp:4","count":1},{"code":"EO203","at":"./eolymp.h:NNNN","count":1}]}

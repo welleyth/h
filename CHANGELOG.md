@@ -2,6 +2,16 @@
 
 ## 2.3.0
 
+Two behaviours change, both listed first: a jury program that sets a numeric locale whose
+decimal point is not a dot now reads and writes reals with a dot, as every other program
+always has; and a tolerance allows `1e-15` more for rounding, which turns a wrong answer at
+the boundary of `eo::close_enough`, `c.reals(eps)` and `eo::within(eps)` into an accept.
+Everything else is new API, which a program meets only when it calls it; messages and logs
+that say more; one new warning, EO113; warnings counted per file; and four new names in
+`eo`, `pattern`, `any_order`, `big` and `absolute`, which matter only to a program that says
+`using namespace eo;`. With this release every call a testlib validator, checker, interactor
+or generator makes has its counterpart, mapped in `docs/testlib.md`.
+
 ### What changes for a program
 
 - **A real is read and written with a dot in every locale.** A jury program that called
@@ -21,6 +31,100 @@
   `|difference| / |expected| <= eps`, is still accepted. So the change only turns a wrong
   answer at the boundary into an accept: over 6.9 million pairs built within a few ULPs of
   the boundary, from `1e-300` to `1e300`, none went the other way.
+
+### New for problem authors
+
+- **Patterns, in testlib's syntax.** `eo::pattern("[a-z]{1,10}")`: characters, a backslash
+  before any symbol, classes of bytes with ranges and `[^…]`, `?`, `*`, `+`, `{n}`, `{n,m}`,
+  `{n,}`, alternatives and groups. `v.read_token(p, name)`, `v.read_tokens(count, p, name)`
+  and `v.read_line(p, name)` read what must match it in a validator, the same three on every
+  stream of a checker, an interactor and a controller, and `r.pattern(p)` draws from it, one
+  construct at a time, each uniformly. A message names the token and the pattern:
+  `line 1, first: "anna" does not match "[A-Z][a-z]{0,9}"`. Matching never backtracks: it
+  costs the token's length times the places in the pattern live at once, a repeat of a class
+  is one place at any count, and a pattern of more than 4,096 places is refused where it is
+  made; the largest in the pages, the tests and testlib's examples has 27. A read against a
+  pattern with a longest match stops one character past it, and memory is bounded by the
+  pattern, not the token. A pattern that does not parse is refused with its column, at
+  compile time for a literal under C++20 with `-DEOLYMP_CHECK_PATTERNS`. The syntax departs
+  from testlib's in five places, all where testlib's matcher is a trap; `docs/validator.md`
+  lists them, with every refusal. A draw is refused, with its line, when the pattern has a
+  class with nothing visible in it or could draw more than 100,000,000 characters.
+- **Warning EO113** fires when a token is read against a pattern whose every match holds a
+  blank, as a ported `readToken("[a-z] {1,5}")` is once its space is kept: no token matches.
+- **Six ready-made comparisons**, so that each of testlib's 21 stock checkers is one call:
+  `c.tokens(eo::any_case)`, `c.tokens(eo::any_order)` (`uncmp`), `c.integers()` (`ncmp`,
+  `icmp`), `c.integers(eo::big)` (`hcmp`), `c.yes_no()` (`yesno`, `nyesno`) and
+  `c.reals(eps, eo::absolute)` (`rcmp`, `acmp`, `rncmp`), whose error allows `1e-15` more.
+- **One case of a multi-test input as a test of its own.** `./validator test.txt --eo-case=k`
+  validates the test and writes case k to stdout with the count written as 1, as testlib's
+  `--testCase` does, and `--eo-describe` gives each case's bytes, as its markup does. The
+  count is the one integer before the first case whose value v.cases was given; when there is
+  none, or more than one, the flag is refused, as it is when given twice.
+
+### What a message or a log says
+
+- **A malformed number is named whole.** `1e5` read as an int, and `1e-3`, `0,5` or `1.5e3`
+  read as a real, said `expected a line break after n, found "e"`; they now say
+  `line 1, n: expected an integer, found "1e5": it has a character that cannot be part of the
+  number`. Only the message changes: the same read refuses the same test. The reason given is
+  the whole token's, so it can stand where a narrower one would have: `-0x` has "a character
+  that cannot be part of the number" rather than "zero written with a minus".
+- **A checker that dies still leaves a log.** An exception nothing caught ends a checker, an
+  interactor or a controller as a jury error that quotes up to 200 bytes of its `what()`,
+  exit 3 where it was SIGABRT; and a checker on the judge that dies of `SIGSEGV`, `SIGABRT`,
+  `SIGFPE`, `SIGBUS` or `SIGILL`, a stack overflow included, writes its verdict line and what
+  it held, and then hands the signal to the handler that was there before, the C library's,
+  which ends the program, or a sanitizer's, which reports. On the judge each `eo::log` line
+  is flushed until 64 KB, all a stored log keeps, so it reaches that log; what `printf` still
+  buffers does not. The checker's log was empty in both
+  cases. Every one of these runs was, and is, a VERIFICATION_FAILURE or an
+  INTERACTION_FAILURE.
+- **A hyphen that reads as a backwards range is told where to go.** `charset("()- ")`, and
+  the same class in a pattern, are refused as before, and now say to write the range's low
+  end first or to put a `-` that stands for itself first or last.
+- **A warning is counted at its file's line.** The same warning on line 12 of two files is two
+  warnings, where it was one counted twice under the first file's name.
+- **A validator's lookahead waits for the pipe.** A message that quotes what follows reads up
+  to 64 bytes of it, or to the end of the input, before quoting, so a test given on a pipe
+  that pauses is refused with the same text as the same test given as a file.
+
+### Speed and size
+
+Instructions, from `make bench`, 2.2.1 → 2.3.0: a checker's `reals()` 0.95 → 0.84 G and
+`eo::fixed` 0.51 → 0.45 G, since the fast paths no longer ask `localeconv` about every
+number; a validator's `read_ints` 1.056 → 1.064 G, `read_token` 0.572 → 0.566 G,
+`read_reals` 0.712 → 0.727 G, `read_tree` 0.396 → 0.401 G; `tokens()` 0.694 → 0.703 G. The
+header is larger: `eolymp.h` has 6,227 lines against 5,008 and 247,845 bytes against
+196,293, and the validator `make budget` builds leaves an object of 194 KB against 171 KB,
+most of it the whole-token message and `--eo-case`, which every validator carries.
+**A validator now builds about 15% slower, 16% under musl:** the one `make budget` builds takes
+2.6 s of compiler CPU time with `-O2` against 2.3 s, and 4.0 s against 3.45 s under musl,
+because every validator compiles the whole-token message, `--eo-case` and the pattern engine
+whether it uses them or not; marking their paths cold saved under 1%.
+`make budget` now measures against all the standard headers `eolymp.h` includes, where its
+list had fallen a fifth behind; the list is fixed in `tools/budget.py`, and the gate fails when
+`eolymp.h`'s includes stop matching it. Each program is the fastest of three builds, the
+ceiling is ratcheted from 9 to 8.5 times the baseline, where the validator is under 6, and an
+object over 220 KB fails.
+
+### For maintainers
+
+- `tests/fuzz/pattern_fuzz.cpp` checks `eo::pattern` against `std::regex_match` and against a
+  direct reading of the pattern as the positions each part can end at, draws four strings
+  from every pattern and requires each to match, and feeds raw bytes to the parser.
+- The pattern tests count the steps a match visits, so linearity is checked without a clock,
+  and pin the size of the queues a match holds.
+- Seven mutants join `tools/mutants.py`, on the pattern engine, the pattern read and the new
+  comparisons; all 33 are killed.
+- `tests/e2e/dies.cpp` is a checker and an interactor that die of an exception, an abort,
+  three signals and a stack overflow, run in judge mode; the e2e runner waits for them in the
+  background, since dash prints "Aborted" into a dying program's own output. The sanitizers
+  take those signals themselves, so a sanitized run skips them.
+- The locale tests run where `de_DE`, `fr_FR`, `ru_RU` or `uk_UA` is installed, as on the
+  macOS runner and, since check.yml generates `de_DE.UTF-8`, the Linux ones; elsewhere they
+  say they were skipped, and the helpers that move the point are tested with `,` and a
+  two-byte point everywhere.
 
 ## 2.2.1
 
