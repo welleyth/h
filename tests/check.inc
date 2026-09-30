@@ -1744,3 +1744,16 @@ EO_TEST(yes_no_without_a_certificate_compares_every_word_in_any_case) {
     EO_CHECK_EQ(compared_by("yes", "Perhaps", words),
                 std::string("jury error: answer.txt, line 1: \"Perhaps\" is not one of YES, NO"));
 }
+
+EO_TEST(reals_within_an_absolute_error_ignore_the_relative_one) {
+    auto const absolute = [](eo::checker& c) { c.reals(1.5e-6, eo::absolute); };
+    EO_CHECK_EQ(compared_by("1.0000014 2 x", "1 2 x", absolute), std::string("ok 3 values"));
+    EO_CHECK_EQ(compared_by("1000000.5", "1000000", absolute),
+                std::string("wrong answer value 1 is 1000000.5, expected 1000000"));
+    EO_CHECK_EQ(compared_by("1000000.5", "1000000", [](eo::checker& c) { c.reals(1.5e-6); }), std::string("ok 1 values"));
+    EO_CHECK_EQ(compared_by("1 2", "1", absolute), std::string("wrong answer the answer has 1 tokens, the output has more"));
+    EO_CHECK_EQ(compared_by("y", "x", absolute), std::string("wrong answer token 1 is \"y\", expected \"x\""));
+    auto const micro = [](eo::checker& c) { c.reals(1e-6, eo::absolute); };
+    EO_CHECK_EQ(compared_by("0.500001 0.499999", "0.5 0.5", micro), std::string("ok 2 values"));
+    EO_CHECK_EQ(compared_by("0.5000011", "0.5", micro), std::string("wrong answer value 1 is 0.5000011, expected 0.5"));
+}

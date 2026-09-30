@@ -72,6 +72,7 @@ input itself. See [validator.md](validator.md).
 | `ncmp`, `icmp` | `c.integers()`, which reads a `long long` where `icmp` reads an `int` |
 | `hcmp` | `c.integers(eo::big)`, which compares every token where `hcmp` compares one |
 | `rcmp6`, `rcmp9` | `c.reals(1e-6)`, `c.reals(1e-9)` |
+| `rcmp`, `acmp`, `rncmp` | `c.reals(1.5e-6, eo::absolute)`, and `c.reals(1.5e-5, eo::absolute)` for `rncmp` |
 | `yesno`, `nyesno` | `c.yes_no()`: one word or many, each `YES` or `NO` in any case; a word that is neither is a wrong answer where testlib's is a presentation error |
 | `lcmp` | `c.lines(eo::exact)`, which keeps blank lines as `lcmp` does, and compares a line character by character where `lcmp` compares its words |
 

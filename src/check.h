@@ -36,6 +36,7 @@ struct any_case_t {};
 struct exact_t {};
 struct any_order_t {};
 struct big_t {};
+struct absolute_t {};
 
 inline constexpr ignore_t ignore{};
 inline constexpr lenient_t lenient{};
@@ -44,6 +45,7 @@ inline constexpr any_case_t any_case{};
 inline constexpr exact_t exact{};
 inline constexpr any_order_t any_order{};
 inline constexpr big_t big{};
+inline constexpr absolute_t absolute{};
 
 enum class answers_are { unique, many };
 
@@ -598,36 +600,9 @@ public:
         }
     }
 
-    [[noreturn]] void reals(double epsilon) {
-        compared_only_ = true;
-        long long seen = 0;
-        std::string want;
-        std::string got;
-        while (true) {
-            bool const jury_done = jury.at_eof();
-            bool const output_done = output.at_eof();
-            if (jury_done && output_done) pass(1, fmt("{} values", seen));
-            seen++;
-            if (jury_done) fail_run(fmt("the answer has {} tokens, the output has more", seen - 1));
-            jury_token(want, detail::site::here());
-            if (output_done) fail_run(fmt("the output ended after {} tokens, the answer has more", seen - 1));
-            std::size_t const longest = std::max<std::size_t>(want.size(), detail::reader::longest_number);
-            contestant_token(got, longest);
-            if (got.size() > longest)
-                fail_run(fmt("token {} is longer than {} characters: \"{}\"", seen, longest, detail::shorten(got)));
-            detail::real_read const wanted = detail::parse_real(want, true, true);
-            detail::real_read const found = detail::parse_real(got, true, true);
-            if (wanted.problem == detail::number_problem::none &&
-                found.problem == detail::number_problem::none) {
-                if (!close_enough(wanted.value, found.value, epsilon))
-                    fail_run(fmt("value {} is {}, expected {}", seen, found.value, wanted.value));
-                continue;
-            }
-            if (want != got)
-                fail_run(fmt("token {} is \"{}\", expected \"{}\"", seen, detail::shorten(got),
-                             detail::shorten(want)));
-        }
-    }
+    [[noreturn]] void reals(double epsilon) { value_by_value(epsilon, true); }
+
+    [[noreturn]] void reals(double epsilon, absolute_t) { value_by_value(epsilon, false); }
 
     [[noreturn]] void lines() {
         compared_only_ = true;
@@ -770,6 +745,39 @@ public:
 
 private:
     static bool trailing_blank(char one) { return one == ' ' || one == '\t' || one == '\r'; }
+
+    [[noreturn]] void value_by_value(double epsilon, bool relative) {
+        compared_only_ = true;
+        long long seen = 0;
+        std::string want;
+        std::string got;
+        while (true) {
+            bool const jury_done = jury.at_eof();
+            bool const output_done = output.at_eof();
+            if (jury_done && output_done) pass(1, fmt("{} values", seen));
+            seen++;
+            if (jury_done) fail_run(fmt("the answer has {} tokens, the output has more", seen - 1));
+            jury_token(want, detail::site::here());
+            if (output_done) fail_run(fmt("the output ended after {} tokens, the answer has more", seen - 1));
+            std::size_t const longest = std::max<std::size_t>(want.size(), detail::reader::longest_number);
+            contestant_token(got, longest);
+            if (got.size() > longest)
+                fail_run(fmt("token {} is longer than {} characters: \"{}\"", seen, longest, detail::shorten(got)));
+            detail::real_read const wanted = detail::parse_real(want, true, true);
+            detail::real_read const found = detail::parse_real(got, true, true);
+            if (wanted.problem == detail::number_problem::none &&
+                found.problem == detail::number_problem::none) {
+                bool const near = relative ? close_enough(wanted.value, found.value, epsilon)
+                                           : std::fabs(wanted.value - found.value) <= epsilon + 1e-15;
+                if (!near)
+                    fail_run(fmt("value {} is {}, expected {}", seen, found.value, wanted.value));
+                continue;
+            }
+            if (want != got)
+                fail_run(fmt("token {} is \"{}\", expected \"{}\"", seen, detail::shorten(got),
+                             detail::shorten(want)));
+        }
+    }
 
     static void spelled_as_an_integer(stream& side, std::string& token) {
         detail::number_problem const problem = detail::integer_spelling(token, side.inside().relaxed());
