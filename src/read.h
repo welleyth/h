@@ -179,6 +179,15 @@ inline bool same_folded(std::string const& left, char const* right) {
     return at == left.size() && right[at] == '\0';
 }
 
+inline char folded(char one) { return one >= 'A' && one <= 'Z' ? static_cast<char>(one + 32) : one; }
+
+inline bool same_in_any_case(std::string const& left, std::string const& right) {
+    if (left.size() != right.size()) return false;
+    for (std::size_t at = 0; at < left.size(); at++)
+        if (folded(left[at]) != folded(right[at])) return false;
+    return true;
+}
+
 inline bool is_blank(int character) {
     return character == ' ' || character == '\t' || character == '\n' || character == '\r';
 }

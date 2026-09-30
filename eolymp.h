@@ -1320,6 +1320,15 @@ inline bool same_folded(std::string const& left, char const* right) {
     return at == left.size() && right[at] == '\0';
 }
 
+inline char folded(char one) { return one >= 'A' && one <= 'Z' ? static_cast<char>(one + 32) : one; }
+
+inline bool same_in_any_case(std::string const& left, std::string const& right) {
+    if (left.size() != right.size()) return false;
+    for (std::size_t at = 0; at < left.size(); at++)
+        if (folded(left[at]) != folded(right[at])) return false;
+    return true;
+}
+
 inline bool is_blank(int character) {
     return character == ' ' || character == '\t' || character == '\n' || character == '\r';
 }
@@ -4484,28 +4493,9 @@ public:
         fail_run(fmt("the answer is {}; the optimum is {}", found, by_the_jury));
     }
 
-    [[noreturn]] void tokens() {
-        compared_only_ = true;
-        long long seen = 0;
-        std::string want;
-        std::string got;
-        while (true) {
-            bool const jury_done = jury.at_eof();
-            bool const output_done = output.at_eof();
-            if (jury_done && output_done) pass(1, fmt("{} tokens", seen));
-            seen++;
-            if (jury_done) fail_run(fmt("the answer has {} tokens, the output has more", seen - 1));
-            jury_token(want, detail::site::here());
-            if (output_done) fail_run(fmt("the output ended after {} tokens, the answer has more", seen - 1));
-            contestant_token(got, want.size());
-            if (got.size() > want.size())
-                fail_run(fmt("token {} is longer than the expected \"{}\"; it starts \"{}\"", seen,
-                             detail::shorten(want), detail::shorten(got)));
-            if (want != got)
-                fail_run(fmt("token {} is \"{}\", expected \"{}\"", seen, detail::shorten(got),
-                             detail::shorten(want)));
-        }
-    }
+    [[noreturn]] void tokens() { token_by_token(false); }
+
+    [[noreturn]] void tokens(any_case_t) { token_by_token(true); }
 
     [[noreturn]] void reals(double epsilon) {
         compared_only_ = true;
@@ -4661,6 +4651,29 @@ public:
 
 private:
     static bool trailing_blank(char one) { return one == ' ' || one == '\t' || one == '\r'; }
+
+    [[noreturn]] void token_by_token(bool fold) {
+        compared_only_ = true;
+        long long seen = 0;
+        std::string want;
+        std::string got;
+        while (true) {
+            bool const jury_done = jury.at_eof();
+            bool const output_done = output.at_eof();
+            if (jury_done && output_done) pass(1, fmt("{} tokens", seen));
+            seen++;
+            if (jury_done) fail_run(fmt("the answer has {} tokens, the output has more", seen - 1));
+            jury_token(want, detail::site::here());
+            if (output_done) fail_run(fmt("the output ended after {} tokens, the answer has more", seen - 1));
+            contestant_token(got, want.size());
+            if (got.size() > want.size())
+                fail_run(fmt("token {} is longer than the expected \"{}\"; it starts \"{}\"", seen,
+                             detail::shorten(want), detail::shorten(got)));
+            if (fold ? !detail::same_in_any_case(want, got) : want != got)
+                fail_run(fmt("token {} is \"{}\", expected \"{}\"{}", seen, detail::shorten(got),
+                             detail::shorten(want), fold ? " in any case" : ""));
+        }
+    }
 
     void jury_token(std::string& want, detail::site where) {
         jury.inside().word_into(want, 0, 0, nullptr, detail::stated::deliberate, unnamed, where);

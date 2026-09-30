@@ -1612,3 +1612,30 @@ EO_TEST(a_stream_reads_what_matches_a_pattern_and_blames_its_side) {
     });
     EO_CHECK_EQ(unended.code, 0);
 }
+
+namespace {
+
+std::string compared_by(std::string const& out, std::string const& ans, void (*compare)(eo::checker&)) {
+    return check_run("1\n", out, ans, [&](eo::checker& c) {
+               c.input.skip_rest("not needed");
+               compare(c);
+           })
+        .text;
+}
+
+}  // namespace
+
+EO_TEST(tokens_in_any_case_ignore_the_case_of_letters_only) {
+    auto const folded = [](eo::checker& c) { c.tokens(eo::any_case); };
+    EO_CHECK_EQ(compared_by("Hello  WORLD\nx9_\n", "hello world X9_", folded), std::string("ok 3 tokens"));
+    EO_CHECK_EQ(compared_by("hello wurld", "hello world", folded),
+                std::string("wrong answer token 2 is \"wurld\", expected \"world\" in any case"));
+    EO_CHECK_EQ(compared_by("\xc3\xa9", "\xc3\x89", folded),
+                std::string("wrong answer token 1 is \"\xc3\xa9\", expected \"\xc3\x89\" in any case"));
+    EO_CHECK_EQ(compared_by("ab abc", "AB ab", folded),
+                std::string("wrong answer token 2 is longer than the expected \"ab\"; it starts \"abc\""));
+    EO_CHECK_EQ(compared_by("a", "a b", folded),
+                std::string("wrong answer the output ended after 1 tokens, the answer has more"));
+    EO_CHECK_EQ(compared_by("a b c", "A B", folded), std::string("wrong answer the answer has 2 tokens, the output has more"));
+    EO_CHECK_EQ(compared_by("[@", "{`", folded), std::string("wrong answer token 1 is \"[@\", expected \"{`\" in any case"));
+}
