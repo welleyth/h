@@ -1093,3 +1093,19 @@ EO_TEST(a_validator_on_a_pipe_that_pauses_looks_ahead_as_far_as_on_a_file) {
     EO_CHECK_EQ(refused_from_a_slow_pipe("5\nx", "yz\n", integer_then_line),
                 std::string("line 2: expected the end of the input, found \"xyz\""));
 }
+
+EO_TEST(pin_the_count_eo_case_rewrites_when_another_integer_equals_it) {
+    auto const counted_then_k = [](eo::validator& v) {
+        int const t = v.read_int(1, 10, "t");
+        v.read_space();
+        v.read_int(1, 10, "k");
+        v.read_eoln();
+        v.cases(t, [&] {
+            v.read_int(1, 9, "x");
+            v.read_eoln();
+        });
+    };
+    eot::outcome const first = validate("2 2\n7\n8\n", counted_then_k, {"--eo-case=1"});
+    EO_CHECK(!first.stopped);
+    EO_CHECK_EQ(first.printed, std::string("2 1\n7\n"));
+}
