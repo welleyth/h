@@ -118,7 +118,7 @@ two pipes. The controller owns them, so a channel is never copied or moved by th
 
 | Member | Does |
 | --- | --- |
-| `ch.read_int`, `read_long`, `read_real`, `read_token`, `read_choice`, `read_longs`, `at_eof` | read what the instance printed |
+| `ch.read_int`, `read_long`, `read_real`, `read_token`, `read_line`, `read_choice`, `read_ints`, `read_longs`, `read_reals`, `read_tokens`, `at_eof`, `at_eoln` | read what the instance printed; a channel is an `eo::stream`, so it reads everything a checker's streams read, and `numbers(eo::lenient)`, `reals(eo::plain)` and `wrong(…)` work on it too; `skip_rest` and `trailing`, which only a checker's closing checks look at, are deleted on a channel |
 | `ch.send(values…)` | one line to the instance: the values separated by single spaces |
 | `ch.close()` | closes the pipe; the instance sees the end of its input and can finish |
 | `ch.index()` | the instance's number, counting spawns from 1 |

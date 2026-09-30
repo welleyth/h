@@ -463,3 +463,42 @@ EO_TEST(a_last_word_to_an_instance_is_delivered_with_the_verdict) {
     EO_CHECK_EQ(result.code, 0);
     EO_CHECK_EQ(result.said, std::string("guess\ndone\n"));
 }
+
+namespace {
+
+template <class T, class = void>
+struct skips_the_rest : std::false_type {};
+
+template <class T>
+struct skips_the_rest<T, std::void_t<decltype(std::declval<T&>().skip_rest(std::string()))>> : std::true_type {};
+
+template <class T, class = void>
+struct ignores_trailing : std::false_type {};
+
+template <class T>
+struct ignores_trailing<T, std::void_t<decltype(std::declval<T&>().trailing(eo::ignore))>> : std::true_type {};
+
+static_assert(skips_the_rest<eo::stream>::value && !skips_the_rest<eo::channel>::value,
+              "only a checker's closing checks look at skip_rest");
+static_assert(ignores_trailing<eo::stream>::value && !ignores_trailing<eo::channel>::value,
+              "only a checker's closing checks look at trailing");
+
+}  // namespace
+
+EO_TEST(a_channel_reads_everything_a_stream_reads) {
+    staged const result =
+        run_control("1\n", {"ok"}, {"a line of words\n3 1 2\n0.5 1.5\nab cd\n+7\n"}, 1, [](eo::controller& ctl) {
+            eo::channel& one = ctl.spawn();
+            one.send(1);
+            std::string const line = one.read_line(0, 100, "line");
+            std::vector<int> const ints = one.read_ints(3, 1, 3, "a");
+            EO_CHECK(one.at_eoln());
+            std::vector<double> const reals = one.read_reals(2, 0, 2, "r");
+            std::vector<std::string> const words = one.read_tokens(2, 2, 2, eo::charset("a-z"), "w");
+            one.numbers(eo::lenient);
+            long long const plus = one.read_long(1, 9, "plus");
+            EO_CHECK(one.at_eof());
+            one.wrong("{} {} {} {} {}", line, ints[0], reals[1], words[1], plus);
+        });
+    EO_CHECK_EQ(result.text, std::string("wrong answer: instance 1, line 6: a line of words 3 1.5 cd 7"));
+}

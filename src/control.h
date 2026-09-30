@@ -33,7 +33,7 @@ inline controller*& live_controller() {
 
 }  // namespace detail
 
-class channel {
+class channel : public stream {
 public:
     channel() = default;
 
@@ -44,7 +44,10 @@ public:
 
     ~channel() { close(); }
 
-    stream& from() { return *reads_; }
+    stream& from() { return *this; }
+
+    void skip_rest(std::string reason) = delete;
+    void trailing(ignore_t) = delete;
 
     template <class... Args>
     void send(Args const&... values) {
@@ -59,43 +62,6 @@ public:
 
     long long index() const { return index_; }
 
-    int read_int(long long low, long long high, detail::value_name name,
-                 detail::site where = detail::site::here()) {
-        return reads_->read_int(low, high, std::move(name), where);
-    }
-
-    long long read_long(long long low, long long high, detail::value_name name,
-                        detail::site where = detail::site::here()) {
-        return reads_->read_long(low, high, std::move(name), where);
-    }
-
-    long long read_long(any_t, detail::value_name name, detail::site where = detail::site::here()) {
-        return reads_->read_long(any, std::move(name), where);
-    }
-
-    double read_real(double low, double high, detail::value_name name,
-                     detail::site where = detail::site::here()) {
-        return reads_->read_real(low, high, std::move(name), where);
-    }
-
-    std::string read_token(long long least, long long most, charset allowed, detail::value_name name,
-                           detail::site where = detail::site::here()) {
-        return reads_->read_token(least, most, std::move(allowed), std::move(name), where);
-    }
-
-    std::string read_choice(std::initializer_list<char const*> choices, detail::value_name name,
-                            detail::site where = detail::site::here()) {
-        return reads_->read_choice(choices, std::move(name), where);
-    }
-
-    std::vector<long long> read_longs(long long count, long long low, long long high,
-                                      detail::value_name name,
-                                      detail::site where = detail::site::here()) {
-        return reads_->read_longs(count, low, high, std::move(name), where);
-    }
-
-    bool at_eof() { return reads_->at_eof(); }
-
 private:
     friend class controller;
 
@@ -103,7 +69,6 @@ private:
     void hand_over();
 
     controller* owner_ = nullptr;
-    std::unique_ptr<stream> reads_;
     int writes_ = -1;
     long long index_ = 0;
     std::string pending_;
@@ -194,9 +159,9 @@ public:
         if (made->writes_ < 0) fail_jury(fmt("cannot write to instance {}", made->index_));
         std::string const named = fmt("instance {}", made->index_);
         detail::source listening = detail::source::over_channel(from_them.c_str());
-        made->reads_ = std::make_unique<stream>(std::move(listening), detail::fault::wrong_answer, named);
-        made->reads_->inside().before_blocking(&controller::flush_from, this);
-        made->reads_->inside().on_end(fmt("instance {} ended the dialogue early", made->index_));
+        static_cast<stream&>(*made) = stream(std::move(listening), detail::fault::wrong_answer, named);
+        made->inside().before_blocking(&controller::flush_from, this);
+        made->inside().on_end(fmt("instance {} ended the dialogue early", made->index_));
         team_.push_back(std::move(made));
         return *team_.back();
     }
@@ -295,7 +260,7 @@ private:
     void closing_checks(double fraction) {
         bool heard = false;
         for (std::unique_ptr<channel> const& one : team_) {
-            if (one->reads_ && one->reads_->inside().read_anything()) heard = true;
+            if (one->inside().read_anything()) heard = true;
             if (!one->spoken_to_)
                 detail::warn("EO408", fmt("instance {} was started and never talked to", one->index_),
                              "spawn it where it is needed, or drop it", detail::site::here());
@@ -340,7 +305,7 @@ inline void channel::flush() {
     spoken_to_ = true;
     if (!deaf_)
         detail::write_while_absorbing(
-            writes_, pending_, reads_->inside(), deaf_, [this] { return fmt("instance {}", index_); }, "controller",
+            writes_, pending_, inside(), deaf_, [this] { return fmt("instance {}", index_); }, "controller",
             "read the instances' answers between sends instead of sending everything first");
     owner_->sent_bytes_ += static_cast<long long>(pending_.size());
     pending_.clear();
