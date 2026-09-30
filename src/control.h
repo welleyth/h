@@ -82,15 +82,9 @@ public:
     controller(int argc, char** argv, detail::site where = detail::site::here()) {
         if (detail::live_controller() != nullptr)
             detail::library_error(fmt("{}: this program already has a controller", detail::where_of(where)));
-        std::vector<std::string> named;
-        for (int at = 1; at < argc; at++) named.emplace_back(argv[at]);
-        char const* const from_env[3] = {detail::environment("INPUT_FILE"), detail::environment("OUTPUT_FILE"),
-                                         detail::environment("ANSWER_FILE")};
-        for (int at = 0; at < 3; at++) {
-            if (from_env[at] != nullptr) paths_[at] = from_env[at];
-            else if (named.size() > static_cast<std::size_t>(at))
-                paths_[at] = named[static_cast<std::size_t>(at)];
-        }
+        std::array<char const*, 3> const given = detail::test_paths(argc, argv);
+        for (int at = 0; at < 3; at++)
+            if (given[static_cast<std::size_t>(at)] != nullptr) paths_[at] = given[static_cast<std::size_t>(at)];
         if (paths_[0].empty() || paths_[1].empty())
             detail::library_error(fmt("{}: a controller needs the test and a file for its summary",
                                       detail::where_of(where)));

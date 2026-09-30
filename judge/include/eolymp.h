@@ -2269,6 +2269,16 @@ protected:
     ~limits_keeper() = default;
 };
 
+inline std::array<char const*, 3> test_paths(int argc, char** argv) {
+    char const* const names[3] = {"INPUT_FILE", "OUTPUT_FILE", "ANSWER_FILE"};
+    std::array<char const*, 3> paths{};
+    for (int at = 0; at < 3; at++) {
+        char const* const set = environment(names[at]);
+        paths[static_cast<std::size_t>(at)] = set != nullptr ? set : at + 1 < argc ? argv[at + 1] : nullptr;
+    }
+    return paths;
+}
+
 inline scorer*& live_scorer() {
     static scorer* only = nullptr;
     return only;
@@ -3279,18 +3289,16 @@ public:
         if (detail::live_checker() != nullptr)
             detail::library_error(fmt("{}: this program already has a checker", detail::where_of(where)));
         detail::diagnostics::shared().start_the_clock("EO209", "checker", 10000, where);
-        char const* const from_env[3] = {detail::environment("INPUT_FILE"), detail::environment("OUTPUT_FILE"),
-                                         detail::environment("ANSWER_FILE")};
-        std::vector<std::string> named;
-        for (int at = 1; at < argc; at++) named.emplace_back(argv[at]);
+        std::array<char const*, 3> const given = detail::test_paths(argc, argv);
+        char const* const kinds[3] = {"input", "output", "answer"};
         std::string paths[3];
         for (int at = 0; at < 3; at++) {
-            if (from_env[at] != nullptr) paths[at] = from_env[at];
-            else if (named.size() > static_cast<std::size_t>(at)) paths[at] = named[static_cast<std::size_t>(at)];
-            else detail::library_error(fmt("{}: the checker was given no {} file", detail::where_of(where),
-                                           at == 0 ? "input" : at == 1 ? "output" : "answer"));
+            if (given[static_cast<std::size_t>(at)] == nullptr)
+                detail::library_error(
+                    fmt("{}: the checker was given no {} file", detail::where_of(where), kinds[at]));
+            paths[at] = given[static_cast<std::size_t>(at)];
         }
-        if (named.size() >= 3 && from_env[1] != nullptr && named[1] != paths[1])
+        if (argc >= 4 && detail::environment("OUTPUT_FILE") != nullptr && paths[1] != argv[2])
             detail::note("EO211", "this checker runs as the legacy type, which swaps its last two arguments",
                          "the ordinary PROGRAM type is the norm", where);
         input = stream(detail::source::over_file(paths[0].c_str(), true), detail::fault::jury_error,
@@ -3686,15 +3694,9 @@ public:
     interactor(int argc, char** argv, detail::site where = detail::site::here()) {
         if (detail::live_interactor() != nullptr)
             detail::library_error(fmt("{}: this program already has an interactor", detail::where_of(where)));
-        std::vector<std::string> named;
-        for (int at = 1; at < argc; at++) named.emplace_back(argv[at]);
-        char const* const from_env[3] = {detail::environment("INPUT_FILE"), detail::environment("OUTPUT_FILE"),
-                                         detail::environment("ANSWER_FILE")};
-        for (int at = 0; at < 3; at++) {
-            if (from_env[at] != nullptr) paths_[at] = from_env[at];
-            else if (named.size() > static_cast<std::size_t>(at))
-                paths_[at] = named[static_cast<std::size_t>(at)];
-        }
+        std::array<char const*, 3> const given = detail::test_paths(argc, argv);
+        for (int at = 0; at < 3; at++)
+            if (given[static_cast<std::size_t>(at)] != nullptr) paths_[at] = given[static_cast<std::size_t>(at)];
         if (paths_[0].empty() || paths_[1].empty())
             detail::library_error(fmt("{}: an interactor needs the test and a file for its summary",
                                       detail::where_of(where)));
@@ -4132,15 +4134,9 @@ public:
     controller(int argc, char** argv, detail::site where = detail::site::here()) {
         if (detail::live_controller() != nullptr)
             detail::library_error(fmt("{}: this program already has a controller", detail::where_of(where)));
-        std::vector<std::string> named;
-        for (int at = 1; at < argc; at++) named.emplace_back(argv[at]);
-        char const* const from_env[3] = {detail::environment("INPUT_FILE"), detail::environment("OUTPUT_FILE"),
-                                         detail::environment("ANSWER_FILE")};
-        for (int at = 0; at < 3; at++) {
-            if (from_env[at] != nullptr) paths_[at] = from_env[at];
-            else if (named.size() > static_cast<std::size_t>(at))
-                paths_[at] = named[static_cast<std::size_t>(at)];
-        }
+        std::array<char const*, 3> const given = detail::test_paths(argc, argv);
+        for (int at = 0; at < 3; at++)
+            if (given[static_cast<std::size_t>(at)] != nullptr) paths_[at] = given[static_cast<std::size_t>(at)];
         if (paths_[0].empty() || paths_[1].empty())
             detail::library_error(fmt("{}: a controller needs the test and a file for its summary",
                                       detail::where_of(where)));

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <array>
 #include <cmath>
 #include <cstdio>
 #include <string>
@@ -53,6 +54,16 @@ public:
 protected:
     ~limits_keeper() = default;
 };
+
+inline std::array<char const*, 3> test_paths(int argc, char** argv) {
+    char const* const names[3] = {"INPUT_FILE", "OUTPUT_FILE", "ANSWER_FILE"};
+    std::array<char const*, 3> paths{};
+    for (int at = 0; at < 3; at++) {
+        char const* const set = environment(names[at]);
+        paths[static_cast<std::size_t>(at)] = set != nullptr ? set : at + 1 < argc ? argv[at + 1] : nullptr;
+    }
+    return paths;
+}
 
 inline scorer*& live_scorer() {
     static scorer* only = nullptr;
