@@ -225,6 +225,15 @@ struct is_fixed<fixed_number<T>> : std::true_type {};
 
 inline void append_fixed(std::string& out, double value, int digits) {
     if (append_non_finite(out, value)) return;
+#if defined(__cpp_lib_to_chars)
+    if (digits >= 0 && digits <= 40 && numbers_as_in_c()) {
+        char wide[360];
+        std::to_chars_result const written =
+            std::to_chars(wide, wide + sizeof(wide), value, std::chars_format::fixed, digits);
+        out.append(wide, static_cast<std::size_t>(written.ptr - wide));
+        return;
+    }
+#endif
     char buffer[64];
     std::size_t const written =
         static_cast<std::size_t>(std::snprintf(buffer, sizeof(buffer), "%.*f", digits, value));
