@@ -437,6 +437,13 @@ inline integer_read parse_integer(std::string_view text, bool relaxed = false) {
             number_problem::none};
 }
 
+inline long long environment_integer(char const* name) {
+    char const* const set = environment(name);
+    if (set == nullptr) return 0;
+    integer_read const parsed = parse_integer(set);
+    return parsed.problem == number_problem::none ? parsed.value : 0;
+}
+
 struct real_read {
     double value = 0;
     int decimals = 0;
@@ -3323,8 +3330,8 @@ public:
     stream output;
     stream jury;
 
-    int group() const { return whole_of("TEST_GROUP"); }
-    int index() const { return whole_of("TEST_INDEX"); }
+    int group() const { return static_cast<int>(detail::environment_integer("TEST_GROUP")); }
+    int index() const { return static_cast<int>(detail::environment_integer("TEST_INDEX")); }
 
     std::string test_id() const {
         char const* const set = detail::environment("TEST_ID");
@@ -3561,13 +3568,6 @@ private:
             }
         }
         return out;
-    }
-
-    int whole_of(char const* name) const {
-        char const* const set = detail::environment(name);
-        if (set == nullptr) return 0;
-        detail::integer_read const parsed = detail::parse_integer(set);
-        return parsed.problem == detail::number_problem::none ? static_cast<int>(parsed.value) : 0;
     }
 
     void closing_checks(double fraction) {
@@ -4121,12 +4121,7 @@ public:
         fail_closed("controller");
     }
 
-    long long instance_limit() const {
-        char const* const set = detail::environment("INSTANCE_LIMIT");
-        if (set == nullptr) return 0;
-        detail::integer_read const parsed = detail::parse_integer(set);
-        return parsed.problem == detail::number_problem::none ? parsed.value : 0;
-    }
+    long long instance_limit() const { return detail::environment_integer("INSTANCE_LIMIT"); }
 
     channel& spawn(detail::site where = detail::site::here()) {
         open_the_control();

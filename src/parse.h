@@ -65,6 +65,13 @@ inline integer_read parse_integer(std::string_view text, bool relaxed = false) {
             number_problem::none};
 }
 
+inline long long environment_integer(char const* name) {
+    char const* const set = environment(name);
+    if (set == nullptr) return 0;
+    integer_read const parsed = parse_integer(set);
+    return parsed.problem == number_problem::none ? parsed.value : 0;
+}
+
 struct real_read {
     double value = 0;
     int decimals = 0;

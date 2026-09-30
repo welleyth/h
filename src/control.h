@@ -90,12 +90,7 @@ public:
         fail_closed("controller");
     }
 
-    long long instance_limit() const {
-        char const* const set = detail::environment("INSTANCE_LIMIT");
-        if (set == nullptr) return 0;
-        detail::integer_read const parsed = detail::parse_integer(set);
-        return parsed.problem == detail::number_problem::none ? parsed.value : 0;
-    }
+    long long instance_limit() const { return detail::environment_integer("INSTANCE_LIMIT"); }
 
     channel& spawn(detail::site where = detail::site::here()) {
         open_the_control();
