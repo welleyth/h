@@ -660,3 +660,174 @@ EO_TEST(pin_reals_read_and_written_in_a_locale_with_a_decimal_comma) {
     EO_CHECK_EQ(bits_of(read), bits_of(expected));
     EO_CHECK_EQ(written, by_printf);
 }
+
+namespace {
+
+std::string without_header_lines(std::string text) {
+    std::string const header = "eolymp.h:";
+    for (std::size_t at = text.find(header); at != std::string::npos; at = text.find(header, at + 1)) {
+        std::size_t start = at;
+        while (start > 0 && text[start - 1] != ' ' && text[start - 1] != '\n') start--;
+        std::size_t end = at + header.size();
+        while (end < text.size() && text[end] >= '0' && text[end] <= '9') end++;
+        text.replace(start, end - start, "eolymp.h:L");
+        at = start;
+    }
+    return text;
+}
+
+}  // namespace
+
+EO_TEST(pin_what_each_role_says_when_it_cannot_start) {
+    eo::detail::site const here{"pinned.inc", 40};
+    forget_the_environment();
+    std::string program = "role.cpp";
+    std::string first = "/nonexistent/input.txt";
+    std::string second = "/nonexistent/output.txt";
+    std::vector<char*> none{program.data()};
+    std::vector<char*> one{program.data(), first.data()};
+    std::vector<char*> two{program.data(), first.data(), second.data()};
+    auto started = [](auto&& make) { return eot::run_until_stop([&] { make(); }).text; };
+    EO_CHECK_EQ(started([&] { eo::checker c(1, none.data(), here); }),
+                std::string("eolymp.h: pinned.inc:40: the checker was given no input file"));
+    EO_CHECK_EQ(started([&] { eo::checker c(2, one.data(), here); }),
+                std::string("eolymp.h: pinned.inc:40: the checker was given no output file"));
+    EO_CHECK_EQ(started([&] { eo::checker c(3, two.data(), here); }),
+                std::string("eolymp.h: pinned.inc:40: the checker was given no answer file"));
+    EO_CHECK_EQ(started([&] { eo::interactor it(2, one.data(), here); }),
+                std::string("eolymp.h: pinned.inc:40: an interactor needs the test and a file for its summary"));
+    EO_CHECK_EQ(started([&] { eo::controller ctl(2, one.data(), here); }),
+                std::string("eolymp.h: pinned.inc:40: a controller needs the test and a file for its summary"));
+    ::setenv("OUTPUT_FILE", "/nonexistent/summary.txt", 1);
+    EO_CHECK_EQ(started([&] { eo::interactor it(2, one.data(), here); }),
+                std::string("eolymp.h: cannot open /nonexistent/input.txt: No such file or directory"));
+    ::setenv("INPUT_FILE", "/nonexistent/from-the-environment.txt", 1);
+    EO_CHECK_EQ(started([&] { eo::controller ctl(1, none.data(), here); }),
+                std::string("eolymp.h: cannot open /nonexistent/from-the-environment.txt: No such file or directory"));
+    forget_the_environment();
+    EO_CHECK_EQ(check_run("1\n", "1\n", "1\n", [&](eo::checker&) {
+                    char* also[] = {program.data(), first.data(), second.data(), second.data()};
+                    eo::checker again(4, also, here);
+                }).text,
+                std::string("eolymp.h: pinned.inc:40: this program already has a checker"));
+    EO_CHECK_EQ(talk("1\n", "", [&](eo::interactor&) { eo::interactor again(3, two.data(), here); }).text,
+                std::string("eolymp.h: pinned.inc:40: this program already has an interactor"));
+    scratch_file test("1\n");
+    std::string const summary = temporary_path();
+    std::vector<char*> both{program.data(), const_cast<char*>(test.path.c_str()), const_cast<char*>(summary.c_str())};
+    EO_CHECK_EQ(talk("1\n", "", [&](eo::interactor&) { eo::controller beside(3, both.data(), here); }).text,
+                std::string("jury error the controller ended without a verdict"));
+    ::unlink(summary.c_str());
+    EO_CHECK_EQ(run_control("1\n", {}, {}, 1, [&](eo::controller&) { eo::controller again(3, two.data(), here); })
+                    .text,
+                std::string("eolymp.h: pinned.inc:40: this program already has a controller"));
+}
+
+EO_TEST(pin_what_each_role_says_when_it_ends_without_a_verdict) {
+    EO_CHECK_EQ(check_run("1\n", "1\n", "1\n", [](eo::checker&) {}).text,
+                std::string("jury error the checker ended without a verdict"));
+    chat const talked = talk("1\n", "5\n", [](eo::interactor& it) {
+        it.send(1);
+        it.contestant.read_int(1, 9, "x");
+    });
+    EO_CHECK_EQ(talked.text, std::string("jury error the interactor ended without a verdict"));
+    EO_CHECK_EQ(talked.log, std::string("jury error the interactor ended without a verdict\n"));
+    staged const controlled = run_control("1\n", {"ok"}, {"5\n"}, 1, [](eo::controller& ctl) {
+        eo::channel& first = ctl.spawn();
+        first.send(1);
+        first.read_int(1, 9, "x");
+    });
+    EO_CHECK_EQ(controlled.text, std::string("jury error the controller ended without a verdict"));
+    EO_CHECK_EQ(controlled.log, std::string("jury error the controller ended without a verdict\n"));
+}
+
+EO_TEST(pin_the_traffic_and_the_warnings_a_dialogue_ends_with) {
+    chat const talked = talk("1\n", "5\n", [](eo::interactor& it) {
+        eo::budget queries(it, 5, "queries");
+        it.send(1);
+        it.contestant.read_int(1, 9, "x");
+        it.value("x", 5);
+        eo::wrong("");
+    });
+    EO_CHECK_EQ(talked.text, std::string("wrong answer"));
+    std::string const wrong_without_words = "eolymp.h:L: warning EO204: this wrong answer carries no "
+                                            "message\n  say what the solution did\n";
+    EO_CHECK_EQ(without_header_lines(talked.log), "wrong answer\n1 round trips, 2 bytes sent\n" + wrong_without_words);
+    EO_CHECK_EQ(without_header_lines(checker_warnings()), wrong_without_words);
+    chat const accepted = talk("1\n", "5\n", [](eo::interactor& it) {
+        eo::budget queries(it, 5, "queries");
+        it.send(1);
+        it.contestant.read_token(eo::any, "x");
+        eo::accept("{}", it.rng().uniform(1, 1000000000));
+    });
+    std::string const unspent = "eolymp.h:L: warning EO403: a budget was declared and never spent\n"
+                                "  spend it before every reply, or drop it\n";
+    EO_CHECK_EQ(accepted.text, std::string("ok 157745677"));
+    EO_CHECK_EQ(accepted.summary, std::string("eolymp-summary 1\nfraction 1\nmessage 157745677\n"));
+    EO_CHECK_EQ(without_header_lines(checker_warnings()), unspent);
+    chat const empty = talk("1\n", "", [](eo::interactor&) { eo::jury_error(""); });
+    EO_CHECK_EQ(empty.text, std::string("jury error"));
+    EO_CHECK_EQ(checker_warnings(), std::string(""));
+    staged const controlled = run_control("1\n", {"ok", "ok"}, {"5\n", ""}, 2, [](eo::controller& ctl) {
+        eo::budget queries(ctl, 5, "queries");
+        eo::channel& first = ctl.spawn();
+        ctl.spawn();
+        first.send(1, 2);
+        first.read_int(1, 9, "x");
+        eo::accept("{} {}", ctl.rng().uniform(1, 1000000000), ctl.has_jury());
+    });
+    std::string const idle = "eolymp.h:L: warning EO408: instance 2 was started and never talked to\n"
+                             "  spawn it where it is needed, or drop it\n";
+    EO_CHECK_EQ(controlled.text, std::string("ok 157745677 false"));
+    EO_CHECK_EQ(without_header_lines(controlled.log),
+                "ok 157745677 false\n2 instances, 1 round trips, 4 bytes sent\n" + idle + unspent);
+    EO_CHECK_EQ(without_header_lines(checker_warnings()), idle + unspent);
+    staged const silent = run_control("1\n", {}, {}, 1, [](eo::controller&) { eo::jury_error(""); });
+    EO_CHECK_EQ(silent.text, std::string("jury error"));
+    EO_CHECK_EQ(checker_warnings(), std::string(""));
+}
+
+EO_TEST(pin_a_choice_on_a_validator_and_on_a_stream) {
+    EO_CHECK_EQ(validate("yes\n", [](eo::validator& v) { v.read_choice({"YES", "NO"}, "verdict"); }).text,
+                std::string("line 1, verdict: \"yes\" is not one of YES, NO"));
+    EO_CHECK_EQ(validate("YESS\n", [](eo::validator& v) { v.read_choice({"YES", "NO"}, "verdict"); }).text,
+                std::string("line 1, verdict: \"YESS\" is not one of YES, NO"));
+    EO_CHECK_EQ(check_run("1\n", "yes maybe\n", "1\n", [](eo::checker& c) {
+                    std::string const said = c.output.read_choice({"YES", "NO"}, eo::any_case, "verdict");
+                    if (said != "YES") eo::wrong("{}", said);
+                    c.output.read_choice({"YES", "NO"}, "second");
+                }).text,
+                std::string("wrong answer: output.txt, line 1, second: \"maybe\" is not one of YES, NO"));
+}
+
+EO_TEST(pin_what_a_controller_reads_from_an_instance) {
+    auto heard = [](std::string const& said, auto&& read) {
+        return run_control("1\n", {"ok"}, {said}, 1, [&](eo::controller& ctl) {
+                   eo::channel& first = ctl.spawn();
+                   first.send(1);
+                   read(first);
+                   eo::accept();
+               })
+            .text;
+    };
+    EO_CHECK_EQ(heard("x\n", [](eo::channel& one) { one.read_int(1, 9, "x"); }),
+                std::string("wrong answer: instance 1, line 1, x: expected an integer, found \"x\": it has a character "
+                            "that cannot be part of the number"));
+    EO_CHECK_EQ(heard("", [](eo::channel& one) { one.read_long(eo::any, "x"); }),
+                std::string("wrong answer: instance 1, line 1, x: instance 1 ended the dialogue early"));
+    EO_CHECK_EQ(heard("3 1 2 4\n", [](eo::channel& one) { one.read_longs(4, 1, 3, "a"); }),
+                std::string("wrong answer: instance 1, line 1, a[4]: 4 is above 3"));
+    EO_CHECK_EQ(heard("maybe\n", [](eo::channel& one) { one.read_choice({"yes", "no"}, "said"); }),
+                std::string("wrong answer: instance 1, line 1, said: \"maybe\" is not one of yes, no"));
+    EO_CHECK_EQ(heard("2.5 abc\n", [](eo::channel& one) {
+                    one.read_real(0, 2, "r");
+                }),
+                std::string("wrong answer: instance 1, line 1, r: 2.5 is above 2"));
+    EO_CHECK_EQ(heard("ab1\n", [](eo::channel& one) { one.read_token(1, 5, eo::charset("a-z"), "w"); }),
+                std::string("wrong answer: instance 1, line 1, w: \"ab1\" holds \"1\", which is not in \"a-z\""));
+    EO_CHECK_EQ(heard("7\n", [](eo::channel& one) {
+                    if (!one.at_eof()) one.read_long(1, 9, "x");
+                    if (!one.at_eof()) eo::wrong("more");
+                }),
+                std::string("ok"));
+}
