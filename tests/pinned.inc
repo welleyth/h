@@ -1082,14 +1082,14 @@ std::string refused_from_a_slow_pipe(char const* first, char const* second, void
 
 }  // namespace
 
-EO_TEST(pin_the_lookahead_of_a_validator_on_a_pipe_that_pauses) {
+EO_TEST(a_validator_on_a_pipe_that_pauses_looks_ahead_as_far_as_on_a_file) {
     auto const integer_then_line = [](eo::validator& v) {
         v.read_int(1, 9, "n");
         v.read_eoln();
     };
     EO_CHECK_EQ(refused_from_a_slow_pipe("5x", "yz\n", integer_then_line),
-                std::string("line 1, n: expected an integer, found \"5x\": it has a character that cannot be part of "
-                            "the number"));
+                std::string("line 1, n: expected an integer, found \"5xyz\": it has a character that cannot be part "
+                            "of the number"));
     EO_CHECK_EQ(refused_from_a_slow_pipe("5\nx", "yz\n", integer_then_line),
-                std::string("line 2: expected the end of the input, found \"x\""));
+                std::string("line 2: expected the end of the input, found \"xyz\""));
 }

@@ -1026,6 +1026,7 @@ public:
     bool at_end() { return peek() < 0; }
 
     std::string ahead(std::size_t limit) {
+        if (patient_) have(limit);
         while (held() < limit && top_up()) {
         }
         return std::string(buffer_.data() + begin_, std::min(limit, end_ - begin_));
@@ -1078,6 +1079,7 @@ public:
     long long line() const { return line_; }
     long long column() const { return column_; }
     long long position() const { return static_cast<long long>(dropped_ + begin_); }
+    void wait_to_look_ahead() { patient_ = true; }
     bool carriage_returns() const { return carriage_returns_; }
 
 private:
@@ -1102,6 +1104,7 @@ private:
         pending_ = other.pending_;
         text_backed_ = other.text_backed_;
         dropped_ = other.dropped_;
+        patient_ = other.patient_;
         line_ = other.line_;
         column_ = other.column_;
         other.descriptor_ = -1;
@@ -1162,6 +1165,7 @@ private:
     std::string_view pending_;
     bool text_backed_ = false;
     std::size_t dropped_ = 0;
+    bool patient_ = false;
     long long line_ = 1;
     long long column_ = 1;
 };
@@ -3702,9 +3706,10 @@ public:
         }
         if (describing_ && wanted_case_.has_value())
             detail::library_error("--eo-case and --eo-describe both write to stdout; ask for one");
-        from_ = detail::reader(path_.empty() ? detail::source::over_descriptor(0, false, true)
-                                              : detail::source::over_file(path_.c_str(), true),
-                               detail::fault::invalid_test, "", false, "EO102");
+        detail::source input = path_.empty() ? detail::source::over_descriptor(0, false, true)
+                                             : detail::source::over_file(path_.c_str(), true);
+        input.wait_to_look_ahead();
+        from_ = detail::reader(std::move(input), detail::fault::invalid_test, "", false, "EO102");
         detail::live_validator() = this;
         detail::live_sums();
         detail::close_on_exit(&validator::exited_early);

@@ -146,9 +146,10 @@ public:
         }
         if (describing_ && wanted_case_.has_value())
             detail::library_error("--eo-case and --eo-describe both write to stdout; ask for one");
-        from_ = detail::reader(path_.empty() ? detail::source::over_descriptor(0, false, true)
-                                              : detail::source::over_file(path_.c_str(), true),
-                               detail::fault::invalid_test, "", false, "EO102");
+        detail::source input = path_.empty() ? detail::source::over_descriptor(0, false, true)
+                                             : detail::source::over_file(path_.c_str(), true);
+        input.wait_to_look_ahead();
+        from_ = detail::reader(std::move(input), detail::fault::invalid_test, "", false, "EO102");
         detail::live_validator() = this;
         detail::live_sums();
         detail::close_on_exit(&validator::exited_early);
