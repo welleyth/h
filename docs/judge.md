@@ -34,7 +34,7 @@ eo-judge version           # the version of eo-judge
 | `--solution name` | judge one solution instead of all of them; a name the problem does not have is a usage error that lists the names it has |
 | `--strict` | exit non-zero if anything raised a warning |
 | `--deep` | use the full 100 MB hostile output rather than 2 MB |
-| `--work dir` | keep the workspace instead of a temporary directory; eo-judge clears the directories it makes there, so a directory that is the problem's, holds it or lies inside it is a usage error |
+| `--work dir` | keep the workspace instead of a temporary directory; eo-judge clears the directories it makes there, so a directory that is the problem's, holds it or lies inside it is a usage error; one eo-judge uses it at a time, and a second that asks for it while the first runs exits 3 |
 | `-v` | after each testset, list every run: `1:2 WRONG_ANSWER 12ms` and the first line of what the checker or interactor said; for a solution that crashed or ran out of time, its exit code and then the interactor's line |
 | `--json` | print one JSON object on stdout instead of the text; see [below](#json) |
 | `--expect` | with `run`, exit 1 when a solution breaks its declared type; see [below](#expected-types) |

@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"syscall"
 	"testing"
 )
 
@@ -514,5 +515,33 @@ func TestAWorkspaceThatOverlapsTheProblemIsRefused(t *testing.T) {
 	code, _, errs := invokeIn(t.TempDir(), "run", "testdata/authored", "--work", filepath.Join(t.TempDir(), "authored"))
 	if code != 0 {
 		t.Errorf("a workspace beside the problem exited %d, said %q", code, errs)
+	}
+}
+
+func TestAWorkspaceIsUsedByOneEoJudgeAtATime(t *testing.T) {
+	t.Parallel()
+	needsACompiler(t)
+	work := filepath.Join(t.TempDir(), "work")
+	if err := os.MkdirAll(work, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	unlock, err := lockPath(filepath.Join(work, ".eo-judge.lock"), syscall.LOCK_EX|syscall.LOCK_NB)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, args := range [][]string{
+		{"run", "testdata/authored"},
+		{"check", "testdata/authored"},
+		{"stress", "testdata/stress", "--args", "-n=[1..8] -max=[1..100]", "--solution", "twin", "--iterations", "1"},
+	} {
+		code, out, errs := invoke(append(args, "--work", work)...)
+		if code != 3 || strings.Contains(out, "ACCEPTED") || errs != "eo-judge: another eo-judge is using the workspace "+
+			work+"; wait for it to finish, or give this one another --work\n" {
+			t.Errorf("%s exited %d, printed %q, said %q", args[0], code, out, errs)
+		}
+	}
+	unlock()
+	if code, _, errs := invoke("run", "testdata/authored", "--work", work); code != 0 {
+		t.Errorf("once the workspace is free, run exited %d, said %q", code, errs)
 	}
 }

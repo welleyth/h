@@ -202,11 +202,15 @@ func lockEntry(entry string) (func(), error) {
 	if err := os.MkdirAll(entry, 0o755); err != nil {
 		return nil, err
 	}
-	file, err := os.OpenFile(entry+".lock", os.O_CREATE|os.O_RDWR, 0o644)
+	return lockPath(entry+".lock", syscall.LOCK_EX)
+}
+
+func lockPath(path string, how int) (func(), error) {
+	file, err := os.OpenFile(path, os.O_CREATE|os.O_RDWR, 0o644)
 	if err != nil {
 		return nil, err
 	}
-	if err := syscall.Flock(int(file.Fd()), syscall.LOCK_EX); err != nil {
+	if err := syscall.Flock(int(file.Fd()), how); err != nil {
 		file.Close()
 		return nil, err
 	}
