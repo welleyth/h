@@ -1147,3 +1147,14 @@ EO_TEST(a_real_one_rounding_above_its_tolerance_is_within_it) {
     });
     EO_CHECK_EQ(optimum.text, std::string("ok 0.500001"));
 }
+
+EO_TEST(pin_a_hyphen_that_reads_as_a_backwards_range) {
+    eot::outcome const set = eot::run_until_stop([] { eo::charset const made("A-Za-z0-9_.,:;()- "); });
+    EO_CHECK_EQ(set.code, 3);
+    EO_CHECK_EQ(set.text, std::string("eolymp.h: the character range \")- \" in charset(\"A-Za-z0-9_.,:;()- \") runs "
+                                      "backwards"));
+    eot::outcome const pattern = eot::run_until_stop([] { eo::pattern const made("[A-Za-z0-9_.,:;()- ]+"); });
+    EO_CHECK_EQ(pattern.code, 3);
+    EO_CHECK_IN(pattern.text, "eo::pattern(\"[A-Za-z0-9_.,:;()- ]+\") does not parse at column 17: this range runs "
+                              "backwards; write its low end first");
+}
