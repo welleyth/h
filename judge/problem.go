@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -50,6 +51,13 @@ type Solution struct {
 	Scores string `json:"scores"`
 }
 
+type ValidatorTest struct {
+	Input  *string `json:"input"`
+	File   string  `json:"file"`
+	Expect string  `json:"expect"`
+	Group  *int    `json:"group"`
+}
+
 type Problem struct {
 	Title               string              `json:"title"`
 	Type                string              `json:"type"`
@@ -67,6 +75,7 @@ type Problem struct {
 	Scripts             map[string]*Program `json:"scripts"`
 	Solutions           []*Solution         `json:"solutions"`
 	Testsets            []*Testset          `json:"testsets"`
+	ValidatorTests      []*ValidatorTest    `json:"validatorTests"`
 
 	dir string
 }
@@ -329,6 +338,35 @@ func (p *Problem) checkNames() error {
 			"OVERFLOW_OR_ACCEPTED", "DONT_RUN", "FAILURE"); err != nil {
 			return err
 		}
+	}
+	return p.checkValidatorTests()
+}
+
+func (p *Problem) checkValidatorTests() error {
+	if len(p.ValidatorTests) > 0 && p.Validator == nil {
+		return errors.New("the problem has validatorTests and no validator to run them")
+	}
+	for at, test := range p.ValidatorTests {
+		name := fmt.Sprintf("validator test %d", at+1)
+		if err := oneOf(name+"'s expect", test.Expect, "VALID", "INVALID"); err != nil {
+			return err
+		}
+		switch {
+		case test.Input != nil && test.File != "":
+			return fmt.Errorf("%s has both an input and a file; give one", name)
+		case test.Input == nil && test.File == "":
+			return fmt.Errorf("%s has neither an input nor a file; give one", name)
+		}
+		if err := p.knownGroup(name, test.Group); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (p *Problem) knownGroup(name string, group *int) error {
+	if group != nil && p.Testset(*group) == nil {
+		return fmt.Errorf("%s's group is %d, and the problem has no testset %d", name, *group, *group)
 	}
 	return nil
 }

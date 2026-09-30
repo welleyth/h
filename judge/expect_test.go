@@ -45,6 +45,11 @@ func relocated(t *testing.T, fixture string, change func(*Problem)) string {
 			}
 		}
 	}
+	for _, test := range problem.ValidatorTests {
+		if test.File != "" {
+			test.File = problem.Path(test.File)
+		}
+	}
 	change(problem)
 	body, err := json.Marshal(problem)
 	if err != nil {

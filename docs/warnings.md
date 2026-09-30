@@ -24,7 +24,7 @@ line on the judge, and the channel each role can afford to write to — is in
 | `eo-judge check` | the emulator, reading the whole problem; **never appears in a judge log** |
 | `eo-judge lint` | a textual scan of the source, for what no run can see |
 
-All 79 designed codes are built.
+All 80 designed codes are built.
 
 ## EO1xx — reading a value
 
@@ -135,8 +135,9 @@ the author writes no test code for any of them.
 
 ## EO9xx — configuration
 
-Also from `eo-judge check`, reading the problem's configuration rather than running anything.
-These are the checks the platform should eventually make when a problem is saved.
+Also from `eo-judge check`, reading the problem's configuration rather than its tests, and
+running the tests `problem.json` declares for the problem's own programs. These are the checks
+the platform should eventually make when a problem is saved.
 
 | Code | Severity | Reporter | Fires when | What to do |
 | --- | --- | --- | --- | --- |
@@ -150,3 +151,4 @@ These are the checks the platform should eventually make when a problem is saved
 | `EO908` | warning | `eo-judge check` | `runCount` is above 1 on a problem that is not interactive | `run_count` chains an interactor's output into the next run |
 | `EO909` | warning | `eo-judge check` | the problem has more than about 1,200 test rows | Basecamp stops judging above that |
 | `EO910` | note | `eo-judge check` | the programs of one problem carry different copies of a header, counting the copy eo-judge carries for a program that attaches none | attach the same release to every program, or none to use the one the judge carries |
+| `EO911` | warning | `eo-judge check` | a test in `validatorTests` gets the other answer from the validator than its `expect`: a `VALID` input refused, an `INVALID` one accepted, or the validator out of its 30 s. `run` does not read them | the validator and the test disagree; fix the validator, or the test's `expect` if the validator is right |

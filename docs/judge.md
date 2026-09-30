@@ -21,7 +21,7 @@ writes `build/eo-judge`, and `make judge` runs gofmt, go vet and the eo-judge te
 
 ```bash
 eo-judge run   <problem>   # build, generate, validate, judge every solution, score it
-eo-judge check <problem>   # EO801-EO821 and EO901-EO910
+eo-judge check <problem>   # EO801-EO821 and EO901-EO911
 eo-judge lint  <problem>   # what is only visible in the source
 eo-judge stress <problem> --args '-n=[1..8]'
                            # generated inputs until a solution breaks its type; see below
@@ -176,6 +176,7 @@ loads as it is; an explicit `UNKNOWN_TYPE`, `UNKNOWN_FEEDBACK_POLICY`,
 | `scripts` | — | named generators, whose names become directory names like a solution's; `answerGenerator` names one of them |
 | `solutions` | — | what `run` judges and `check` compares subtasks against; each has a `name`, which becomes a directory name and so cannot hold `/`, be `..`, be longer than 240 bytes or be another solution's, a `source`, an optional `type`, and an optional expected score in `scores`; `CORRECT` is a reference expected to score full marks unless `scores` says otherwise, `DONT_RUN` is left out of `run` and `check` unless `--solution` names it, and `INCORRECT`, `WRONG_ANSWER`, `TIMEOUT`, `OVERFLOW`, `TIMEOUT_OR_ACCEPTED`, `OVERFLOW_OR_ACCEPTED` and `FAILURE` are judged with no expectation checked unless `run --expect` [checks them](#expected-types) |
 | `testsets` | — | the groups |
+| `validatorTests` | — | inputs the validator must accept or refuse, which `check` runs; [see below](#tests-for-the-validator) |
 
 ### Program
 
@@ -214,6 +215,32 @@ matches what a judge log would say.
 
 A test with no `answer` and no `answerGenerator` uses its input as the answer, which is what
 an interactive problem wants.
+
+### Tests for the validator
+
+`validatorTests` lists inputs and what the validator must say about them, as Polygon's
+validator tests do. `eo-judge check` runs each one and reports every test the validator
+answers otherwise as warning EO911, naming it by its place in the list; `run` does not read
+them.
+
+```json
+"validatorTests": [
+  {"input": "3\n1 2 3\n", "expect": "VALID"},
+  {"input": "0\n\n", "expect": "INVALID"},
+  {"file": "tests/four.txt", "expect": "INVALID", "group": 2}
+]
+```
+
+| Field | Means |
+| --- | --- |
+| `input` | the input itself; `""` is an empty input |
+| `file` | a file holding it, relative to the problem directory; give `input` or `file`, not both |
+| `expect` | `VALID` or `INVALID` |
+| `group` | a testset's index, passed as `--group`; without it the validator is given no group, as in a stress run |
+
+The validator is given the input with CRLF line endings folded to LF, as the judge folds a
+test's. A validator that does not finish in its 30 s breaks either
+expectation.
 
 ## Reading a run
 

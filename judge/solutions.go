@@ -198,6 +198,9 @@ func (w *Workspace) Check(ctx context.Context, deep bool) (Findings, error) {
 		found = append(found, w.findingsOf(made.Warnings)...)
 	}
 
+	if err := w.validatorTestChecks(ctx, &found); err != nil {
+		return found, err
+	}
 	if err := w.checkerChecks(ctx, &found, deep); err != nil {
 		return found, err
 	}

@@ -1,0 +1,21 @@
+{
+  "title": "the sum of n numbers, with tests for its own validator and checker",
+  "type": "PROGRAM",
+  "timeLimit": 2000,
+  "memoryLimit": 268435456,
+  "checker": {"source": "checker.cpp"},
+  "validator": {"source": "validator.cpp"},
+  "solutions": [{"name": "sum", "source": "solution.cpp", "type": "CORRECT"}],
+  "testsets": [
+    {"index": 1, "scoringMode": "EACH", "tests": [{"index": 1, "score": 50, "input": "01.in", "answer": "01.ans"}]},
+    {"index": 2, "scoringMode": "EACH", "tests": [{"index": 1, "score": 50, "input": "02.in", "answer": "02.ans"}]}
+  ],
+  "validatorTests": [
+    {"input": "3\n1 2 3\n", "expect": "VALID"},
+    {"input": "0\n\n", "expect": "INVALID"},
+    {"file": "four.txt", "expect": "INVALID", "group": 2},
+    {"file": "four.txt", "expect": "VALID"},
+    {"input": "1\n500\n", "expect": "VALID"},
+    {"input": "2\n1 2\n", "expect": "INVALID", "group": 1}
+  ]
+}
