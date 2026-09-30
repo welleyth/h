@@ -24,6 +24,8 @@ in the right-hand columns is in the header; the programs below are compiled by `
 | `inf.readChar(':')` | `v.read_char(':')` |
 | `inf.eoln()`, `inf.eof()` | `v.at_eoln()`, `v.at_eof()` |
 | `ensuref(cond, "n is %d", n)` | `v.require(cond, "n is {}", n)` |
+| `inf.readWord()`, `inf.readString()` | `v.read_token(…)`, `v.read_line(…)`, with a length and a charset or a pattern |
+| `addFeature("path")`, `feature("path")` | `v.feature("path")`, `v.saw("path")` |
 | `format("a[%d]", i)` as a name | `eo::element("a", i)` |
 | `validator.group()` | `v.group()`, a `std::optional<int>` |
 | `setTestCase(i)` in a loop, `unsetTestCase()` | `v.cases(t, body)` |
@@ -196,3 +198,26 @@ See [generator.md](generator.md).
 - **A jury answer is read strictly by the checker too.** A malformed answer file is a jury
   error, not a wrong answer, and `c.read_both` holds the jury's answer to the same checks as
   the contestant's.
+- **A pattern is testlib's syntax read as a regular expression.** Six details differ, all
+  where testlib's matcher is a trap: see [Patterns](validator.md#patterns).
+
+## What eolymp.h leaves out
+
+Everything a testlib validator, checker, interactor or generator calls has a counterpart
+above. What is left out is left out on purpose:
+
+- **Other platforms.** eolymp.h is POSIX-only and knows Eolymp's exit codes, not Polygon's,
+  ejudge's, Contester's or TESTSYS's; a problem judged on Windows keeps testlib.
+- **testlib's random sequence.** A generator drawing through `rnd` cannot be made to write the
+  same bytes here; a problem whose tests must stay byte for byte keeps its testlib generator
+  or its stored tests.
+- **Positional and `-n 10` generator arguments.** Declared `-name=value` options are what let
+  `--eo-describe` and `eo-judge check` reach every option's extremes.
+- **`_pe`, `_pc(k)`, `quitp`'s points and `quitpi`'s `points_info`.** Eolymp has no
+  presentation error and no points information; a score is `eo::score` or `eo::points`, and a
+  malformed output a wrong answer.
+- **`validator.testset()`.** On Eolymp a testset is the group, which is `v.group()`.
+- **`ouf.seekEof()`, `readEof()` and `readEoln()` on a checker's streams.** Whitespace between
+  tokens is skipped, and text after the answer is refused by the library's own closing check.
+- **The string helpers, `format`, `vtos`, `upperCase`, `compress`, `englishEnding`.** `eo::fmt`
+  builds a message, and a message shortens and escapes the values it quotes by itself.
