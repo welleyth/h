@@ -2056,7 +2056,7 @@ public:
             while (values.size() < wanted) {
                 long long const drawn = uniform(low, high);
                 std::uint64_t const mixed = static_cast<std::uint64_t>(drawn) * 0x9e3779b97f4a7c15ull;
-                std::size_t at = static_cast<std::size_t>(mixed >> (64 - bits));
+                std::size_t at = mixed >> (64 - bits);
                 while (taken[at] != 0 && slots[at] != drawn) at = (at + 1) & mask;
                 if (taken[at] != 0) continue;
                 taken[at] = 1;
@@ -2840,8 +2840,8 @@ public:
         if (completed_) return;
         completed_ = true;
         if (!ended_) check_the_end();
-        for (detail::registered_sum* one : std::vector<detail::registered_sum*>(detail::live_sums()))
-            one->verify();
+        std::vector<detail::registered_sum*> const sums = detail::live_sums();
+        for (detail::registered_sum* one : sums) one->verify();
         closing_warnings();
         if (describing_) describe();
         detail::diagnostics::shared().emit();
@@ -3743,7 +3743,7 @@ public:
         (detail::add_to_line(line, values, first), ...);
         line.push_back('\n');
         pending_ += line;
-        sent_bytes_ += line.size();
+        sent_bytes_ += static_cast<long long>(line.size());
         if (pending_.size() >= 1u << 16) flush();
     }
 

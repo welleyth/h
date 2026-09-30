@@ -98,7 +98,7 @@ public:
             while (values.size() < wanted) {
                 long long const drawn = uniform(low, high);
                 std::uint64_t const mixed = static_cast<std::uint64_t>(drawn) * 0x9e3779b97f4a7c15ull;
-                std::size_t at = static_cast<std::size_t>(mixed >> (64 - bits));
+                std::size_t at = mixed >> (64 - bits);
                 while (taken[at] != 0 && slots[at] != drawn) at = (at + 1) & mask;
                 if (taken[at] != 0) continue;
                 taken[at] = 1;

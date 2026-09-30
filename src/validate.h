@@ -394,8 +394,8 @@ public:
         if (completed_) return;
         completed_ = true;
         if (!ended_) check_the_end();
-        for (detail::registered_sum* one : std::vector<detail::registered_sum*>(detail::live_sums()))
-            one->verify();
+        std::vector<detail::registered_sum*> const sums = detail::live_sums();
+        for (detail::registered_sum* one : sums) one->verify();
         closing_warnings();
         if (describing_) describe();
         detail::diagnostics::shared().emit();

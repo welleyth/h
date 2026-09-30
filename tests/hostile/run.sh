@@ -22,6 +22,12 @@ else
     echo "hostile: header_alone skipped, this standard library is not libstdc++, which the judge runs"
 fi
 
+strict="-Wall -Wextra -Wpedantic -Wshadow -Wconversion -Wsign-conversion -Wold-style-cast -Werror"
+if echo 'int main() {}' | $CXX -Wuseless-cast -Werror -fsyntax-only -x c++ - 2>/dev/null; then
+    strict="$strict -Wuseless-cast"
+fi
+build_and_run strict $strict
+
 if echo '#include <bits/stdc++.h>' | $CXX -std=$CXXSTD -fsyntax-only -x c++ - 2>/dev/null; then
     build_and_run after_bits -Wall -Wextra -Werror
 else

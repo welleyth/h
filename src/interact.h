@@ -97,7 +97,7 @@ public:
         (detail::add_to_line(line, values, first), ...);
         line.push_back('\n');
         pending_ += line;
-        sent_bytes_ += line.size();
+        sent_bytes_ += static_cast<long long>(line.size());
         if (pending_.size() >= 1u << 16) flush();
     }
 
