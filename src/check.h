@@ -766,7 +766,8 @@ public:
         if (fraction >= 1) deliver(0, "ok", message);
         double const paid = fraction * cost();
         std::string const printed = detail::format_points(paid);
-        if (cost() > 0 && std::strtof(printed.c_str(), nullptr) >= static_cast<float>(cost()))
+        if (cost() > 0 && std::strtof(detail::with_the_local_point(printed).c_str(), nullptr) >=
+                              static_cast<float>(cost()))
             detail::warn("EO206", fmt("'points {}' is below the test's {}, but the judge reads points as a "
                                       "float, which rounds it to the full cost: the run counts as accepted",
                                       printed, cost()),

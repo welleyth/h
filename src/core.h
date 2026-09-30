@@ -61,8 +61,19 @@ inline std::size_t constexpr pipe_size = std::size_t{1} << 16;
 inline std::size_t constexpr stored_log = std::size_t{1} << 16;
 inline std::size_t constexpr large_file = 64 * mebibyte;
 
-inline bool numbers_as_in_c() {
-    return std::fegetround() == FE_TONEAREST && std::strcmp(std::localeconv()->decimal_point, ".") == 0;
+inline bool rounding_to_nearest() { return std::fegetround() == FE_TONEAREST; }
+
+inline char const* decimal_point() { return std::localeconv()->decimal_point; }
+
+inline std::string with_the_local_point(std::string text, char const* point = decimal_point()) {
+    std::size_t const at = text.find('.');
+    if (at != std::string::npos) text.replace(at, 1, point);
+    return text;
+}
+
+inline void with_a_dot(std::string& text, std::size_t from, char const* point = decimal_point()) {
+    std::size_t const at = std::strcmp(point, ".") == 0 ? std::string::npos : text.find(point, from);
+    if (at != std::string::npos) text.replace(at, std::strlen(point), ".");
 }
 
 struct stop {

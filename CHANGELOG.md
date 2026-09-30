@@ -1,5 +1,17 @@
 # Changelog
 
+## 2.3.0
+
+### What changes for a program
+
+- **A real is read and written with a dot in every locale.** A jury program that called
+  `setlocale(LC_NUMERIC, …)` with a locale whose decimal point is a comma, `de_DE` or
+  `uk_UA`, read `1.5` as 1, since `strtod` stopped at the dot, and wrote `eo::fixed(1.5, 2)`
+  as `1,50` and a checker's points as `points 20,5`, which the judge cannot read. It now reads
+  1.5 and writes `1.50` and `points 20.5`, whatever the locale. A validator that refused
+  `1.5` under such a locale accepts it now; a program that never sets a numeric locale sees no
+  change.
+
 ## 2.2.1
 
 No verdict and no score changes: a program built against 2.2.1 judges every run as it did

@@ -727,16 +727,37 @@ EO_TEST(pin_reals_read_and_written_under_another_rounding_mode) {
     }
 }
 
-EO_TEST(pin_reals_read_and_written_in_a_locale_with_a_decimal_comma) {
+EO_TEST(reals_are_read_and_written_with_a_dot_in_a_locale_with_a_decimal_comma) {
     char const* const comma = comma_locale();
-    if (comma == nullptr) return;
+    if (comma == nullptr) {
+        ::dprintf(eot::complaints_go_to(), "skipped: no de_DE, fr_FR, ru_RU or uk_UA locale, so reals are not read "
+                                           "under a decimal comma\n");
+        return;
+    }
     double const read = eo::detail::parse_real("1.5", false).value;
-    double const expected = std::strtod("1.5", nullptr);
     std::string const written = eo::fmt("{}", eo::fixed(1.5, 2));
-    std::string const by_printf = printf_fixed(1.5, 2);
+    std::string const wide = eo::fmt("{}", eo::fixed(0.125, 45));
+    std::string const points = eo::detail::format_points(20.5);
+    int const before = std::fegetround();
+    std::fesetround(FE_UPWARD);
+    double const read_upward = eo::detail::parse_real("1.5", false).value;
+    std::string const written_upward = eo::fmt("{}", eo::fixed(1.5, 2));
+    std::fesetround(before);
+    eot::outcome const nearly = check_run("1\n", "1\n", "1\n", [](eo::checker& c) {
+        c.input.read_int(1, 1, "n");
+        c.output.read_int(1, 1, "x");
+        c.jury.read_int(1, 1, "x");
+        eo::points(39.99999999);
+    });
     std::setlocale(LC_NUMERIC, "C");
-    EO_CHECK_EQ(bits_of(read), bits_of(expected));
-    EO_CHECK_EQ(written, by_printf);
+    EO_CHECK_EQ(read, 1.5);
+    EO_CHECK_EQ(written, std::string("1.50"));
+    EO_CHECK_EQ(wide, "0.125" + std::string(42, '0'));
+    EO_CHECK_EQ(points, std::string("20.5"));
+    EO_CHECK_EQ(read_upward, 1.5);
+    EO_CHECK_EQ(written_upward, std::string("1.50"));
+    EO_CHECK_EQ(nearly.text, std::string("points 39.99999999"));
+    EO_CHECK_IN(checker_warnings(), "EO206");
 }
 
 namespace {

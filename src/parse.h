@@ -99,20 +99,14 @@ struct real_read {
 
 inline double decimal_value(std::string_view text) {
 #if defined(__cpp_lib_to_chars)
-    if (numbers_as_in_c()) {
+    if (rounding_to_nearest()) {
         double quick = 0;
         std::from_chars_result const read = std::from_chars(text.data(), text.data() + text.size(), quick);
         if (read.ec == std::errc() && read.ptr == text.data() + text.size()) return quick;
     }
 #endif
-    char small[64];
-    if (text.size() < sizeof(small)) {
-        std::memcpy(small, text.data(), text.size());
-        small[text.size()] = '\0';
-        return std::strtod(small, nullptr);
-    }
-    std::string const whole(text);
-    return std::strtod(whole.c_str(), nullptr);
+    std::string const spelled = with_the_local_point(std::string(text));
+    return std::strtod(spelled.c_str(), nullptr);
 }
 
 inline real_read parse_real(std::string_view text, bool allow_exponent, bool negative_zero = false) {

@@ -47,7 +47,9 @@ inline void append_real(std::string& out, double value) {
     int written = std::snprintf(buffer, sizeof(buffer), "%.15g", value);
     if (std::strtod(buffer, nullptr) != value)
         written = std::snprintf(buffer, sizeof(buffer), "%.17g", value);
+    std::size_t const at = out.size();
     out.append(buffer, static_cast<std::size_t>(written));
+    with_a_dot(out, at);
 #endif
 }
 
@@ -66,7 +68,7 @@ struct is_fixed<fixed_number<T>> : std::true_type {};
 inline void append_fixed(std::string& out, double value, int digits) {
     if (append_non_finite(out, value)) return;
 #if defined(__cpp_lib_to_chars)
-    if (digits >= 0 && digits <= 40 && numbers_as_in_c()) {
+    if (digits >= 0 && digits <= 40 && rounding_to_nearest()) {
         char wide[360];
         std::to_chars_result const written =
             std::to_chars(wide, wide + sizeof(wide), value, std::chars_format::fixed, digits);
@@ -77,14 +79,15 @@ inline void append_fixed(std::string& out, double value, int digits) {
     char buffer[64];
     std::size_t const written =
         static_cast<std::size_t>(std::snprintf(buffer, sizeof(buffer), "%.*f", digits, value));
+    std::size_t const at = out.size();
     if (written < sizeof(buffer)) {
         out.append(buffer, written);
-        return;
+    } else {
+        out.resize(at + written + 1);
+        std::snprintf(&out[at], written + 1, "%.*f", digits, value);
+        out.resize(at + written);
     }
-    std::size_t const at = out.size();
-    out.resize(at + written + 1);
-    std::snprintf(&out[at], written + 1, "%.*f", digits, value);
-    out.resize(at + written);
+    with_a_dot(out, at);
 }
 
 template <class T>

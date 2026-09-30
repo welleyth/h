@@ -109,8 +109,19 @@ inline std::size_t constexpr pipe_size = std::size_t{1} << 16;
 inline std::size_t constexpr stored_log = std::size_t{1} << 16;
 inline std::size_t constexpr large_file = 64 * mebibyte;
 
-inline bool numbers_as_in_c() {
-    return std::fegetround() == FE_TONEAREST && std::strcmp(std::localeconv()->decimal_point, ".") == 0;
+inline bool rounding_to_nearest() { return std::fegetround() == FE_TONEAREST; }
+
+inline char const* decimal_point() { return std::localeconv()->decimal_point; }
+
+inline std::string with_the_local_point(std::string text, char const* point = decimal_point()) {
+    std::size_t const at = text.find('.');
+    if (at != std::string::npos) text.replace(at, 1, point);
+    return text;
+}
+
+inline void with_a_dot(std::string& text, std::size_t from, char const* point = decimal_point()) {
+    std::size_t const at = std::strcmp(point, ".") == 0 ? std::string::npos : text.find(point, from);
+    if (at != std::string::npos) text.replace(at, std::strlen(point), ".");
 }
 
 struct stop {
@@ -224,7 +235,9 @@ inline void append_real(std::string& out, double value) {
     int written = std::snprintf(buffer, sizeof(buffer), "%.15g", value);
     if (std::strtod(buffer, nullptr) != value)
         written = std::snprintf(buffer, sizeof(buffer), "%.17g", value);
+    std::size_t const at = out.size();
     out.append(buffer, static_cast<std::size_t>(written));
+    with_a_dot(out, at);
 #endif
 }
 
@@ -243,7 +256,7 @@ struct is_fixed<fixed_number<T>> : std::true_type {};
 inline void append_fixed(std::string& out, double value, int digits) {
     if (append_non_finite(out, value)) return;
 #if defined(__cpp_lib_to_chars)
-    if (digits >= 0 && digits <= 40 && numbers_as_in_c()) {
+    if (digits >= 0 && digits <= 40 && rounding_to_nearest()) {
         char wide[360];
         std::to_chars_result const written =
             std::to_chars(wide, wide + sizeof(wide), value, std::chars_format::fixed, digits);
@@ -254,14 +267,15 @@ inline void append_fixed(std::string& out, double value, int digits) {
     char buffer[64];
     std::size_t const written =
         static_cast<std::size_t>(std::snprintf(buffer, sizeof(buffer), "%.*f", digits, value));
+    std::size_t const at = out.size();
     if (written < sizeof(buffer)) {
         out.append(buffer, written);
-        return;
+    } else {
+        out.resize(at + written + 1);
+        std::snprintf(&out[at], written + 1, "%.*f", digits, value);
+        out.resize(at + written);
     }
-    std::size_t const at = out.size();
-    out.resize(at + written + 1);
-    std::snprintf(&out[at], written + 1, "%.*f", digits, value);
-    out.resize(at + written);
+    with_a_dot(out, at);
 }
 
 template <class T>
@@ -560,20 +574,14 @@ struct real_read {
 
 inline double decimal_value(std::string_view text) {
 #if defined(__cpp_lib_to_chars)
-    if (numbers_as_in_c()) {
+    if (rounding_to_nearest()) {
         double quick = 0;
         std::from_chars_result const read = std::from_chars(text.data(), text.data() + text.size(), quick);
         if (read.ec == std::errc() && read.ptr == text.data() + text.size()) return quick;
     }
 #endif
-    char small[64];
-    if (text.size() < sizeof(small)) {
-        std::memcpy(small, text.data(), text.size());
-        small[text.size()] = '\0';
-        return std::strtod(small, nullptr);
-    }
-    std::string const whole(text);
-    return std::strtod(whole.c_str(), nullptr);
+    std::string const spelled = with_the_local_point(std::string(text));
+    return std::strtod(spelled.c_str(), nullptr);
 }
 
 inline real_read parse_real(std::string_view text, bool allow_exponent, bool negative_zero = false) {
@@ -3383,7 +3391,9 @@ inline std::string format_points(double value) {
     }
     char buffer[40];
     int const written = std::snprintf(buffer, sizeof(buffer), "%.10g", value);
-    return std::string(buffer, static_cast<std::size_t>(written));
+    std::string printed(buffer, static_cast<std::size_t>(written));
+    with_a_dot(printed, 0);
+    return printed;
 }
 
 inline double test_cost() {
@@ -4941,7 +4951,8 @@ public:
         if (fraction >= 1) deliver(0, "ok", message);
         double const paid = fraction * cost();
         std::string const printed = detail::format_points(paid);
-        if (cost() > 0 && std::strtof(printed.c_str(), nullptr) >= static_cast<float>(cost()))
+        if (cost() > 0 && std::strtof(detail::with_the_local_point(printed).c_str(), nullptr) >=
+                              static_cast<float>(cost()))
             detail::warn("EO206", fmt("'points {}' is below the test's {}, but the judge reads points as a "
                                       "float, which rounds it to the full cost: the run counts as accepted",
                                       printed, cost()),

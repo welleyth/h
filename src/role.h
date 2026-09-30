@@ -125,7 +125,9 @@ inline std::string format_points(double value) {
     }
     char buffer[40];
     int const written = std::snprintf(buffer, sizeof(buffer), "%.10g", value);
-    return std::string(buffer, static_cast<std::size_t>(written));
+    std::string printed(buffer, static_cast<std::size_t>(written));
+    with_a_dot(printed, 0);
+    return printed;
 }
 
 inline double test_cost() {

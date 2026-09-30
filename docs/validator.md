@@ -154,6 +154,9 @@ line: `read_ints(0, …)` followed by `read_eoln()` expects exactly `\n`.
 An integer is an optional `-` followed by digits. `+5`, `007` and `-0` are invalid, and so is a value too large for the type it is read into. Real numbers are plain
 decimals — `3`, `3.25`, `-0.5` — with no exponent, no infinity and no NaN;
 `read_real(0.0, 1.0, 1, 6, "p")` accepts `0.5` and `0.123456` but not `1` or `0.1234567`.
+The point is a dot whatever the program's locale: after `setlocale(LC_NUMERIC, "de_DE")`,
+`1.5` still reads as 1.5, and `eo::fixed(1.5, 2)` and a checker's points are still written
+with a dot.
 
 **A number read consumes the number, not the rest of the token.** That is what makes
 `read_char(':')` work on `12:30`. Anything the number does not consume is still yours to

@@ -27,6 +27,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - run: sudo apt-get update && sudo apt-get install --no-install-recommends -y llvm
         if: matrix.compiler == 'clang++'
+      - run: sudo locale-gen de_DE.UTF-8
       - run: make -j"$(nproc)" check
         env:
           CXX: ${{ matrix.compiler }}

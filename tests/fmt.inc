@@ -131,3 +131,22 @@ EO_TEST(fmt_keeps_every_value_when_the_count_does_not_match) {
     EO_CHECK_EQ(eo::fmt("expected %lld", 5), std::string("expected %lld 5"));
     eo::detail::diagnostics::shared().forget_everything();
 }
+
+EO_TEST(a_number_is_moved_between_the_dot_and_a_locale_s_point) {
+    EO_CHECK_EQ(eo::detail::with_the_local_point("1.5", ","), std::string("1,5"));
+    EO_CHECK_EQ(eo::detail::with_the_local_point("-0.25e3", "\xd9\xab"), std::string("-0\xd9\xab" "25e3"));
+    EO_CHECK_EQ(eo::detail::with_the_local_point("15", ","), std::string("15"));
+    EO_CHECK_EQ(eo::detail::with_the_local_point("1.5", "."), std::string("1.5"));
+    std::string printed = "1,5 and 2,5";
+    eo::detail::with_a_dot(printed, 4, ",");
+    EO_CHECK_EQ(printed, std::string("1,5 and 2.5"));
+    std::string wide = "x0\xd9\xab" "125";
+    eo::detail::with_a_dot(wide, 1, "\xd9\xab");
+    EO_CHECK_EQ(wide, std::string("x0.125"));
+    std::string plain = "1.5";
+    eo::detail::with_a_dot(plain, 0, ".");
+    EO_CHECK_EQ(plain, std::string("1.5"));
+    std::string whole = "15";
+    eo::detail::with_a_dot(whole, 0, ",");
+    EO_CHECK_EQ(whole, std::string("15"));
+}
