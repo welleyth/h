@@ -69,6 +69,7 @@ input itself. See [validator.md](validator.md).
 | `wcmp` | `c.tokens()` |
 | `wcmp` with `upperCase` on both tokens | `c.tokens(eo::any_case)` |
 | `uncmp` | `c.tokens(eo::any_order)`, which compares the tokens as text: the same verdict on integers, since neither side takes `+`, a leading zero or `-0`, and any other token too, where `uncmp` refuses it |
+| `ncmp`, `icmp` | `c.integers()`, which reads a `long long` where `icmp` reads an `int` |
 | `rcmp6`, `rcmp9` | `c.reals(1e-6)`, `c.reals(1e-9)` |
 | `lcmp` | `c.lines(eo::exact)`, which keeps blank lines as `lcmp` does, and compares a line character by character where `lcmp` compares its words |
 
@@ -90,8 +91,8 @@ int main(int argc, char** argv) {
 }
 ```
 
-`c.tokens()` compares tokens as text, as `wcmp` does; a checker that compares numbers, as
-`ncmp` does, reads them with `read_long`. Nothing needs `ouf.seekEof()`: text after the
+`c.tokens()` compares tokens as text, as `wcmp` does; `c.integers()` compares them as
+numbers, as `ncmp` does. Nothing needs `ouf.seekEof()`: text after the
 answer is a wrong answer unless the stream says `trailing(eo::ignore)`. See
 [checker.md](checker.md).
 

@@ -4531,6 +4531,22 @@ public:
         pass(1, fmt("{} tokens in any order", wanted.size()));
     }
 
+    [[noreturn]] void integers() {
+        compared_only_ = true;
+        long long seen = 0;
+        while (true) {
+            bool const jury_done = jury.at_eof();
+            bool const output_done = output.at_eof();
+            if (jury_done && output_done) pass(1, fmt("{} integers", seen));
+            seen++;
+            if (jury_done) fail_run(fmt("the answer has {} integers, the output has more", seen - 1));
+            long long const want = jury.read_long(any, unnamed);
+            if (output_done) fail_run(fmt("the output ended after {} integers, the answer has more", seen - 1));
+            long long const got = output.read_long(any, unnamed);
+            if (got != want) fail_run(fmt("integer {} is {}, expected {}", seen, got, want));
+        }
+    }
+
     [[noreturn]] void reals(double epsilon) {
         compared_only_ = true;
         long long seen = 0;

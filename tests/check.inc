@@ -1656,3 +1656,33 @@ EO_TEST(tokens_in_any_order_compare_the_answer_and_the_output_as_multisets) {
                 std::string("wrong answer token 2 is longer than every token of the answer; it starts \"abcd\""));
     EO_CHECK_EQ(compared_by("A", "a", unordered), std::string("wrong answer \"A\" is in the answer 0 times and in the output once"));
 }
+
+EO_TEST(integers_are_compared_as_numbers_one_by_one) {
+    auto const numeric = [](eo::checker& c) { c.integers(); };
+    EO_CHECK_EQ(compared_by("1 -2\n3\n", "1 -2 3", numeric), std::string("ok 3 integers"));
+    EO_CHECK_EQ(compared_by("", "", numeric), std::string("ok 0 integers"));
+    EO_CHECK_EQ(compared_by("1 5 3", "1 2 3", numeric), std::string("wrong answer integer 2 is 5, expected 2"));
+    EO_CHECK_EQ(compared_by("1", "1 2", numeric),
+                std::string("wrong answer the output ended after 1 integers, the answer has more"));
+    EO_CHECK_EQ(compared_by("1 2 x", "1 2", numeric),
+                std::string("wrong answer the answer has 2 integers, the output has more"));
+    EO_CHECK_EQ(compared_by("1 07", "1 7", numeric),
+                std::string("wrong answer: output.txt, line 1: expected an integer, found \"07\": it has a leading "
+                            "zero"));
+    EO_CHECK_EQ(compared_by("1 99999999999999999999", "1 7", numeric),
+                std::string("wrong answer: output.txt, line 1: expected an integer, found \"99999999999999999999\": "
+                            "it does not fit the type it is read into"));
+    eot::outcome const jury = check_run("1\n", "1\n", "one\n", [](eo::checker& c) {
+        c.input.skip_rest("not needed");
+        c.integers();
+    });
+    EO_CHECK_EQ(jury.code, 3);
+    EO_CHECK_EQ(jury.text, std::string("jury error: answer.txt, line 1: expected an integer, found \"one\": it has a "
+                                       "character that cannot be part of the number"));
+    eot::outcome const loose = check_run("1\n", "+5 007 -0\n", "5 7 0\n", [](eo::checker& c) {
+        c.input.skip_rest("not needed");
+        c.output.numbers(eo::lenient);
+        c.integers();
+    });
+    EO_CHECK_EQ(loose.text, std::string("ok 3 integers"));
+}
