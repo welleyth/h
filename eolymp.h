@@ -17,9 +17,11 @@
 #include <algorithm>
 #include <array>
 #include <cerrno>
+#include <cfenv>
 #include <charconv>
 #include <chrono>
 #include <climits>
+#include <clocale>
 #include <cmath>
 #include <csignal>
 #include <cstddef>
@@ -43,6 +45,7 @@
 #include <sys/ioctl.h>
 #include <sys/stat.h>
 #include <sys/syscall.h>
+#include <system_error>
 #include <type_traits>
 #include <unistd.h>
 #include <utility>
@@ -94,6 +97,10 @@ inline bool environment_is(char const* name, char const* value) {
 inline bool on_judge() { return environment("EOLYMP") != nullptr; }
 
 inline bool strict_mode() { return environment_is("EOLYMP_STRICT", "1"); }
+
+inline bool numbers_as_in_c() {
+    return std::fegetround() == FE_TONEAREST && std::strcmp(std::localeconv()->decimal_point, ".") == 0;
+}
 
 struct stop {
     int code;
@@ -422,6 +429,24 @@ struct real_read {
     number_problem problem = number_problem::none;
 };
 
+inline double decimal_value(std::string_view text) {
+#if defined(__cpp_lib_to_chars)
+    if (numbers_as_in_c()) {
+        double quick = 0;
+        std::from_chars_result const read = std::from_chars(text.data(), text.data() + text.size(), quick);
+        if (read.ec == std::errc() && read.ptr == text.data() + text.size()) return quick;
+    }
+#endif
+    char small[64];
+    if (text.size() < sizeof(small)) {
+        std::memcpy(small, text.data(), text.size());
+        small[text.size()] = '\0';
+        return std::strtod(small, nullptr);
+    }
+    std::string const whole(text);
+    return std::strtod(whole.c_str(), nullptr);
+}
+
 inline real_read parse_real(std::string_view text, bool allow_exponent, bool negative_zero = false) {
     if (text.empty()) return {0, 0, number_problem::empty};
     std::size_t at = text[0] == '-' ? 1u : 0u;
@@ -447,8 +472,7 @@ inline real_read parse_real(std::string_view text, bool allow_exponent, bool neg
         if (at == exponent) return {0, 0, number_problem::missing_digits};
     }
     if (at != text.size()) return {0, 0, number_problem::bad_character};
-    std::string const buffer(text);
-    double const value = std::strtod(buffer.c_str(), nullptr);
+    double const value = decimal_value(text);
     if (!std::isfinite(value)) return {0, 0, number_problem::out_of_range};
     if (negative && value == 0 && !negative_zero) return {0, 0, number_problem::redundant_minus};
     if (value == 0) return {0, decimals, number_problem::none};

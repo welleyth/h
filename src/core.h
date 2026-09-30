@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cfenv>
+#include <clocale>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -52,6 +54,10 @@ inline bool environment_is(char const* name, char const* value) {
 inline bool on_judge() { return environment("EOLYMP") != nullptr; }
 
 inline bool strict_mode() { return environment_is("EOLYMP_STRICT", "1"); }
+
+inline bool numbers_as_in_c() {
+    return std::fegetround() == FE_TONEAREST && std::strcmp(std::localeconv()->decimal_point, ".") == 0;
+}
 
 struct stop {
     int code;
