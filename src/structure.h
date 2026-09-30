@@ -158,9 +158,26 @@ inline int root_of(std::vector<int>& parent, int vertex) {
     return {};
 }
 
+namespace detail {
+
+inline bool joins_without_a_cycle(int n, std::vector<edge> const& edges) {
+    std::vector<int> parent(static_cast<std::size_t>(n) + 1);
+    for (int vertex = 1; vertex <= n; vertex++) parent[static_cast<std::size_t>(vertex)] = vertex;
+    for (edge const& one : edges) {
+        int const left = root_of(parent, one.u);
+        int const right = root_of(parent, one.v);
+        if (left == right) return false;
+        parent[static_cast<std::size_t>(left)] = right;
+    }
+    return true;
+}
+
+}  // namespace detail
+
 [[nodiscard]] inline check_result is_tree(int n, std::vector<edge> const& edges) {
     if (edges.size() + 1 != static_cast<std::size_t>(n))
         return check_result(fmt("a tree on {} vertices has {} edges, not {}", n, n - 1, edges.size()));
+    if (detail::vertices_are_inside(n, edges) && detail::joins_without_a_cycle(n, edges)) return {};
     if (check_result simple_enough = is_simple_graph(n, edges); !simple_enough) return simple_enough;
     return is_connected(n, edges);
 }
