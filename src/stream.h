@@ -154,10 +154,11 @@ public:
 
     long long whole(long long low, long long high, stated bounds, value_name const& name, site where,
                     long long type_low, long long type_high, char const* type_word) {
-        std::string const token = take_number(name, where, false, "an integer");
-        integer_read const parsed = parse_integer(token, relaxed_);
-        if (parsed.problem != number_problem::none)
-            refuse(name, fmt("expected an integer, found \"{}\": {}", shorten(token), describe(parsed.problem)));
+        start_value(name, where, "an integer");
+        if (lenient_) settle();
+        integer_read parsed;
+        if (quick_integer(parsed.value)) was_read(name);
+        else parsed = spelled_integer(name);
         study(name, low, high, bounds, type_low, type_high, type_word, where);
         if (bounds == stated::yes) {
             if (parsed.value < low) refuse(name, fmt("{} is below {}", parsed.value, low));
@@ -313,8 +314,38 @@ public:
 
     std::string take_number(value_name const& name, site where, bool with_a_point, char const* expected) {
         start_value(name, where, expected);
+        if (lenient_) settle();
+        return number_here(name, with_a_point, expected);
+    }
+
+    integer_read spelled_integer(value_name const& name) {
+        std::string const token = number_here(name, false, "an integer");
+        integer_read const parsed = parse_integer(token, relaxed_);
+        if (parsed.problem != number_problem::none)
+            refuse(name, fmt("expected an integer, found \"{}\": {}", shorten(token), describe(parsed.problem)));
+        return parsed;
+    }
+
+    bool quick_integer(long long& value) {
+        char const* const at = from_.window();
+        std::size_t const held = from_.held();
+        std::size_t const sign = at[0] == '-' ? 1 : 0;
+        std::size_t end = sign;
+        unsigned long long magnitude = 0;
+        while (end < held && end - sign < 19 && is_digit(at[end]))
+            magnitude = magnitude * 10 + static_cast<unsigned long long>(at[end++] - '0');
+        std::size_t const digits = end - sign;
+        if (end == held || digits == 0 || digits > 18) return false;
+        if (at[sign] == '0' && (digits > 1 || sign == 1)) return false;
+        if (lenient_ && !is_blank(static_cast<unsigned char>(at[end]))) return false;
+        value = sign == 1 ? -static_cast<long long>(magnitude) : static_cast<long long>(magnitude);
+        from_.skip_plain(end);
+        return true;
+    }
+
+    std::string number_here(value_name const& name, bool with_a_point, char const* expected) {
         if (lenient_) {
-            std::string const word = take_word(name, where, expected, longest_number);
+            std::string const word = word_here(name, longest_number);
             if (word.empty()) refuse(name, fmt("expected {}, found nothing", expected));
             if (from_.peek() >= 0 && !is_blank(from_.peek()))
                 refuse(name, fmt("expected {}, found a token longer than {} characters: \"{}\"", expected,
@@ -348,6 +379,10 @@ public:
 
     std::string take_word(value_name const& name, site where, char const* expected, long long cap = 0) {
         start_value(name, where, expected);
+        return word_here(name, cap);
+    }
+
+    std::string word_here(value_name const& name, long long cap) {
         std::string token;
         while (true) {
             int const next = from_.peek();
