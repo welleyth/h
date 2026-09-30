@@ -18,6 +18,14 @@
 #error "eolymp.h needs C++17 or later: build with -std=c++17"
 #else
 
+#if defined(_MSC_VER) && defined(__clang__)
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
+#elif defined(_MSC_VER)
+#pragma warning(push)
+#pragma warning(disable : 4996)
+#endif
+
 #include <algorithm>
 #include <array>
 #include <cerrno>
@@ -1975,7 +1983,7 @@ private:
         bool const negated = ahead('^');
         if (negated) at_++;
         byte_set chosen{};
-        bool any = false;
+        bool some = false;
         while (!failed() && at_ < text_.size() && text_[at_] != ']') {
             std::size_t const start = at_;
             unsigned const low = static_cast<unsigned char>(quoted());
@@ -1986,7 +1994,7 @@ private:
                 if (!failed() && high < low) fail(start, pattern_problem::backwards_range);
             }
             for (unsigned byte = low; byte <= high; byte++) add_byte(chosen, byte);
-            any = true;
+            some = true;
         }
         if (failed()) return 0;
         if (at_ == text_.size()) {
@@ -1994,7 +2002,7 @@ private:
             return 0;
         }
         at_++;
-        if (!any) fail(opened, pattern_problem::empty_class);
+        if (!some) fail(opened, pattern_problem::empty_class);
         if (negated)
             for (std::uint64_t& word : chosen) word = ~word;
         return tree_.one(chosen, negated);
@@ -3433,8 +3441,8 @@ public:
             std::vector<unsigned char> taken(mask + 1, 0);
             while (values.size() < wanted) {
                 long long const drawn = uniform(low, high);
-                std::uint64_t const mixed = static_cast<std::uint64_t>(drawn) * 0x9e3779b97f4a7c15ull;
-                std::size_t at = mixed >> (64 - bits);
+                unsigned long long const mixed = static_cast<unsigned long long>(drawn) * 0x9e3779b97f4a7c15ull;
+                std::size_t at = static_cast<std::size_t>(mixed >> (64 - bits));
                 while (taken[at] != 0 && slots[at] != drawn) at = (at + 1) & mask;
                 if (taken[at] != 0) continue;
                 taken[at] = 1;
@@ -6527,6 +6535,12 @@ private:
 };
 
 }  // namespace eo
+
+#if defined(_MSC_VER) && defined(__clang__)
+#pragma clang diagnostic pop
+#elif defined(_MSC_VER)
+#pragma warning(pop)
+#endif
 
 #endif
 #endif

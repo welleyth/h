@@ -4,7 +4,8 @@
 #include <string>
 
 int main(int argc, char** argv) {
-    std::string const role = std::getenv("ROLE") != nullptr ? std::getenv("ROLE") : "";
+    char const* const asked = eo::detail::environment("ROLE");
+    std::string const role = asked != nullptr ? asked : "";
     if (role == "checker") {
         eo::checker c(argc, argv);
         (void)c.output.read_int(eo::any, "x");

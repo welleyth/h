@@ -40,6 +40,24 @@ SHAPES_BANNER = """\
 
 LANGUAGE = "(defined(_MSVC_LANG) ? _MSVC_LANG : __cplusplus)"
 
+UNSAFE_SILENCED = """\
+#if defined(_MSC_VER) && defined(__clang__)
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
+#elif defined(_MSC_VER)
+#pragma warning(push)
+#pragma warning(disable : 4996)
+#endif
+"""
+
+UNSAFE_RESTORED = """\
+#if defined(_MSC_VER) && defined(__clang__)
+#pragma clang diagnostic pop
+#elif defined(_MSC_VER)
+#pragma warning(pop)
+#endif
+"""
+
 TOO_OLD = '#error "eolymp.h needs C++17 or later: build with -std=c++17"'
 
 TARGETS = [
@@ -79,10 +97,12 @@ def build(root: pathlib.Path, version, order, banner, guard, prelude, too_old) -
         out.extend([f"#if {LANGUAGE} < 201703L", too_old, "#else", ""])
     else:
         out.extend([f"#if {LANGUAGE} >= 201703L", ""])
+    out.append(UNSAFE_SILENCED)
     out.extend("#include " + name for name in sorted(system_includes))
     out.append("")
     out.append("\n\n".join(bodies))
     out.append("")
+    out.append(UNSAFE_RESTORED)
     out.append("#endif")
     out.append("#endif")
     return "\n".join(out) + "\n"

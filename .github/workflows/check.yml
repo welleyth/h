@@ -70,7 +70,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        compiler: [ mingw ]
+        compiler: [ mingw, cl, cl-x86, clang-cl ]
     defaults:
       run:
         shell: bash
@@ -81,8 +81,26 @@ jobs:
         with:
           name: transcript-linux
           path: build/linux
+      - name: Take the compiler from the Visual Studio developer prompt
+        if: matrix.compiler != 'mingw'
+        shell: cmd
+        run: |
+          for /f "usebackq delims=" %%i in (`"%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe" -latest -property installationPath`) do set studio=%%i
+          set target=x64
+          if "${{ matrix.compiler }}"=="cl-x86" set target=x86
+          call "%studio%\VC\Auxiliary\Build\vcvarsall.bat" %target% > nul
+          echo PATH=%PATH%>> "%GITHUB_ENV%"
+          echo INCLUDE=%INCLUDE%>> "%GITHUB_ENV%"
+          echo LIB=%LIB%>> "%GITHUB_ENV%"
+          echo LIBPATH=%LIBPATH%>> "%GITHUB_ENV%"
       - name: Build with ${{ matrix.compiler }}
-        run: CXX=g++ EXTRA=-static sh tests/windows/build.sh build/transcript
+        run: |
+          if [ "${{ matrix.compiler }}" = mingw ]; then
+            CXX=g++ EXTRA=-static sh tests/windows/build.sh build/transcript
+          else
+            PATH="$(dirname "$(command -v cl)"):$PATH" CXX=${{ matrix.compiler == 'cl-x86' && 'cl' || matrix.compiler }} \
+              sh tests/windows/build.sh build/transcript msvc
+          fi
       - run: sh tests/windows/transcript.sh build/transcript > build/transcript.txt
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: always()

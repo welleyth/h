@@ -18,6 +18,14 @@
 
 #if (defined(_MSVC_LANG) ? _MSVC_LANG : __cplusplus) >= 201703L
 
+#if defined(_MSC_VER) && defined(__clang__)
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
+#elif defined(_MSC_VER)
+#pragma warning(push)
+#pragma warning(disable : 4996)
+#endif
+
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
@@ -891,6 +899,12 @@ inline std::vector<long long> chained(rng& draw, long long count, long long limi
 
 }  // namespace shapes
 }  // namespace eo
+
+#if defined(_MSC_VER) && defined(__clang__)
+#pragma clang diagnostic pop
+#elif defined(_MSC_VER)
+#pragma warning(pop)
+#endif
 
 #endif
 #endif

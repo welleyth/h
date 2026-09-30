@@ -228,7 +228,7 @@ private:
         bool const negated = ahead('^');
         if (negated) at_++;
         byte_set chosen{};
-        bool any = false;
+        bool some = false;
         while (!failed() && at_ < text_.size() && text_[at_] != ']') {
             std::size_t const start = at_;
             unsigned const low = static_cast<unsigned char>(quoted());
@@ -239,7 +239,7 @@ private:
                 if (!failed() && high < low) fail(start, pattern_problem::backwards_range);
             }
             for (unsigned byte = low; byte <= high; byte++) add_byte(chosen, byte);
-            any = true;
+            some = true;
         }
         if (failed()) return 0;
         if (at_ == text_.size()) {
@@ -247,7 +247,7 @@ private:
             return 0;
         }
         at_++;
-        if (!any) fail(opened, pattern_problem::empty_class);
+        if (!some) fail(opened, pattern_problem::empty_class);
         if (negated)
             for (std::uint64_t& word : chosen) word = ~word;
         return tree_.one(chosen, negated);

@@ -3,6 +3,7 @@ set -e
 root=$(cd "$(dirname "$0")/../.." && pwd)
 cd "$root"
 bin=$1
+kind=${2:-gnu}
 mkdir -p "$bin"
 case $(uname -s) in
     MINGW* | MSYS* | CYGWIN*) suffix=.exe ;;
@@ -15,7 +16,12 @@ jobs=
 build() {
     name=$1
     source=$2
-    ${CXX:-c++} -std=$standard -O2 $warnings $EXTRA -o "$bin/$name$suffix" "$source" > "$bin/$name.log" 2>&1 &
+    if [ "$kind" = msvc ]; then
+        ${CXX:-cl} -nologo -std:$standard -W4 -WX -EHsc -O2 -Fe:"$bin/$name.exe" -Fo:"$bin/$name.obj" "$source" \
+            > "$bin/$name.log" 2>&1 &
+    else
+        ${CXX:-c++} -std=$standard -O2 $warnings $EXTRA -o "$bin/$name$suffix" "$source" > "$bin/$name.log" 2>&1 &
+    fi
     jobs="$jobs $!:$name"
 }
 for name in exit_codes exits validator checker swallowing_checker generator shaper shape_validator shapes_digest \
