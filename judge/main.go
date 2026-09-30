@@ -222,6 +222,8 @@ func (s *session) run() int {
 		defer os.RemoveAll(space)
 	} else if space, err = filepath.Abs(space); err != nil {
 		return s.fail(err)
+	} else if why := overlapping(space, s.dir); why != "" {
+		return s.refuse(why)
 	} else if err := os.MkdirAll(space, 0o755); err != nil {
 		return s.fail(err)
 	}
@@ -370,4 +372,45 @@ func report(out io.Writer, found Findings, strict bool) int {
 		return 1
 	}
 	return 0
+}
+
+func overlapping(work, problem string) string {
+	near, far := realPath(work), realPath(problem)
+	if near == "" || far == "" {
+		return ""
+	}
+	switch {
+	case near == far:
+		return fmt.Sprintf("--work %s is the problem's own directory; eo-judge clears the directories it makes "+
+			"in its workspace, so give it a directory outside the problem", work)
+	case within(far, near):
+		return fmt.Sprintf("--work %s holds the problem %s; eo-judge clears the directories it makes in its "+
+			"workspace, so give it a directory outside the problem", work, problem)
+	case within(near, far):
+		return fmt.Sprintf("--work %s is inside the problem %s; eo-judge clears the directories it makes in its "+
+			"workspace, so give it a directory outside the problem", work, problem)
+	}
+	return ""
+}
+
+func realPath(path string) string {
+	whole, err := filepath.Abs(path)
+	if err != nil {
+		return ""
+	}
+	var rest []string
+	for at := whole; ; at = filepath.Dir(at) {
+		if real, err := filepath.EvalSymlinks(at); err == nil {
+			return filepath.Join(append([]string{real}, rest...)...)
+		}
+		if filepath.Dir(at) == at {
+			return whole
+		}
+		rest = append([]string{filepath.Base(at)}, rest...)
+	}
+}
+
+func within(inner, outer string) bool {
+	rest, err := filepath.Rel(outer, inner)
+	return err == nil && rest != ".." && !strings.HasPrefix(rest, ".."+string(filepath.Separator))
 }

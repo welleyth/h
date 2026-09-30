@@ -481,18 +481,38 @@ func problemWithADirectory(t *testing.T, name string) string {
 	return dir
 }
 
-func TestAWorkspaceThatHoldsTheProblemClearsItsDirectories(t *testing.T) {
+func TestAWorkspaceThatOverlapsTheProblemIsRefused(t *testing.T) {
 	t.Parallel()
 	needsACompiler(t)
-	for command, name := range map[string]string{"run": "tests", "stress": "stress"} {
+	for command, name := range map[string]string{"run": "tests", "check": "tests", "stress": "stress"} {
 		dir := problemWithADirectory(t, name)
-		args := []string{command, dir, "--work", dir}
-		if command == "stress" {
-			args = append(args, "--args", "-n=[1..8] -max=[1..100]", "--solution", "twin", "--iterations", "1")
+		link := filepath.Join(t.TempDir(), "link")
+		if err := os.Symlink(dir, link); err != nil {
+			t.Fatal(err)
 		}
-		code, _, errs := invokeIn(t.TempDir(), args...)
-		if _, err := os.Stat(filepath.Join(dir, name, "keep.txt")); code != 0 || err == nil {
-			t.Errorf("%s --work on the problem exited %d, said %q, and %s/keep.txt is still there", command, code, errs, name)
+		for work, want := range map[string]string{
+			dir:                           "is the problem's own directory",
+			link:                          "is the problem's own directory",
+			filepath.Dir(dir):             "holds the problem " + dir,
+			filepath.Join(dir, "w"):       "is inside the problem " + dir,
+			filepath.Join(link, "a", "b"): "is inside the problem " + dir,
+		} {
+			args := []string{command, dir, "--work", work}
+			if command == "stress" {
+				args = append(args, "--args", "-n=[1..8] -max=[1..100]", "--solution", "twin", "--iterations", "1")
+			}
+			code, out, errs := invokeIn(t.TempDir(), args...)
+			if code != 2 || out != "" || !strings.Contains(errs, "eo-judge: --work "+work+" "+want+
+				"; eo-judge clears the directories it makes in its workspace, so give it a directory outside the problem") {
+				t.Errorf("%s --work %s exited %d, printed %q, said %q", command, work, code, out, errs)
+			}
 		}
+		if _, err := os.Stat(filepath.Join(dir, name, "keep.txt")); err != nil {
+			t.Errorf("%s: %v", command, err)
+		}
+	}
+	code, _, errs := invokeIn(t.TempDir(), "run", "testdata/authored", "--work", filepath.Join(t.TempDir(), "authored"))
+	if code != 0 {
+		t.Errorf("a workspace beside the problem exited %d, said %q", code, errs)
 	}
 }
