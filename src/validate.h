@@ -14,6 +14,7 @@
 #include "diag.h"
 #include "fmt.h"
 #include "io.h"
+#include "os.h"
 #include "parse.h"
 #include "read.h"
 #include "structure.h"
@@ -498,13 +499,13 @@ private:
                 fmt("--eo-case needs one run of v.cases, and this validator ran it {} times", case_runs_));
         if (wanted < 1 || wanted > cases_counted_)
             detail::library_error(fmt("--eo-case={}, but the test has {} cases", wanted, cases_counted_));
-        int const descriptor = path_.empty() ? 0 : ::open(path_.c_str(), O_RDONLY);
+        int const descriptor = path_.empty() ? 0 : detail::open_to_read(path_.c_str());
         std::pair<long long, long long> const chosen = case_marks_[static_cast<std::size_t>(wanted - 1)];
         std::string out;
         bool const read = detail::read_range(descriptor, 0, case_marks_.front().first, out) &&
                           detail::read_range(descriptor, chosen.first, chosen.second, out) &&
                           detail::read_range(descriptor, case_marks_.back().second, from_.position(), out);
-        if (!path_.empty()) ::close(descriptor);
+        if (!path_.empty()) detail::close_descriptor(descriptor);
         if (!read)
             detail::library_error("--eo-case needs the test in a file, and standard input is not one; give the "
                                   "file's path");

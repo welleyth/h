@@ -6,7 +6,7 @@ import sys
 from common import ROOT
 from version import Refused, current
 
-CORE = ["core.h", "fmt.h", "parse.h", "diag.h", "io.h", "read.h", "pattern.h", "stream.h", "structure.h", "random.h", "summary.h", "role.h", "validate.h", "check.h", "interact.h", "phases.h", "control.h", "generate.h"]
+CORE = ["core.h", "fmt.h", "parse.h", "diag.h", "os.h", "io.h", "read.h", "pattern.h", "stream.h", "structure.h", "random.h", "summary.h", "role.h", "validate.h", "check.h", "interact.h", "phases.h", "control.h", "generate.h"]
 
 SHAPES = ["shapes/present.h", "shapes/trees.h", "shapes/graphs.h", "shapes/sequences.h", "shapes/strings.h", "shapes/points.h"]
 

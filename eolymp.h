@@ -950,6 +950,84 @@ public:
 namespace eo {
 namespace detail {
 
+inline long long read_some(int descriptor, char* into, std::size_t most) {
+    return static_cast<long long>(::read(descriptor, into, most));
+}
+
+inline int open_to_read(char const* path) { return ::open(path, O_RDONLY); }
+
+inline int open_to_write(char const* path) { return ::open(path, O_WRONLY); }
+
+inline void close_descriptor(int descriptor) { ::close(descriptor); }
+
+inline int duplicate(int descriptor) { return ::dup(descriptor); }
+
+inline void duplicate_onto(int from, int to) { ::dup2(from, to); }
+
+inline int descriptor_of(std::FILE* file) { return ::fileno(file); }
+
+inline bool regular_file(int descriptor, long long& size) {
+    struct stat seen {};
+    if (::fstat(descriptor, &seen) != 0 || !S_ISREG(seen.st_mode)) return false;
+    size = static_cast<long long>(seen.st_size);
+    return true;
+}
+
+inline long long offset_of(int descriptor) { return static_cast<long long>(::lseek(descriptor, 0, SEEK_CUR)); }
+
+inline bool bytes_waiting(int descriptor, int& ready) { return ::ioctl(descriptor, FIONREAD, &ready) == 0; }
+
+inline void ignore_broken_pipes() { ::signal(SIGPIPE, SIG_IGN); }
+
+inline long long read_at(int descriptor, char* into, std::size_t most, long long at) {
+    return static_cast<long long>(::pread(descriptor, into, most, static_cast<off_t>(at)));
+}
+
+inline void write_all(int descriptor, char const* bytes, std::size_t size) {
+    while (size > 0) {
+        ssize_t const wrote = ::write(descriptor, bytes, size);
+        if (wrote < 0 && errno == EINTR) continue;
+        if (wrote <= 0) return;
+        bytes += wrote;
+        size -= static_cast<std::size_t>(wrote);
+    }
+}
+
+inline constexpr int deadly_signals[] = {SIGSEGV, SIGABRT, SIGFPE, SIGBUS, SIGILL};
+
+inline char const* how_it_died(int caught) {
+    if (caught == SIGSEGV) return "SIGSEGV: it read or wrote memory it does not own, or ran out of stack";
+    if (caught == SIGABRT) return "SIGABRT: it aborted, as a failed assert does";
+    if (caught == SIGFPE) return "SIGFPE: an arithmetic error, such as an integer division by zero";
+    if (caught == SIGBUS) return "SIGBUS: a memory access the machine refused";
+    return "SIGILL: an illegal instruction, which the end of a function that returns no value can reach";
+}
+
+inline void stand_on_a_spare_stack() {
+    static char spare[1 << 16];
+    stack_t current{};
+    if (::sigaltstack(nullptr, &current) != 0 || (current.ss_flags & SS_DISABLE) == 0) return;
+    stack_t mine{};
+    mine.ss_sp = spare;
+    mine.ss_size = sizeof(spare);
+    ::sigaltstack(&mine, nullptr);
+}
+
+using signal_dispositions = std::array<struct sigaction, std::size(deadly_signals)>;
+
+inline void catch_the_deadly_signals(void (*handler)(int), signal_dispositions& before) {
+    stand_on_a_spare_stack();
+    struct sigaction deadly {};
+    deadly.sa_handler = handler;
+    deadly.sa_flags = static_cast<int>(SA_RESETHAND | SA_ONSTACK);
+    sigemptyset(&deadly.sa_mask);
+    for (std::size_t at = 0; at < before.size(); at++) ::sigaction(deadly_signals[at], &deadly, &before[at]);
+}
+
+inline void restore_the_deadly_signals(signal_dispositions const& before) {
+    for (std::size_t at = 0; at < before.size(); at++) ::sigaction(deadly_signals[at], &before[at], nullptr);
+}
+
 inline bool would_block() { return errno == EAGAIN || errno == EWOULDBLOCK; }
 
 inline void wait_for(int descriptor, short event) {
@@ -983,10 +1061,76 @@ inline void write_while_read(int descriptor, std::string const& bytes, int patie
     }
 }
 
+enum class absorbed { nothing, some, full };
+
+inline std::size_t constexpr absorb_limit = std::size_t{1} << 24;
+
+template <class Reading, class Naming>
+inline void write_while_absorbing(int to, std::string const& bytes, Reading& from, bool& deaf,
+                                  Naming const& who, char const* role, char const* instead) {
+    std::size_t sent = 0;
+    bool listening = true;
+    while (sent < bytes.size()) {
+        pollfd both[2] = {{to, POLLOUT, 0}, {listening ? from.listening_descriptor() : -1, POLLIN, 0}};
+        int const ready = ::poll(both, 2, -1);
+        if (ready < 0 && errno != EINTR && errno != EAGAIN) deaf = true;
+        if (deaf) return;
+        if (ready < 0) continue;
+        if (both[1].revents != 0) {
+            absorbed const what = from.absorb(absorb_limit);
+            if (what == absorbed::full)
+                warn_at_once("EO409",
+                             fmt("{} sent more than {} MB while the {} was still writing to it, and the rest "
+                                 "of it waits in the pipe",
+                                 who(), absorb_limit >> 20, role),
+                             instead, site::here());
+            listening = what == absorbed::some;
+        }
+        if (both[0].revents == 0) continue;
+        std::size_t const step = std::min<std::size_t>(bytes.size() - sent, PIPE_BUF);
+        ssize_t const wrote = ::write(to, bytes.data() + sent, step);
+        if (wrote > 0) sent += static_cast<std::size_t>(wrote);
+        if (wrote < 0 && errno != EINTR && !would_block()) {
+            deaf = true;
+            return;
+        }
+    }
+}
+
+inline std::FILE* opened_scratch(int descriptor) {
+    if (descriptor < 0) return nullptr;
+    std::FILE* const file = ::fdopen(descriptor, "w+b");
+    if (file == nullptr) ::close(descriptor);
+    return file;
+}
+
+inline std::FILE* scratch_in_memory() {
+#if defined(__linux__) && defined(SYS_memfd_create)
+    return opened_scratch(static_cast<int>(::syscall(SYS_memfd_create, "eolymp-checker-output", 0)));
+#else
+    return nullptr;
+#endif
+}
+
+inline std::FILE* scratch_in_the_temporary_directory() { return std::tmpfile(); }
+
+inline std::FILE* scratch_in_the_workspace() {
+    char name[] = "eolymp-checker-output-XXXXXX";
+    int const descriptor = ::mkstemp(name);
+    if (descriptor >= 0) ::unlink(name);
+    return opened_scratch(descriptor);
+}
+
+}  // namespace detail
+}  // namespace eo
+
+namespace eo {
+namespace detail {
+
 inline bool file_is_there(char const* path) {
-    int const descriptor = ::open(path, O_RDONLY);
+    int const descriptor = open_to_read(path);
     if (descriptor < 0) return false;
-    ::close(descriptor);
+    close_descriptor(descriptor);
     return true;
 }
 
@@ -1002,7 +1146,7 @@ inline bool read_range(int descriptor, long long from, long long to, std::string
     char buffer[pipe_size];
     while (from < to) {
         std::size_t const wanted = static_cast<std::size_t>(std::min<long long>(sizeof(buffer), to - from));
-        ssize_t const got = ::pread(descriptor, buffer, wanted, static_cast<off_t>(from));
+        long long const got = read_at(descriptor, buffer, wanted, from);
         if (got < 0 && errno == EINTR) continue;
         if (got <= 0) return false;
         into.append(buffer, static_cast<std::size_t>(got));
@@ -1010,8 +1154,6 @@ inline bool read_range(int descriptor, long long from, long long to, std::string
     }
     return true;
 }
-
-enum class absorbed { nothing, some, full };
 
 class source {
 public:
@@ -1053,7 +1195,7 @@ public:
     static source over_channel(char const* path) { return over_file(path, false, pipe_chunk); }
 
     static source over_file(char const* path, bool normalize, std::size_t chunk = default_chunk) {
-        int const descriptor = ::open(path, O_RDONLY);
+        int const descriptor = open_to_read(path);
         if (descriptor < 0) library_error(fmt("cannot open {}: {}", path, std::strerror(errno)));
         return over_descriptor(descriptor, true, normalize, chunk);
     }
@@ -1106,11 +1248,11 @@ public:
         long long const here = static_cast<long long>(held());
         if (drained_) return here;
         if (text_backed_) return here + static_cast<long long>(pending_.size());
-        struct stat seen {};
-        if (::fstat(descriptor_, &seen) != 0 || !S_ISREG(seen.st_mode)) return -1;
-        off_t const at = ::lseek(descriptor_, 0, SEEK_CUR);
+        long long size = 0;
+        if (!regular_file(descriptor_, size)) return -1;
+        long long const at = offset_of(descriptor_);
         if (at < 0) return -1;
-        return here + static_cast<long long>(seen.st_size - at);
+        return here + (size - at);
     }
     char const* window() const { return buffer_.data() + begin_; }
 
@@ -1124,12 +1266,12 @@ public:
     absorbed absorb(std::size_t most) {
         if (drained_ || text_backed_) return absorbed::nothing;
         int ready = 0;
-        if (::ioctl(descriptor_, FIONREAD, &ready) != 0 || ready <= 0) return absorbed::nothing;
+        if (!bytes_waiting(descriptor_, ready) || ready <= 0) return absorbed::nothing;
         std::size_t const wanted = static_cast<std::size_t>(ready);
         if (held() + wanted > most) return absorbed::full;
         compact();
         if (buffer_.size() - end_ < wanted) buffer_.resize(end_ + wanted);
-        ssize_t const got = ::read(descriptor_, buffer_.data() + end_, wanted);
+        long long const got = read_some(descriptor_, buffer_.data() + end_, wanted);
         if (got < 0) return errno == EINTR ? absorbed::some : absorbed::nothing;
         end_ += static_cast<std::size_t>(got);
         return got > 0 ? absorbed::some : absorbed::nothing;
@@ -1139,7 +1281,7 @@ public:
         if (drained_) return false;
         if (!text_backed_) {
             int ready = 0;
-            if (::ioctl(descriptor_, FIONREAD, &ready) != 0 || ready <= 0) return false;
+            if (!bytes_waiting(descriptor_, ready) || ready <= 0) return false;
         }
         return have(held() + 1);
     }
@@ -1155,7 +1297,7 @@ private:
         : buffer_(std::max<std::size_t>(chunk, 1)), normalize_(normalize) {}
 
     void release() {
-        if (owned_ && descriptor_ >= 0) ::close(descriptor_);
+        if (owned_ && descriptor_ >= 0) close_descriptor(descriptor_);
         descriptor_ = -1;
         owned_ = false;
     }
@@ -1204,7 +1346,7 @@ private:
                 if (pending_.empty()) drained_ = true;
                 continue;
             }
-            ssize_t const got = ::read(descriptor_, buffer_.data() + end_, room);
+            long long const got = read_some(descriptor_, buffer_.data() + end_, room);
             if (got < 0) {
                 if (errno == EINTR) continue;
                 if (would_block()) {
@@ -1237,40 +1379,6 @@ private:
     long long line_ = 1;
     long long column_ = 1;
 };
-
-inline std::size_t constexpr absorb_limit = std::size_t{1} << 24;
-
-template <class Reading, class Naming>
-inline void write_while_absorbing(int to, std::string const& bytes, Reading& from, bool& deaf,
-                                  Naming const& who, char const* role, char const* instead) {
-    std::size_t sent = 0;
-    bool listening = true;
-    while (sent < bytes.size()) {
-        pollfd both[2] = {{to, POLLOUT, 0}, {listening ? from.listening_descriptor() : -1, POLLIN, 0}};
-        int const ready = ::poll(both, 2, -1);
-        if (ready < 0 && errno != EINTR && errno != EAGAIN) deaf = true;
-        if (deaf) return;
-        if (ready < 0) continue;
-        if (both[1].revents != 0) {
-            absorbed const what = from.absorb(absorb_limit);
-            if (what == absorbed::full)
-                warn_at_once("EO409",
-                             fmt("{} sent more than {} MB while the {} was still writing to it, and the rest "
-                                 "of it waits in the pipe",
-                                 who(), absorb_limit >> 20, role),
-                             instead, site::here());
-            listening = what == absorbed::some;
-        }
-        if (both[0].revents == 0) continue;
-        std::size_t const step = std::min<std::size_t>(bytes.size() - sent, PIPE_BUF);
-        ssize_t const wrote = ::write(to, bytes.data() + sent, step);
-        if (wrote > 0) sent += static_cast<std::size_t>(wrote);
-        if (wrote < 0 && errno != EINTR && !would_block()) {
-            deaf = true;
-            return;
-        }
-    }
-}
 
 }  // namespace detail
 }  // namespace eo
@@ -4115,13 +4223,13 @@ private:
                 fmt("--eo-case needs one run of v.cases, and this validator ran it {} times", case_runs_));
         if (wanted < 1 || wanted > cases_counted_)
             detail::library_error(fmt("--eo-case={}, but the test has {} cases", wanted, cases_counted_));
-        int const descriptor = path_.empty() ? 0 : ::open(path_.c_str(), O_RDONLY);
+        int const descriptor = path_.empty() ? 0 : detail::open_to_read(path_.c_str());
         std::pair<long long, long long> const chosen = case_marks_[static_cast<std::size_t>(wanted - 1)];
         std::string out;
         bool const read = detail::read_range(descriptor, 0, case_marks_.front().first, out) &&
                           detail::read_range(descriptor, chosen.first, chosen.second, out) &&
                           detail::read_range(descriptor, case_marks_.back().second, from_.position(), out);
-        if (!path_.empty()) ::close(descriptor);
+        if (!path_.empty()) detail::close_descriptor(descriptor);
         if (!read)
             detail::library_error("--eo-case needs the test in a file, and standard input is not one; give the "
                                   "file's path");
@@ -4367,30 +4475,6 @@ inline checker*& live_checker() {
     return only;
 }
 
-inline std::FILE* opened_scratch(int descriptor) {
-    if (descriptor < 0) return nullptr;
-    std::FILE* const file = ::fdopen(descriptor, "w+b");
-    if (file == nullptr) ::close(descriptor);
-    return file;
-}
-
-inline std::FILE* scratch_in_memory() {
-#if defined(__linux__) && defined(SYS_memfd_create)
-    return opened_scratch(static_cast<int>(::syscall(SYS_memfd_create, "eolymp-checker-output", 0)));
-#else
-    return nullptr;
-#endif
-}
-
-inline std::FILE* scratch_in_the_temporary_directory() { return std::tmpfile(); }
-
-inline std::FILE* scratch_in_the_workspace() {
-    char name[] = "eolymp-checker-output-XXXXXX";
-    int const descriptor = ::mkstemp(name);
-    if (descriptor >= 0) ::unlink(name);
-    return opened_scratch(descriptor);
-}
-
 using scratch_maker = std::FILE* (*)();
 
 inline std::array<scratch_maker, 3> scratch_makers() {
@@ -4406,16 +4490,6 @@ inline std::FILE* first_scratch(std::array<scratch_maker, Count> const& makers) 
 
 inline std::FILE* scratch_file() { return first_scratch(scratch_makers()); }
 
-inline constexpr int deadly_signals[] = {SIGSEGV, SIGABRT, SIGFPE, SIGBUS, SIGILL};
-
-inline char const* how_it_died(int caught) {
-    if (caught == SIGSEGV) return "SIGSEGV: it read or wrote memory it does not own, or ran out of stack";
-    if (caught == SIGABRT) return "SIGABRT: it aborted, as a failed assert does";
-    if (caught == SIGFPE) return "SIGFPE: an arithmetic error, such as an integer division by zero";
-    if (caught == SIGBUS) return "SIGBUS: a memory access the machine refused";
-    return "SIGILL: an illegal instruction, which the end of a function that returns no value can reach";
-}
-
 inline void (*&on_a_deadly_signal())(int) {
     static void (*hook)(int) = nullptr;
     return hook;
@@ -4428,26 +4502,6 @@ inline void deadly_signal(int caught) {
 #else
     ::raise(caught);
 #endif
-}
-
-inline void write_all(int descriptor, char const* bytes, std::size_t size) {
-    while (size > 0) {
-        ssize_t const wrote = ::write(descriptor, bytes, size);
-        if (wrote < 0 && errno == EINTR) continue;
-        if (wrote <= 0) return;
-        bytes += wrote;
-        size -= static_cast<std::size_t>(wrote);
-    }
-}
-
-inline void stand_on_a_spare_stack() {
-    static char spare[1 << 16];
-    stack_t current{};
-    if (::sigaltstack(nullptr, &current) != 0 || (current.ss_flags & SS_DISABLE) == 0) return;
-    stack_t mine{};
-    mine.ss_sp = spare;
-    mine.ss_size = sizeof(spare);
-    ::sigaltstack(&mine, nullptr);
 }
 
 class reader;
@@ -4741,14 +4795,14 @@ public:
         jury = stream(detail::source::over_file(paths[2].c_str(), true), detail::fault::jury_error,
                       "answer.txt");
         if (detail::on_judge()) {
-            saved_out_ = ::dup(1);
-            saved_err_ = ::dup(2);
+            saved_out_ = detail::duplicate(1);
+            saved_err_ = detail::duplicate(2);
             held_ = detail::scratch_file();
             if (held_ == nullptr)
                 detail::library_error("the checker cannot open a scratch file for its own output: not in memory, "
                                       "not in the temporary directory and not in the workspace");
-            ::dup2(::fileno(held_), 1);
-            ::dup2(::fileno(held_), 2);
+            detail::duplicate_onto(detail::descriptor_of(held_), 1);
+            detail::duplicate_onto(detail::descriptor_of(held_), 2);
             detail::emitter() = &checker::write_log;
             catch_deadly_signals();
         }
@@ -5214,10 +5268,10 @@ private:
         let_go_of_the_signals();
         std::fflush(stdout);
         std::fflush(stderr);
-        ::dup2(saved_out_, 1);
-        ::dup2(saved_err_, 2);
-        ::close(saved_out_);
-        ::close(saved_err_);
+        detail::duplicate_onto(saved_out_, 1);
+        detail::duplicate_onto(saved_err_, 2);
+        detail::close_descriptor(saved_out_);
+        detail::close_descriptor(saved_err_);
     }
 
     long long copy_what_was_held() {
@@ -5235,8 +5289,7 @@ private:
     void let_go_of_the_signals() {
         detail::after_a_log_line() = nullptr;
         detail::on_a_deadly_signal() = nullptr;
-        for (std::size_t at = 0; at < before_signals_.size(); at++)
-            ::sigaction(detail::deadly_signals[at], &before_signals_[at], nullptr);
+        detail::restore_the_deadly_signals(before_signals_);
     }
 
     void let_go_of_what_was_held() {
@@ -5245,16 +5298,10 @@ private:
     }
 
     void catch_deadly_signals() {
-        held_descriptor_ = ::fileno(held_);
+        held_descriptor_ = detail::descriptor_of(held_);
         detail::on_a_deadly_signal() = &checker::died;
         detail::after_a_log_line() = &checker::logged;
-        detail::stand_on_a_spare_stack();
-        struct sigaction deadly {};
-        deadly.sa_handler = &detail::deadly_signal;
-        deadly.sa_flags = static_cast<int>(SA_RESETHAND | SA_ONSTACK);
-        sigemptyset(&deadly.sa_mask);
-        for (std::size_t at = 0; at < before_signals_.size(); at++)
-            ::sigaction(detail::deadly_signals[at], &deadly, &before_signals_[at]);
+        detail::catch_the_deadly_signals(&detail::deadly_signal, before_signals_);
     }
 
     static void logged(std::size_t bytes) {
@@ -5277,8 +5324,8 @@ private:
         detail::write_all(saved_out_, how, std::strlen(how));
         detail::write_all(saved_out_, "\n", 1);
         char buffer[4096];
-        off_t at = 0;
-        for (ssize_t got = 0; (got = ::pread(held_descriptor_, buffer, sizeof(buffer), at)) > 0; at += got)
+        long long at = 0;
+        for (long long got = 0; (got = detail::read_at(held_descriptor_, buffer, sizeof(buffer), at)) > 0; at += got)
             detail::write_all(saved_out_, buffer, static_cast<std::size_t>(got));
         char const tail[] = "eolymp.h " EOLYMP_H_VERSION "\n";
         detail::write_all(saved_out_, tail, sizeof(tail) - 1);
@@ -5308,7 +5355,7 @@ private:
     std::FILE* held_ = nullptr;
     int held_descriptor_ = -1;
     std::size_t logged_ = 0;
-    std::array<struct sigaction, std::size(detail::deadly_signals)> before_signals_{};
+    detail::signal_dispositions before_signals_{};
 };
 
 }  // namespace eo
@@ -5380,7 +5427,7 @@ protected:
             if (given[static_cast<std::size_t>(at)] != nullptr) paths_[at] = given[static_cast<std::size_t>(at)];
         if (paths_[0].empty() || paths_[1].empty())
             library_error(fmt("{}: {} needs the test and a file for its summary", where_of(where), named));
-        ::signal(SIGPIPE, SIG_IGN);
+        ignore_broken_pipes();
         log_file() = stderr;
         emitter() = &dialogue::say;
         input = stream(source::over_file(paths_[0].c_str(), true), fault::jury_error, "input.txt");
@@ -5819,7 +5866,7 @@ public:
         auto made = std::make_unique<channel>();
         made->owner_ = this;
         made->index_ = static_cast<long long>(team_.size()) + 1;
-        made->writes_ = ::open(to_them.c_str(), O_WRONLY);
+        made->writes_ = detail::open_to_write(to_them.c_str());
         if (made->writes_ < 0) fail_jury(fmt("cannot write to instance {}", made->index_));
         std::string const named = fmt("instance {}", made->index_);
         detail::source listening = detail::source::over_channel(from_them.c_str());
@@ -5921,7 +5968,7 @@ inline void channel::close() {
     if (shut_) return;
     flush();
     shut_ = true;
-    if (writes_ >= 0) ::close(writes_);
+    if (writes_ >= 0) detail::close_descriptor(writes_);
     writes_ = -1;
 }
 
@@ -5990,8 +6037,8 @@ public:
         base_ = detail::seed_of(all);
         dice_.emplace("", eo::rng(base_));
         std::fflush(stdout);
-        struct stat towards {};
-        if (::fstat(1, &towards) == 0 && S_ISREG(towards.st_mode)) started_ = ::lseek(1, 0, SEEK_CUR);
+        long long size = 0;
+        if (detail::regular_file(1, size)) started_ = detail::offset_of(1);
         out.owner_ = this;
         detail::live_generator() = this;
         detail::close_on_exit(&generator::exited_early);
@@ -6249,7 +6296,7 @@ private:
         if (flushed != 0) detail::finish(3, fmt("the test could not be written: {}", std::strerror(reason)));
         if (std::ferror(stdout))
             detail::finish(3, "the test could not be written: an earlier write to stdout failed");
-        long long const ended = ::lseek(1, 0, SEEK_CUR);
+        long long const ended = detail::offset_of(1);
         if (!describing_ && started_ >= 0 && ended >= 0 && ended - started_ != written_)
             detail::warn("EO503", fmt("{} bytes reached stdout without going through g.out",
                                       ended - started_ - written_),

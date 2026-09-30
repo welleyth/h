@@ -12,12 +12,10 @@
 #include <cstdio>
 #include <cstring>
 
-#include <sys/stat.h>
-#include <unistd.h>
-
 #include "core.h"
 #include "diag.h"
 #include "fmt.h"
+#include "os.h"
 #include "parse.h"
 #include "random.h"
 #include "read.h"
@@ -85,8 +83,8 @@ public:
         base_ = detail::seed_of(all);
         dice_.emplace("", eo::rng(base_));
         std::fflush(stdout);
-        struct stat towards {};
-        if (::fstat(1, &towards) == 0 && S_ISREG(towards.st_mode)) started_ = ::lseek(1, 0, SEEK_CUR);
+        long long size = 0;
+        if (detail::regular_file(1, size)) started_ = detail::offset_of(1);
         out.owner_ = this;
         detail::live_generator() = this;
         detail::close_on_exit(&generator::exited_early);
@@ -344,7 +342,7 @@ private:
         if (flushed != 0) detail::finish(3, fmt("the test could not be written: {}", std::strerror(reason)));
         if (std::ferror(stdout))
             detail::finish(3, "the test could not be written: an earlier write to stdout failed");
-        long long const ended = ::lseek(1, 0, SEEK_CUR);
+        long long const ended = detail::offset_of(1);
         if (!describing_ && started_ >= 0 && ended >= 0 && ended - started_ != written_)
             detail::warn("EO503", fmt("{} bytes reached stdout without going through g.out",
                                       ended - started_ - written_),

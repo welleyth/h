@@ -10,14 +10,12 @@
 #include <string>
 #include <vector>
 
-#include <poll.h>
-#include <unistd.h>
-
 #include "check.h"
 #include "core.h"
 #include "diag.h"
 #include "fmt.h"
 #include "io.h"
+#include "os.h"
 #include "random.h"
 #include "role.h"
 #include "stream.h"
@@ -90,7 +88,7 @@ protected:
             if (given[static_cast<std::size_t>(at)] != nullptr) paths_[at] = given[static_cast<std::size_t>(at)];
         if (paths_[0].empty() || paths_[1].empty())
             library_error(fmt("{}: {} needs the test and a file for its summary", where_of(where), named));
-        ::signal(SIGPIPE, SIG_IGN);
+        ignore_broken_pipes();
         log_file() = stderr;
         emitter() = &dialogue::say;
         input = stream(source::over_file(paths_[0].c_str(), true), fault::jury_error, "input.txt");
