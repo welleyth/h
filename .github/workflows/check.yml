@@ -54,6 +54,16 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - run: make -j"$(sysctl -n hw.ncpu)" check
 
+  transcript:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - run: make transcript
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: transcript-linux
+          path: build/transcript.txt
+
   judge:
     strategy:
       fail-fast: false
@@ -107,7 +117,7 @@ jobs:
       - run: make mutants
 
   release:
-    needs: [ linux, musl, gcc9, macos, judge, sanitize, mutants ]
+    needs: [ linux, musl, gcc9, macos, transcript, judge, sanitize, mutants ]
     if: github.repository == 'eolymp/h' && github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     concurrency:

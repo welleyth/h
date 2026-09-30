@@ -238,9 +238,9 @@ make check
 That is the whole C++ gate, and CI runs it on g++, clang++, musl and macOS, and its `test`,
 `hostile` and `examples` parts on GCC 9, whose warnings differ from today's compilers' and
 fail the build under `-Werror` in every program that includes the header. CI also runs
-`make judge`, `make mutants`, `make sanitize` and `make fuzz`, and `make version` on a pull
-request. This table is the one description of the gate: the rows down to `budget` are what
-`make check` runs, the rest run on their own, and each answers a question:
+`make judge`, `make transcript`, `make mutants`, `make sanitize` and `make fuzz`, and `make
+version` on a pull request. This table is the one description of the gate: the rows down to
+`budget` are what `make check` runs, the rest run on their own, and each answers a question:
 
 | Target | Proves |
 | --- | --- |
@@ -253,6 +253,7 @@ request. This table is the one description of the gate: the rows down to `budget
 | `examples` | every example in `docs/` compiles |
 | `codes` | every warning code the sources raise has a row in `docs/warnings.md`, and the page's count of built codes is right |
 | `budget` | how long the validator above and the first checker in checker.md take to build, and how large they are, and fails when either takes more than 8.5 times the compiler CPU time of the standard headers `eolymp.h` includes, a fixed list in `tools/budget.py` that the gate holds to the header's own `#include` lines, built alone in the same run, each program the fastest of three builds, or leaves an object over 220 KB; here the validator is 5.8 times and 194 KB, and CI's largest object is 197 KB, on musl |
+| `transcript` | the validators, checkers and generators of `tests/e2e` and `tests/windows` on 64 scenarios, among them CRLF, a lone CR and Ctrl-Z in every file a checker or validator reads, input on stdin and through a pipe, the checker's held output, EO503, reals written and read, shapes, `rng.real` bits and an exit before a verdict, written to `build/transcript.txt` as each run's exit code, output bytes and checksums; run with `make transcript` |
 | `bench` | how many instructions the main paths take, from reading integers to comparing tokens and writing reals, counted by `perf`; `BASE=<revision>` builds the same programs against that revision's headers and shows the change; run with `make bench` |
 | `mutants` | a changed operator or bound in either header makes the suite fail; run with `make mutants` |
 | `sanitize` | the suite and the end-to-end programs pass under ASan and UBSan; run with `make sanitize` |
