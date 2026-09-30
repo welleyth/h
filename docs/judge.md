@@ -55,8 +55,11 @@ not compile, a generator that fails, a missing file.
 | `interactive` | guessing a number in 20 queries: an interactor with a budget, a checker that takes the interactor's verdict, and a solution that always answers 1 |
 | `phases` | Alice and Bob over `runCount` 2: an interactor that hands a code from the first run to the second, and a solution whose longer code scores part of a test |
 
-Each passes `run --expect --strict` and `check --strict` as written, with only note EO821
-left, so everything the report says after an edit is about the edit. The programs include
+Each carries one [test for its validator and one for its
+checker](#tests-for-the-validator-and-the-checker), an input the validator refuses and an
+output with its verdict, to copy for more. Each passes `run --expect --strict` and
+`check --strict` as written, with only note EO821 left, so everything the report says after
+an edit is about the edit. The programs include
 `eolymp.h` and attach nothing, as on the judge.
 
 ## Cache

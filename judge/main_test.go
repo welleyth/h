@@ -433,3 +433,38 @@ func TestARelativeWorkspaceIsWhereTheProgramsFindTheirFiles(t *testing.T) {
 		t.Errorf("stress --work %s exited %d, printed %q, said %q", relative, code, out, errs)
 	}
 }
+
+func TestInitWritesATestForTheValidatorAndOneForTheChecker(t *testing.T) {
+	t.Parallel()
+	needsACompiler(t)
+	for _, kind := range kinds {
+		t.Run(kind, func(t *testing.T) {
+			t.Parallel()
+			dir := filepath.Join(t.TempDir(), "new")
+			if code, _, errs := invoke("init", dir, "--type", kind); code != 0 {
+				t.Fatalf("exit %d, said %q", code, errs)
+			}
+			problem, err := LoadProblem(dir)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if len(problem.ValidatorTests) != 1 || len(problem.CheckerTests) != 1 {
+				t.Fatalf("%d validator and %d checker tests", len(problem.ValidatorTests), len(problem.CheckerTests))
+			}
+			flipped := relocated(t, dir, func(problem *Problem) {
+				problem.ValidatorTests[0].Expect = "VALID"
+				problem.CheckerTests[0].Expect = CheckerExpect{Verdict: "FAILURE"}
+			})
+			said := map[string]string{}
+			for _, code := range []string{"EO911", "EO912"} {
+				for where, message := range authoredFindings(t, flipped, code) {
+					said[where] = message
+				}
+			}
+			if !strings.HasPrefix(said["validator test 1"], "it is expected VALID, and the validator refuses it: ") ||
+				!strings.HasPrefix(said["checker test 1"], "it is expected FAILURE, and the checker gives ") {
+				t.Errorf("the flipped tests found %v", said)
+			}
+		})
+	}
+}

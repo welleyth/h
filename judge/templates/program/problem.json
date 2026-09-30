@@ -23,5 +23,11 @@
        {"index": 4, "score": 20, "generator": {"script": "gen", "arguments": ["-n=100000"]}, "answerGenerator": "solution"},
        {"index": 5, "score": 20, "generator": {"script": "gen", "arguments": ["-n=100000", "-fill=max"]}, "answerGenerator": "solution"}
      ]}
+  ],
+  "validatorTests": [
+    {"input": "2\n1 0\n", "expect": "INVALID"}
+  ],
+  "checkerTests": [
+    {"input": "2\n3 4\n", "output": "8\n", "answer": "7\n", "expect": "WRONG_ANSWER"}
   ]
 }

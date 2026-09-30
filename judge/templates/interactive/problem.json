@@ -22,5 +22,11 @@
        {"index": 4, "score": 20, "generator": {"script": "gen", "arguments": ["-n=1000000"]}},
        {"index": 5, "score": 20, "generator": {"script": "gen", "arguments": ["-n=1000000", "-secret=1000000"]}}
      ]}
+  ],
+  "validatorTests": [
+    {"input": "5 6\n", "expect": "INVALID"}
+  ],
+  "checkerTests": [
+    {"input": "2 2\n", "output": "eolymp-summary 1\nfraction 1\nmessage 1 queries\n", "answer": "2 2\n", "expect": "ACCEPTED"}
   ]
 }
