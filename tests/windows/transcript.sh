@@ -27,8 +27,11 @@ run() {
     printf '\n'
     cat -A "err.$count" | head -40
 }
+path() {
+    echo "$bin/$1$suffix"
+}
 program() {
-    echo "$launch $bin/$1$suffix"
+    echo "$launch $(path "$1")"
 }
 validate() {
     label=$1
@@ -168,4 +171,38 @@ run "a checker that calls quick_exit(0)" env ROLE=quick EOLYMP=1 TEST_COST=40 $(
 run "a checker never destroyed" env ROLE=leaked EOLYMP=1 TEST_COST=40 $(program exits) ein.txt eout.txt eout.txt
 run "a validator that calls exit(0)" env ROLE=validator $(program exits) ein.txt
 run "a generator that calls exit(0)" sh -c "ROLE=generator $(program exits) -n=7 > et.txt; code=\$?; cat -A et.txt; exit \$code"
+run "an interactor that calls exit(0)" sh -c "ROLE=interactor TEST_COST=40 $(program exits) ein.txt esummary.txt < /dev/null"
+
+printf '1000 723\n' > iin.txt
+dialogue() {
+    label=$1
+    shift
+    run "$label" sh -c "TEST_COST=40 timeout 300 $(program play) $* | sed 's/ solution .*//'"
+}
+play() {
+    label=$1
+    shift
+    dialogue "interactor: $label" "$(path interactor) iin.txt isummary.txt -- $*"
+}
+play "a correct solution" "$(path solution)"
+run "interactor: the summary it wrote" cat isummary.txt
+run "the stock checker on that summary" env TEST_COST=40 $(program stock_checker) iin.txt isummary.txt iin.txt
+for mode in silent garbage outofrange wrongguess greedy deaf waiting; do
+    play "a $mode solution" "$(path hostile) $mode"
+done
+dialogue "interactor: a solution that keeps asking past its budget" \
+    "--wait $(path interactor) iin.txt isummary.txt -- $(path hostile) stubborn"
+printf '123456789\n' > pin.txt
+dialogue "phase 1" "$(path phased) pin.txt phandoff.txt -- $(path phased_solution)"
+run "phase 1: the handoff it wrote" cat phandoff.txt
+dialogue "phase 2" "$(path phased) phandoff.txt psummary.txt -- $(path phased_solution)"
+run "the stock checker on the chained run" env TEST_COST=40 $(program stock_checker) pin.txt psummary.txt pin.txt
+run "the stock checker on a handoff where a summary belongs" env TEST_COST=40 $(program stock_checker) pin.txt \
+    phandoff.txt pin.txt
+for lines in 10 5000 100000 1000000; do
+    printf '%s\n' "$lines" > bulk.txt
+    dialogue "interactor: $lines lines sent before the first answer is read" \
+        "$(path bulk_interactor) bulk.txt bsummary.txt -- $(path bulk_solution)"
+    run "interactor: the summary of $lines lines" cat bsummary.txt
+done
 echo "== $count scenarios"

@@ -949,6 +949,9 @@ public:
 }  // namespace eo
 
 #if defined(_WIN32)
+#include <atomic>
+#include <cstdint>
+#include <vector>
 #include <fcntl.h>
 #include <io.h>
 #include <process.h>
@@ -965,10 +968,17 @@ public:
 
 
 #if defined(_WIN32)
+struct _SECURITY_ATTRIBUTES;
+
 extern "C" {
 __declspec(dllimport) int __stdcall PeekNamedPipe(void*, void*, unsigned long, unsigned long*, unsigned long*,
                                                   unsigned long*);
 __declspec(dllimport) unsigned long __stdcall GetFileType(void*);
+__declspec(dllimport) void __stdcall Sleep(unsigned long);
+__declspec(dllimport) int __stdcall CloseHandle(void*);
+__declspec(dllimport) void* __stdcall CreateEventA(_SECURITY_ATTRIBUTES*, int, int, char const*);
+__declspec(dllimport) int __stdcall SetEvent(void*);
+__declspec(dllimport) unsigned long __stdcall WaitForSingleObject(void*, unsigned long);
 }
 #endif
 
@@ -996,6 +1006,15 @@ inline char const* how_it_died(int caught) {
     if (caught == SIGBUS) return "SIGBUS: a memory access the machine refused";
 #endif
     return "SIGILL: an illegal instruction, which the end of a function that returns no value can reach";
+}
+
+template <class Naming>
+inline void warn_that_the_answers_filled_the_buffer(Naming const& who, char const* role, char const* instead) {
+    warn_at_once("EO409",
+                 fmt("{} sent more than {} MB while the {} was still writing to it, and the rest "
+                     "of it waits in the pipe",
+                     who(), absorb_limit >> 20, role),
+                 instead, site::here());
 }
 
 #if defined(_WIN32)
@@ -1098,24 +1117,126 @@ inline void restore_the_deadly_signals(signal_dispositions const& before) {
 
 inline bool waited_to_read(int) { return false; }
 
-inline void write_while_read(int descriptor, std::string const& bytes, int, int) {
-    std::size_t sent = 0;
-    while (sent < bytes.size()) {
-        long long const wrote = write_some(descriptor, bytes.data() + sent, bytes.size() - sent);
-        if (wrote <= 0) return;
-        sent += static_cast<std::size_t>(wrote);
+inline std::size_t constexpr background_step = 4096;
+
+struct background_write {
+    int descriptor = -1;
+    void* go = nullptr;
+    std::string bytes;
+    std::atomic<std::size_t> sent{0};
+    std::atomic<bool> finished{true};
+    std::atomic<bool> failed{false};
+};
+
+inline void write_the_job(background_write& job) {
+    while (job.sent < job.bytes.size()) {
+        std::size_t const at = job.sent;
+        long long const wrote =
+            write_some(job.descriptor, job.bytes.data() + at, (std::min)(job.bytes.size() - at, background_step));
+        if (wrote <= 0) {
+            job.failed = true;
+            break;
+        }
+        job.sent = at + static_cast<std::size_t>(wrote);
+    }
+    job.finished = true;
+}
+
+inline unsigned long constexpr forever = 0xffffffffUL;
+
+inline unsigned __stdcall keep_writing(void* given) {
+    background_write& job = *static_cast<background_write*>(given);
+    for (;;) {
+        ::WaitForSingleObject(job.go, forever);
+        write_the_job(job);
+    }
+}
+
+inline background_write* idle_writer_for(int descriptor) {
+    static std::vector<background_write*> standing;
+    for (background_write* const one : standing)
+        if (one->descriptor == descriptor && one->finished) return one;
+    auto* const made = new background_write();
+    made->descriptor = descriptor;
+    made->go = ::CreateEventA(nullptr, 0, 0, nullptr);
+    std::uintptr_t const thread =
+        made->go == nullptr ? 0 : ::_beginthreadex(nullptr, 0, &keep_writing, made, 0, nullptr);
+    if (thread == 0) {
+        if (made->go != nullptr) ::CloseHandle(made->go);
+        delete made;
+        return nullptr;
+    }
+    ::CloseHandle(reinterpret_cast<void*>(thread));
+    standing.push_back(made);
+    return made;
+}
+
+class writer {
+public:
+    writer(int descriptor, std::string const& bytes) : job_(idle_writer_for(descriptor)) {
+        if (job_ == nullptr) {
+            job_ = &own_;
+            own_.descriptor = descriptor;
+        }
+        job_->bytes = bytes;
+        job_->sent = 0;
+        job_->failed = false;
+        job_->finished = false;
+        if (job_ == &own_)
+            write_the_job(own_);
+        else
+            ::SetEvent(job_->go);
+    }
+    writer(writer const&) = delete;
+    writer& operator=(writer const&) = delete;
+
+    bool finished() const { return job_->finished; }
+    bool failed() const { return job_->failed; }
+    std::size_t sent() const { return job_->sent; }
+
+private:
+    background_write own_;
+    background_write* job_;
+};
+
+inline void pause_briefly() { ::Sleep(0); }
+
+inline long long milliseconds_since(std::chrono::steady_clock::time_point then) {
+    return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - then).count();
+}
+
+inline void write_while_read(int descriptor, std::string const& bytes, int patience_ms, int deadline_ms) {
+    writer const writing(descriptor, bytes);
+    auto const started = std::chrono::steady_clock::now();
+    auto progressed = started;
+    std::size_t seen = 0;
+    while (!writing.finished()) {
+        if (writing.sent() != seen) {
+            seen = writing.sent();
+            progressed = std::chrono::steady_clock::now();
+        }
+        if (milliseconds_since(started) >= deadline_ms || milliseconds_since(progressed) >= patience_ms) return;
+        pause_briefly();
     }
 }
 
 template <class Reading, class Naming>
-inline void write_while_absorbing(int to, std::string const& bytes, Reading&, bool& deaf, Naming const&,
-                                  char const*, char const*) {
-    std::size_t sent = 0;
-    while (sent < bytes.size() && !deaf) {
-        long long const wrote = write_some(to, bytes.data() + sent, bytes.size() - sent);
-        if (wrote <= 0) deaf = true;
-        if (wrote > 0) sent += static_cast<std::size_t>(wrote);
+inline void write_while_absorbing(int to, std::string const& bytes, Reading& from, bool& deaf,
+                                  Naming const& who, char const* role, char const* instead) {
+    writer const writing(to, bytes);
+    bool listening = true;
+    while (!writing.finished()) {
+        if (listening && from.listening_descriptor() >= 0) {
+            absorbed const what = from.absorb(absorb_limit);
+            if (what == absorbed::full) {
+                warn_that_the_answers_filled_the_buffer(who, role, instead);
+                listening = false;
+            }
+            if (what == absorbed::some) continue;
+        }
+        pause_briefly();
     }
+    if (writing.failed()) deaf = true;
 }
 
 inline std::FILE* opened_scratch(int descriptor) {
@@ -1273,12 +1394,7 @@ inline void write_while_absorbing(int to, std::string const& bytes, Reading& fro
         if (ready < 0) continue;
         if (both[1].revents != 0) {
             absorbed const what = from.absorb(absorb_limit);
-            if (what == absorbed::full)
-                warn_at_once("EO409",
-                             fmt("{} sent more than {} MB while the {} was still writing to it, and the rest "
-                                 "of it waits in the pipe",
-                                 who(), absorb_limit >> 20, role),
-                             instead, site::here());
+            if (what == absorbed::full) warn_that_the_answers_filled_the_buffer(who, role, instead);
             listening = what == absorbed::some;
         }
         if (both[0].revents == 0) continue;

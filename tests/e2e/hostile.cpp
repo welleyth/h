@@ -1,7 +1,8 @@
+#include <chrono>
 #include <cstdio>
 #include <cstring>
 #include <string>
-#include <unistd.h>
+#include <thread>
 int main(int argc, char** argv) {
     std::string mode = argc > 1 ? argv[1] : "";
     int n;
@@ -20,7 +21,7 @@ int main(int argc, char** argv) {
             std::printf("? %d\n", at);
             std::fflush(stdout);
             if (std::scanf("%7s", reply) != 1) {
-                if (reply[0] != '\0') ::usleep(100000);
+                if (reply[0] != '\0') std::this_thread::sleep_for(std::chrono::milliseconds(100));
                 reply[0] = '\0';
             }
         }
@@ -32,7 +33,7 @@ int main(int argc, char** argv) {
     if (mode == "waiting") {
         std::printf("? abc\n");
         std::fflush(stdout);
-        for (;;) ::sleep(30);
+        for (;;) std::this_thread::sleep_for(std::chrono::seconds(30));
     }
     return 0;
 }
