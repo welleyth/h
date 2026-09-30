@@ -16,6 +16,12 @@ build_and_run() {
 
 build_and_run organiser_names -Wall -Wextra -Wshadow -Werror
 
+if printf '#include <cstddef>\n#ifndef __GLIBCXX__\n#error\n#endif\n' | $CXX -std=$CXXSTD -fsyntax-only -x c++ - 2>/dev/null; then
+    build_and_run header_alone -Wall -Wextra -Werror
+else
+    echo "hostile: header_alone skipped, this standard library is not libstdc++, which the judge runs"
+fi
+
 if echo '#include <bits/stdc++.h>' | $CXX -std=$CXXSTD -fsyntax-only -x c++ - 2>/dev/null; then
     build_and_run after_bits -Wall -Wextra -Werror
 else
