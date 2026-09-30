@@ -468,3 +468,31 @@ func TestInitWritesATestForTheValidatorAndOneForTheChecker(t *testing.T) {
 		})
 	}
 }
+
+func problemWithADirectory(t *testing.T, name string) string {
+	t.Helper()
+	dir := relocated(t, "testdata/stress", func(*Problem) {})
+	if err := os.MkdirAll(filepath.Join(dir, name), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, name, "keep.txt"), []byte("the author's\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	return dir
+}
+
+func TestAWorkspaceThatHoldsTheProblemClearsItsDirectories(t *testing.T) {
+	t.Parallel()
+	needsACompiler(t)
+	for command, name := range map[string]string{"run": "tests", "stress": "stress"} {
+		dir := problemWithADirectory(t, name)
+		args := []string{command, dir, "--work", dir}
+		if command == "stress" {
+			args = append(args, "--args", "-n=[1..8] -max=[1..100]", "--solution", "twin", "--iterations", "1")
+		}
+		code, _, errs := invokeIn(t.TempDir(), args...)
+		if _, err := os.Stat(filepath.Join(dir, name, "keep.txt")); code != 0 || err == nil {
+			t.Errorf("%s --work on the problem exited %d, said %q, and %s/keep.txt is still there", command, code, errs, name)
+		}
+	}
+}
