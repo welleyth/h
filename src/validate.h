@@ -477,17 +477,17 @@ private:
         wanted_case_ = parsed.value;
     }
 
-    static std::pair<std::size_t, std::size_t> last_integer_in(std::string const& text) {
-        std::size_t end = text.size();
+    static std::vector<std::pair<std::size_t, std::size_t>> integers_of(std::string const& text, long long value) {
+        std::vector<std::pair<std::size_t, std::size_t>> found;
+        std::size_t start = 0;
         while (true) {
-            while (end > 0 && detail::is_blank(text[end - 1])) end--;
-            std::size_t start = end;
-            while (start > 0 && !detail::is_blank(text[start - 1])) start--;
-            if (start == end) return {std::string::npos, std::string::npos};
-            if (detail::parse_integer(std::string_view(text).substr(start, end - start)).problem ==
-                detail::number_problem::none)
-                return {start, end};
-            end = start;
+            while (start < text.size() && detail::is_blank(text[start])) start++;
+            if (start == text.size()) return found;
+            std::size_t end = start;
+            while (end < text.size() && !detail::is_blank(text[end])) end++;
+            detail::integer_read const read = detail::parse_integer(std::string_view(text).substr(start, end - start));
+            if (read.problem == detail::number_problem::none && read.value == value) found.emplace_back(start, end);
+            start = end;
         }
     }
 
@@ -509,18 +509,14 @@ private:
             detail::library_error("--eo-case needs the test in a file, and standard input is not one; give the "
                                   "file's path");
         std::size_t const header = static_cast<std::size_t>(case_marks_.front().first);
-        std::pair<std::size_t, std::size_t> const count = last_integer_in(out.substr(0, header));
-        if (count.first == std::string::npos)
-            detail::library_error(fmt("--eo-case needs the count given to v.cases, {}, to be the last integer "
-                                      "before the first case, so that it can be written as 1; there is none",
-                                      cases_counted_));
-        std::string const spelled = out.substr(count.first, count.second - count.first);
-        if (detail::parse_integer(spelled).value != cases_counted_)
-            detail::library_error(fmt("--eo-case needs the count given to v.cases, {}, to be the last integer "
-                                      "before the first case, so that it can be written as 1; the last one there "
-                                      "is {}",
-                                      cases_counted_, spelled));
-        out.replace(count.first, count.second - count.first, "1");
+        std::vector<std::pair<std::size_t, std::size_t>> const counts = integers_of(out.substr(0, header), cases_counted_);
+        if (counts.size() != 1)
+            detail::library_error(fmt("--eo-case needs the count given to v.cases, {}, to be the one integer of that "
+                                      "value before the first case, so that it can be written as 1; {}",
+                                      cases_counted_,
+                                      counts.empty() ? std::string("there is none")
+                                                     : fmt("there are {}, and it cannot tell which", counts.size())));
+        out.replace(counts[0].first, counts[0].second - counts[0].first, "1");
         std::fwrite(out.data(), 1, out.size(), stdout);
         std::fflush(stdout);
     }

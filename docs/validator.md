@@ -401,8 +401,8 @@ $ ./validator test.txt --eo-case=2 > case.txt
 ```
 
 turns `3`, `2`, `1 2`, `1`, `5`, `3`, `1 2 3` into `1`, `1`, `5`. It needs one run of
-`v.cases`, the count it was given as the last integer before the first case, and the test in
-a file: a path, or standard input redirected from a file. Each is refused with its reason
+`v.cases`, the count it was given as the one integer of that value before the first case, and
+the test in a file: a path, or standard input redirected from a file. Each is refused with its reason
 otherwise, and so is a case number outside the test, and the flag given twice.
 
 With `--eo-describe`, a validator that uses `v.cases` also prints where each case lies in the

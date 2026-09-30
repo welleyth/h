@@ -1299,9 +1299,9 @@ EO_TEST(a_validator_writes_one_case_of_a_test_as_a_test_of_its_own) {
         });
     };
     eot::outcome const literal = validate("1\n2\n", computed, {"--eo-case=2"});
-    EO_CHECK_EQ(literal.text, std::string("eolymp.h: --eo-case needs the count given to v.cases, 2, to be the last "
-                                          "integer before the first case, so that it can be written as 1; there is "
-                                          "none"));
+    EO_CHECK_EQ(literal.text, std::string("eolymp.h: --eo-case needs the count given to v.cases, 2, to be the one "
+                                          "integer of that value before the first case, so that it can be written as "
+                                          "1; there is none"));
     auto const worded = [](eo::validator& v) {
         int const t = v.read_int(1, 10, "t");
         v.read_space();
@@ -1324,11 +1324,8 @@ EO_TEST(a_validator_writes_one_case_of_a_test_as_a_test_of_its_own) {
             v.read_eoln();
         });
     };
-    eot::outcome const unmarked = validate("2 500\n1\n2\n", counted_first, {"--eo-case=2"});
-    EO_CHECK_EQ(unmarked.code, 3);
-    EO_CHECK_EQ(unmarked.text, std::string("eolymp.h: --eo-case needs the count given to v.cases, 2, to be the last "
-                                           "integer before the first case, so that it can be written as 1; the last "
-                                           "one there is 500"));
+    eot::outcome const counted_before = validate("2 500\n1\n2\n", counted_first, {"--eo-case=2"});
+    EO_CHECK_EQ(counted_before.printed, std::string("1 500\n2\n"));
 }
 
 EO_TEST(a_case_that_cannot_be_written_alone_is_refused) {

@@ -1094,7 +1094,7 @@ EO_TEST(a_validator_on_a_pipe_that_pauses_looks_ahead_as_far_as_on_a_file) {
                 std::string("line 2: expected the end of the input, found \"xyz\""));
 }
 
-EO_TEST(pin_the_count_eo_case_rewrites_when_another_integer_equals_it) {
+EO_TEST(eo_case_refuses_a_count_that_another_integer_before_the_cases_equals) {
     auto const counted_then_k = [](eo::validator& v) {
         int const t = v.read_int(1, 10, "t");
         v.read_space();
@@ -1106,6 +1106,10 @@ EO_TEST(pin_the_count_eo_case_rewrites_when_another_integer_equals_it) {
         });
     };
     eot::outcome const first = validate("2 2\n7\n8\n", counted_then_k, {"--eo-case=1"});
-    EO_CHECK(!first.stopped);
-    EO_CHECK_EQ(first.printed, std::string("2 1\n7\n"));
+    EO_CHECK_EQ(first.code, 3);
+    EO_CHECK_EQ(first.text, std::string("eolymp.h: --eo-case needs the count given to v.cases, 2, to be the one "
+                                        "integer of that value before the first case, so that it can be written as "
+                                        "1; there are 2, and it cannot tell which"));
+    eot::outcome const apart = validate("2 3\n7\n8\n", counted_then_k, {"--eo-case=2"});
+    EO_CHECK_EQ(apart.printed, std::string("1 3\n8\n"));
 }
