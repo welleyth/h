@@ -4013,12 +4013,14 @@ struct lenient_t {};
 struct plain_t {};
 struct any_case_t {};
 struct exact_t {};
+struct any_order_t {};
 
 inline constexpr ignore_t ignore{};
 inline constexpr lenient_t lenient{};
 inline constexpr plain_t plain{};
 inline constexpr any_case_t any_case{};
 inline constexpr exact_t exact{};
+inline constexpr any_order_t any_order{};
 
 enum class answers_are { unique, many };
 
@@ -4497,6 +4499,38 @@ public:
 
     [[noreturn]] void tokens(any_case_t) { token_by_token(true); }
 
+    [[noreturn]] void tokens(any_order_t) {
+        compared_only_ = true;
+        std::vector<std::string> wanted;
+        std::size_t longest = 0;
+        while (!jury.at_eof()) {
+            wanted.emplace_back();
+            jury_token(wanted.back(), detail::site::here());
+            longest = std::max(longest, wanted.back().size());
+        }
+        std::vector<std::string> found;
+        while (!output.at_eof()) {
+            if (found.size() == wanted.size())
+                fail_run(fmt("the answer has {} tokens, the output has more", wanted.size()));
+            found.emplace_back();
+            contestant_token(found.back(), longest);
+            if (found.back().size() > longest)
+                fail_run(fmt("token {} is longer than every token of the answer; it starts \"{}\"", found.size(),
+                             detail::shorten(found.back())));
+        }
+        if (found.size() < wanted.size())
+            fail_run(fmt("the output has {} tokens, the answer has {}", found.size(), wanted.size()));
+        std::sort(wanted.begin(), wanted.end());
+        std::sort(found.begin(), found.end());
+        auto const differ = std::mismatch(wanted.begin(), wanted.end(), found.begin());
+        if (differ.first != wanted.end()) {
+            std::string const& token = std::min(*differ.first, *differ.second);
+            fail_run(fmt("\"{}\" is in the answer {} and in the output {}", detail::shorten(token),
+                         times_in(wanted, token), times_in(found, token)));
+        }
+        pass(1, fmt("{} tokens in any order", wanted.size()));
+    }
+
     [[noreturn]] void reals(double epsilon) {
         compared_only_ = true;
         long long seen = 0;
@@ -4651,6 +4685,12 @@ public:
 
 private:
     static bool trailing_blank(char one) { return one == ' ' || one == '\t' || one == '\r'; }
+
+    static std::string times_in(std::vector<std::string> const& sorted, std::string const& token) {
+        auto const range = std::equal_range(sorted.begin(), sorted.end(), token);
+        std::size_t const count = static_cast<std::size_t>(range.second - range.first);
+        return count == 1 ? std::string("once") : fmt("{} times", count);
+    }
 
     [[noreturn]] void token_by_token(bool fold) {
         compared_only_ = true;

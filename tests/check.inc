@@ -1639,3 +1639,20 @@ EO_TEST(tokens_in_any_case_ignore_the_case_of_letters_only) {
     EO_CHECK_EQ(compared_by("a b c", "A B", folded), std::string("wrong answer the answer has 2 tokens, the output has more"));
     EO_CHECK_EQ(compared_by("[@", "{`", folded), std::string("wrong answer token 1 is \"[@\", expected \"{`\" in any case"));
 }
+
+EO_TEST(tokens_in_any_order_compare_the_answer_and_the_output_as_multisets) {
+    auto const unordered = [](eo::checker& c) { c.tokens(eo::any_order); };
+    EO_CHECK_EQ(compared_by("3 1\n2\n", "1 2 3", unordered), std::string("ok 3 tokens in any order"));
+    EO_CHECK_EQ(compared_by("", "\n", unordered), std::string("ok 0 tokens in any order"));
+    EO_CHECK_EQ(compared_by("1 1 2", "2 1 2", unordered),
+                std::string("wrong answer \"1\" is in the answer once and in the output 2 times"));
+    EO_CHECK_EQ(compared_by("1 2 4", "3 2 1", unordered),
+                std::string("wrong answer \"3\" is in the answer once and in the output 0 times"));
+    EO_CHECK_EQ(compared_by("b a", "a b c", unordered), std::string("wrong answer the output has 2 tokens, the answer has 3"));
+    EO_CHECK_EQ(compared_by("a b c d", "c b a", unordered),
+                std::string("wrong answer the answer has 3 tokens, the output has more"));
+    EO_CHECK_EQ(compared_by("x", "", unordered), std::string("wrong answer the answer has 0 tokens, the output has more"));
+    EO_CHECK_EQ(compared_by("ab abcd", "ab abc", unordered),
+                std::string("wrong answer token 2 is longer than every token of the answer; it starts \"abcd\""));
+    EO_CHECK_EQ(compared_by("A", "a", unordered), std::string("wrong answer \"A\" is in the answer 0 times and in the output once"));
+}
