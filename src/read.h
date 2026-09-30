@@ -27,7 +27,8 @@ private:
                 unsigned const from = static_cast<unsigned char>(spec_[at]);
                 unsigned const to = static_cast<unsigned char>(spec_[at + 2]);
                 if (from > to)
-                    detail::library_error(fmt("the character range \"{}\" in charset(\"{}\") runs backwards",
+                    detail::library_error(fmt("the character range \"{}\" in charset(\"{}\") runs backwards; write "
+                                              "its low end first, or put a - that stands for itself first or last",
                                               spec_.substr(at, 3), spec_));
                 for (unsigned c = from; c <= to; c++) allowed_[c] = true;
                 at += 2;

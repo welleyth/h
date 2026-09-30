@@ -142,7 +142,8 @@ A charset is single characters and ranges: `eo::charset("a-z")` is the 26 letter
 `eo::charset("a-z0-9_")` is 37 characters. A `-` between two characters makes a range, and the
 range has to ascend, so `charset("z-a")` is a jury error before the first read. So is the `)- `
 inside `charset("()- ")`, which reads as a range from `)` to the space: the library says `the
-character range ")- " in charset("()- ") runs backwards`. A `-` that should be a character of
+character range ")- " in charset("()- ") runs backwards; write its low end first, or put a -
+that stands for itself first or last`. A `-` that should be a character of
 its own goes first or last, where there is nothing for it to join: `charset("() -")` is the two
 brackets, a space and a hyphen.
 

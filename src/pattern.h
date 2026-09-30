@@ -46,7 +46,7 @@ inline char const* describe(pattern_problem problem) {
         "",
         "the [ that opens here has no ] to close it",
         "a class needs at least one character; write \\] for a ] inside it",
-        "this range runs backwards; write its low end first",
+        "this range runs backwards; write its low end first, or put a - that stands for itself first or last",
         "the ( that opens here has no ) to close it",
         "this ) closes no group; put a backslash before it for the character",
         "closes nothing; put a backslash before it for the character",

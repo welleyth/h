@@ -181,7 +181,7 @@ EO_TEST(a_pattern_that_does_not_parse_is_refused_at_its_column) {
     EO_CHECK_EQ(refusal_of("[^]"), head + "[^]\") does not parse at column 1: a class needs at least one "
                                          "character; write \\] for a ] inside it");
     EO_CHECK_EQ(refusal_of("x[z-a]"), head + "x[z-a]\") does not parse at column 3: this range runs backwards; "
-                                            "write its low end first");
+                                            "write its low end first, or put a - that stands for itself first or last");
     EO_CHECK_EQ(refusal_of("(ab"), head + "(ab\") does not parse at column 1: the ( that opens here has no ) to "
                                          "close it");
     EO_CHECK_EQ(refusal_of("ab)"), head + "ab)\") does not parse at column 3: this ) closes no group; put a "
