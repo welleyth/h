@@ -76,6 +76,23 @@ MUTANTS = [
     ("a look ahead that reads", "src/io.h",
      "        while (held() < limit && top_up()) {\n        }\n",
      "        have(limit);\n"),
+    ("a repeat of a class that forgets its entry one character early", "src/pattern.h",
+     "after - entries[head] > step.most) head++;", "after - entries[head] >= step.most) head++;"),
+    ("a repeat of a class that ends one character late", "src/pattern.h",
+     "if (at - entries[head] >= step.least) reach(into, step.next, at);",
+     "if (at - entries[head] > step.least) reach(into, step.next, at);"),
+    ("a repeat of a class that may be empty and is never skipped", "src/pattern.h",
+     "if (step.code == step_code::counted && step.least == 0) pending_.push_back(step.next);", ""),
+    ("a class written with ^ read as the class itself", "src/pattern.h",
+     "for (std::uint64_t& word : chosen) word = ~word;", ""),
+    ("a token that a pattern read lets one character past its longest match", "src/stream.h",
+     "if (cap > 0 && static_cast<long long>(token.size()) == cap)",
+     "if (cap > 0 && static_cast<long long>(token.size()) > cap)"),
+    ("tokens in any case compared in their case", "src/check.h",
+     "if (fold ? !detail::same_in_any_case(want, got) : want != got)", "if (want != got)"),
+    ("reals within an absolute error that also allow a relative one", "src/check.h",
+     "                                           : std::fabs(wanted.value - found.value) <= epsilon + 1e-15;",
+     "                                           : close_enough(wanted.value, found.value, epsilon);"),
 ]
 
 
