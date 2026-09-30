@@ -54,12 +54,6 @@ struct seen_bounds {
 
 enum class number_read { none, integer, real };
 
-struct integer_span {
-    long long value = 0;
-    long long start = -1;
-    long long end = -1;
-};
-
 inline char const* phrase_of(std::string const& kind) {
     if (kind == "real") return "a number";
     if (kind == "length") return "a length";
@@ -96,7 +90,6 @@ public:
 
     long long line() const { return from_.line(); }
     long long position() const { return from_.position(); }
-    integer_span last_integer() const { return last_integer_; }
     bool carriage_returns() const { return from_.carriage_returns(); }
     std::string last_value() const { return last_indexed_ ? fmt("{}[{}]", last_value_, last_index_) : last_value_; }
     void mark_separated() {
@@ -181,7 +174,6 @@ public:
                     long long type_low, long long type_high, char const* type_word) {
         start_value(name, where, "an integer");
         if (lenient_) settle();
-        long long const began = from_.position();
         integer_read parsed;
         if (quick_integer(parsed.value)) was_read(name);
         else parsed = spelled_integer(name);
@@ -200,11 +192,8 @@ public:
                 last_bounds_->read_whole = true;
             }
         }
-        if (!lenient_) {
-            just_read_ = number_read::integer;
-            integer_just_read_ = parsed.value;
-            last_integer_ = {parsed.value, began, from_.position()};
-        }
+        just_read_ = number_read::integer;
+        integer_just_read_ = parsed.value;
         return parsed.value;
     }
 
@@ -730,7 +719,6 @@ private:
     long long integer_just_read_ = 0;
     std::string real_just_read_;
     bool named_just_read_ = false;
-    integer_span last_integer_;
 };
 
 }  // namespace detail

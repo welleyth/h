@@ -2109,12 +2109,6 @@ struct seen_bounds {
 
 enum class number_read { none, integer, real };
 
-struct integer_span {
-    long long value = 0;
-    long long start = -1;
-    long long end = -1;
-};
-
 inline char const* phrase_of(std::string const& kind) {
     if (kind == "real") return "a number";
     if (kind == "length") return "a length";
@@ -2151,7 +2145,6 @@ public:
 
     long long line() const { return from_.line(); }
     long long position() const { return from_.position(); }
-    integer_span last_integer() const { return last_integer_; }
     bool carriage_returns() const { return from_.carriage_returns(); }
     std::string last_value() const { return last_indexed_ ? fmt("{}[{}]", last_value_, last_index_) : last_value_; }
     void mark_separated() {
@@ -2236,7 +2229,6 @@ public:
                     long long type_low, long long type_high, char const* type_word) {
         start_value(name, where, "an integer");
         if (lenient_) settle();
-        long long const began = from_.position();
         integer_read parsed;
         if (quick_integer(parsed.value)) was_read(name);
         else parsed = spelled_integer(name);
@@ -2255,11 +2247,8 @@ public:
                 last_bounds_->read_whole = true;
             }
         }
-        if (!lenient_) {
-            just_read_ = number_read::integer;
-            integer_just_read_ = parsed.value;
-            last_integer_ = {parsed.value, began, from_.position()};
-        }
+        just_read_ = number_read::integer;
+        integer_just_read_ = parsed.value;
         return parsed.value;
     }
 
@@ -2785,7 +2774,6 @@ private:
     long long integer_just_read_ = 0;
     std::string real_just_read_;
     bool named_just_read_ = false;
-    integer_span last_integer_;
 };
 
 }  // namespace detail
@@ -3971,10 +3959,7 @@ public:
         used_cases_ = true;
         case_runs_++;
         bool const marking = case_runs_ == 1 && (describing_ || wanted_case_.has_value());
-        if (case_runs_ == 1) {
-            case_count_ = from_.last_integer();
-            cases_counted_ = count;
-        }
+        if (case_runs_ == 1) cases_counted_ = count;
         for (long long index = 1; index <= count; index++) {
             detail::current_case() = index;
             long long const began = from_.position();
@@ -4040,7 +4025,19 @@ private:
         wanted_case_ = parsed.value;
     }
 
-    bool counted_in_the_test() const { return case_count_.start >= 0 && case_count_.value == cases_counted_; }
+    static std::pair<std::size_t, std::size_t> last_integer_in(std::string const& text) {
+        std::size_t end = text.size();
+        while (true) {
+            while (end > 0 && detail::is_blank(text[end - 1])) end--;
+            std::size_t start = end;
+            while (start > 0 && !detail::is_blank(text[start - 1])) start--;
+            if (start == end) return {std::string::npos, std::string::npos};
+            if (detail::parse_integer(std::string_view(text).substr(start, end - start)).problem ==
+                detail::number_problem::none)
+                return {start, end};
+            end = start;
+        }
+    }
 
     void write_the_case(long long wanted) {
         if (case_runs_ == 0) detail::library_error("--eo-case needs a validator that reads the cases with v.cases");
@@ -4049,24 +4046,29 @@ private:
                 fmt("--eo-case needs one run of v.cases, and this validator ran it {} times", case_runs_));
         if (wanted < 1 || wanted > cases_counted_)
             detail::library_error(fmt("--eo-case={}, but the test has {} cases", wanted, cases_counted_));
-        if (!counted_in_the_test())
-            detail::library_error(fmt("--eo-case needs the count given to v.cases, {}, to be the last integer read "
-                                      "before it, so that it can be written as 1; {}",
-                                      cases_counted_,
-                                      case_count_.start < 0 ? std::string("no integer was read before it")
-                                                            : fmt("the last one was {}", case_count_.value)));
         int const descriptor = path_.empty() ? 0 : ::open(path_.c_str(), O_RDONLY);
         std::pair<long long, long long> const chosen = case_marks_[static_cast<std::size_t>(wanted - 1)];
         std::string out;
-        bool read = detail::read_range(descriptor, 0, case_count_.start, out);
-        out += "1";
-        read = read && detail::read_range(descriptor, case_count_.end, case_marks_.front().first, out) &&
-               detail::read_range(descriptor, chosen.first, chosen.second, out) &&
-               detail::read_range(descriptor, case_marks_.back().second, from_.position(), out);
+        bool const read = detail::read_range(descriptor, 0, case_marks_.front().first, out) &&
+                          detail::read_range(descriptor, chosen.first, chosen.second, out) &&
+                          detail::read_range(descriptor, case_marks_.back().second, from_.position(), out);
         if (!path_.empty()) ::close(descriptor);
         if (!read)
             detail::library_error("--eo-case needs the test in a file, and standard input is not one; give the "
                                   "file's path");
+        std::size_t const header = static_cast<std::size_t>(case_marks_.front().first);
+        std::pair<std::size_t, std::size_t> const count = last_integer_in(out.substr(0, header));
+        if (count.first == std::string::npos)
+            detail::library_error(fmt("--eo-case needs the count given to v.cases, {}, to be the last integer "
+                                      "before the first case, so that it can be written as 1; there is none",
+                                      cases_counted_));
+        std::string const spelled = out.substr(count.first, count.second - count.first);
+        if (detail::parse_integer(spelled).value != cases_counted_)
+            detail::library_error(fmt("--eo-case needs the count given to v.cases, {}, to be the last integer "
+                                      "before the first case, so that it can be written as 1; the last one there "
+                                      "is {}",
+                                      cases_counted_, spelled));
+        out.replace(count.first, count.second - count.first, "1");
         std::fwrite(out.data(), 1, out.size(), stdout);
         std::fflush(stdout);
     }
@@ -4166,8 +4168,6 @@ private:
                        one.second.reached_high ? "yes" : "no");
         for (auto const& one : features_)
             out += fmt("eo-describe feature {} seen={}\n", one.first, one.second ? "yes" : "no");
-        if (counted_in_the_test())
-            out += fmt("eo-describe count {} {} {}\n", cases_counted_, case_count_.start, case_count_.end);
         for (std::size_t at = 0; at < case_marks_.size(); at++)
             out += fmt("eo-describe case {} {} {}\n", at + 1, case_marks_[at].first, case_marks_[at].second);
         detail::report(out.empty() ? std::string() : out.substr(0, out.size() - 1));
@@ -4178,7 +4178,6 @@ private:
     std::optional<long long> wanted_case_;
     long long case_runs_ = 0;
     long long cases_counted_ = 0;
-    detail::integer_span case_count_;
     std::vector<std::pair<long long, long long>> case_marks_;
     std::optional<int> group_;
     std::map<std::string, bool> features_;

@@ -1300,8 +1300,20 @@ EO_TEST(a_validator_writes_one_case_of_a_test_as_a_test_of_its_own) {
     };
     eot::outcome const literal = validate("1\n2\n", computed, {"--eo-case=2"});
     EO_CHECK_EQ(literal.text, std::string("eolymp.h: --eo-case needs the count given to v.cases, 2, to be the last "
-                                          "integer read before it, so that it can be written as 1; no integer was "
-                                          "read before it"));
+                                          "integer before the first case, so that it can be written as 1; there is "
+                                          "none"));
+    auto const worded = [](eo::validator& v) {
+        int const t = v.read_int(1, 10, "t");
+        v.read_space();
+        v.read_token(eo::pattern("cases|12a"), "word");
+        v.read_eoln();
+        v.cases(t, [&] {
+            v.read_int(1, 9, "x");
+            v.read_eoln();
+        });
+    };
+    eot::outcome const after_a_word = validate("2 12a\n1\n2\n", worded, {"--eo-case=2"});
+    EO_CHECK_EQ(after_a_word.printed, std::string("1 12a\n2\n"));
     auto const counted_first = [](eo::validator& v) {
         int const t = v.read_int(1, 10, "t");
         v.read_space();
@@ -1315,8 +1327,8 @@ EO_TEST(a_validator_writes_one_case_of_a_test_as_a_test_of_its_own) {
     eot::outcome const unmarked = validate("2 500\n1\n2\n", counted_first, {"--eo-case=2"});
     EO_CHECK_EQ(unmarked.code, 3);
     EO_CHECK_EQ(unmarked.text, std::string("eolymp.h: --eo-case needs the count given to v.cases, 2, to be the last "
-                                           "integer read before it, so that it can be written as 1; the last one "
-                                           "was 500"));
+                                           "integer before the first case, so that it can be written as 1; the last "
+                                           "one there is 500"));
 }
 
 EO_TEST(a_case_that_cannot_be_written_alone_is_refused) {
@@ -1361,8 +1373,7 @@ EO_TEST(a_validator_describes_where_each_case_lies) {
     std::string const test = "3\n2\n1 2\n1\n5\n3\n1 2 3\n";
     eot::outcome const described = validate(test, read_the_cases, {"--eo-describe"});
     EO_CHECK(!described.stopped);
-    EO_CHECK_IN(described.printed, "eo-describe count 3 0 1\n"
-                                   "eo-describe case 1 2 8\n"
+    EO_CHECK_IN(described.printed, "eo-describe case 1 2 8\n"
                                    "eo-describe case 2 8 12\n"
                                    "eo-describe case 3 12 20\n");
 }
