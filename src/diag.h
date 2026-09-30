@@ -73,7 +73,8 @@ public:
                 return true;
             }
         for (raised& already : entries_)
-            if ((already.code == code || std::strcmp(already.code, code) == 0) && already.where.line == where.line) {
+            if ((already.code == code || std::strcmp(already.code, code) == 0) && already.where.line == where.line &&
+                same_text(already.where.file, where.file)) {
                 already.count++;
                 return true;
             }

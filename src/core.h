@@ -145,7 +145,7 @@ public:
 inline bool same_text(char const* left, char const* right) {
     if (left == right) return true;
     if (left == nullptr || right == nullptr) return false;
-    return std::string(left) == std::string(right);
+    return std::strcmp(left, right) == 0;
 }
 
 }  // namespace detail

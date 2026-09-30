@@ -193,7 +193,7 @@ public:
 inline bool same_text(char const* left, char const* right) {
     if (left == right) return true;
     if (left == nullptr || right == nullptr) return false;
-    return std::string(left) == std::string(right);
+    return std::strcmp(left, right) == 0;
 }
 
 }  // namespace detail
@@ -683,7 +683,8 @@ public:
                 return true;
             }
         for (raised& already : entries_)
-            if ((already.code == code || std::strcmp(already.code, code) == 0) && already.where.line == where.line) {
+            if ((already.code == code || std::strcmp(already.code, code) == 0) && already.where.line == where.line &&
+                same_text(already.where.file, where.file)) {
                 already.count++;
                 return true;
             }
