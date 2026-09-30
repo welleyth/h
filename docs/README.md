@@ -227,6 +227,7 @@ request. This table is the one description of the gate: the rows down to `budget
 | `examples` | every example in `docs/` compiles |
 | `codes` | every warning code the sources raise has a row in `docs/warnings.md`, and the page's count of built codes is right |
 | `budget` | how long the validator above and the first checker in checker.md take to build, and how large they are |
+| `bench` | how many instructions the main paths take, from reading integers to comparing tokens and writing reals, counted by `perf`; `BASE=<revision>` builds the same programs against that revision's headers and shows the change; run with `make bench` |
 | `mutants` | a changed operator or bound in either header makes the suite fail; run with `make mutants` |
 | `sanitize` | the suite and the end-to-end programs pass under ASan and UBSan; run with `make sanitize` |
 | `fuzz` | every libFuzzer harness in `tests/fuzz/` finds no crash, sanitizer report or broken property in 45 s each (in CI, 90 s for all of them side by side on a push or pull request, and 30 minutes each nightly); needs clang++; `make fuzz-<harness>` or `FUZZER` runs one harness, `FUZZ_SECONDS` sets the time, and `make -j fuzz` runs them side by side; run with `make fuzz` |

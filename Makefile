@@ -5,7 +5,7 @@ WARNINGS := -Wall -Wextra -Wshadow -Werror
 SOURCES := $(wildcard src/*.h) $(wildcard src/shapes/*.h)
 TESTS := tests/all.cpp tests/harness.h $(wildcard tests/*.inc)
 
-.PHONY: all check amalgamate amalgamation-check test coverage e2e standards hostile budget examples codes version mutants sanitize fuzz judge pin clean
+.PHONY: all check amalgamate amalgamation-check test coverage e2e standards hostile budget bench examples codes version mutants sanitize fuzz judge pin clean
 
 all: eolymp.h eolymp-shapes.h
 
@@ -52,6 +52,9 @@ hostile: eolymp.h eolymp-shapes.h
 
 budget: eolymp.h eolymp-shapes.h
 	python3 tools/budget.py
+
+bench: eolymp.h eolymp-shapes.h
+	python3 tools/bench.py $(BASE)
 
 examples: eolymp.h eolymp-shapes.h
 	python3 tools/examples.py
