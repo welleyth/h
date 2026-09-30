@@ -14,6 +14,7 @@ import sys
 from common import ROOT, compiler, cpp_blocks, standard
 
 CEILING_RATIO = 9.0
+CEILING_KB = 220
 
 BASELINE = """\
 #include <algorithm>
@@ -86,6 +87,11 @@ def main() -> int:
         print(f"budget: the {name} takes {compile_time:.2f}s of compiler CPU time to build with -O2, into "
               f"{size // 1024} KB, {compile_time / base:.1f} times the standard headers alone, which take "
               f"{base:.2f}s")
+    largest = max(measured[name][1] for name in ("validator", "checker"))
+    if largest > CEILING_KB * 1024:
+        print(f"budget: an -O2 object is {largest // 1024} KB, above the ceiling of {CEILING_KB} KB",
+              file=sys.stderr)
+        return 1
     if worst > CEILING_RATIO:
         print(f"budget: an -O2 build takes {worst:.1f} times the compiler CPU time of the standard headers "
               f"alone, above the ceiling of {CEILING_RATIO}", file=sys.stderr)
