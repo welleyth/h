@@ -56,6 +56,13 @@ EO_TEST(a_judge_report_is_one_line_each_and_a_machine_line) {
                             "{\"code\":\"EO304\",\"at\":\"validator.cpp:31\",\"count\":1}]}\n"));
 }
 
+EO_TEST(a_json_string_escapes_quotes_backslashes_and_control_characters) {
+    EO_CHECK_EQ(eo::detail::json_string("checker.cpp:4"), std::string("\"checker.cpp:4\""));
+    EO_CHECK_EQ(eo::detail::json_string("a\"b\\c"), std::string("\"a\\\"b\\\\c\""));
+    EO_CHECK_EQ(eo::detail::json_string(std::string("\t\n\x1f\x7f\xc3\xa9", 6)),
+                std::string("\"\\u0009\\u000a\\u001f\x7f\xc3\xa9\""));
+}
+
 EO_TEST(a_long_report_is_capped_and_says_how_many_are_left) {
     clean_slate fresh;
     for (int line = 1; line <= 35; line++) raise_warning(eo::detail::site{"validator.cpp", line});

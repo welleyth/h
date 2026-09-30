@@ -50,3 +50,22 @@ func TestTheSpokenLinesAloneStillParse(t *testing.T) {
 		t.Fatalf("got %v", found)
 	}
 }
+
+func TestAReportGivesBackAWindowsPathWithSpacesAndQuotes(t *testing.T) {
+	t.Parallel()
+	log := `wrong answer the sum is 7
+eolymp.h 2.5.0
+warning EO101 C:\Users\author\my "best" checker.cpp:7 read_int(1, n) has no name
+eo-report {"version":1,"warnings":[{"code":"EO101","at":"C:\\Users\\author\\my \"best\" checker.cpp:7","count":1}]}
+`
+	found := warningsIn("checker", log)
+	if len(found) != 1 {
+		t.Fatalf("got %d warnings, want 1: %v", len(found), found)
+	}
+	if want := `C:\Users\author\my "best" checker.cpp:7`; found[0].At != want {
+		t.Errorf("at %q, want %q", found[0].At, want)
+	}
+	if found[0].Code != "EO101" || found[0].Count != 1 {
+		t.Errorf("got %v", found[0])
+	}
+}

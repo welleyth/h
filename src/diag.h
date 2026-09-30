@@ -25,6 +25,25 @@ struct site {
 
 inline std::string where_of(site place) { return fmt("{}:{}", place.file, place.line); }
 
+inline std::string json_string(std::string const& text) {
+    char const* const digits = "0123456789abcdef";
+    std::string out = "\"";
+    for (char const one : text) {
+        unsigned char const byte = static_cast<unsigned char>(one);
+        if (one == '"' || one == '\\') {
+            out += '\\';
+            out += one;
+        } else if (byte < 0x20) {
+            out += "\\u00";
+            out += digits[byte >> 4];
+            out += digits[byte & 15];
+        } else {
+            out += one;
+        }
+    }
+    return out + "\"";
+}
+
 struct raised {
     char const* code;
     severity level;
@@ -124,8 +143,8 @@ public:
         std::string out = "eo-report {\"version\":1,\"warnings\":[";
         bool first = true;
         for (raised const& one : entries_) {
-            out += fmt("{}{{\"code\":\"{}\",\"at\":\"{}\",\"count\":{}}}", first ? "" : ",", one.code,
-                       where_of(one.where), one.count);
+            out += fmt("{}{{\"code\":\"{}\",\"at\":{},\"count\":{}}}", first ? "" : ",", one.code,
+                       json_string(where_of(one.where)), one.count);
             first = false;
         }
         out += "]}\n";
