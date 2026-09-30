@@ -197,7 +197,7 @@ validator:
 | `role.h` | the verdicts both scoring roles share |
 | `check.h` | `eo::checker`, its three streams and the ready-made comparisons |
 | `random.h`, `summary.h` | a deterministic random stream, and the format an interactor hands the checker |
-| `interact.h`, `phases.h` | `eo::interactor`, `eo::budget`, and the `run_count` chain |
+| `interact.h`, `phases.h` | `eo::interactor`, the dialogue it shares with `eo::controller`, `eo::budget`, and the `run_count` chain |
 | `generate.h` | `eo::generator`: declared options, named streams and the writer |
 | `shapes/` | the second header: trees, graphs, sequences, strings, points, and `presented` |
 | `control.h` | `eo::controller` and `eo::channel`: the SPAWN handshake and one pipe pair per instance |
