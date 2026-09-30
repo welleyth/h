@@ -37,6 +37,7 @@
 #include <fcntl.h>
 #include <functional>
 #include <initializer_list>
+#include <iterator>
 #include <limits>
 #include <map>
 #include <memory>
@@ -44,6 +45,7 @@
 #include <optional>
 #include <poll.h>
 #include <set>
+#include <signal.h>
 #include <string>
 #include <string_view>
 #include <sys/ioctl.h>
@@ -121,9 +123,15 @@ inline std::FILE*& log_file() {
     return where;
 }
 
+inline void (*&after_a_log_line())(std::size_t) {
+    static void (*hook)(std::size_t) = nullptr;
+    return hook;
+}
+
 inline void log_line(std::string const& text) {
     std::fwrite(text.data(), 1, text.size(), log_file());
     std::fputc('\n', log_file());
+    if (after_a_log_line() != nullptr) after_a_log_line()(text.size() + 1);
 }
 
 inline void (*&emitter())(std::string const&) {
@@ -4223,6 +4231,50 @@ inline std::FILE* first_scratch(std::array<scratch_maker, Count> const& makers) 
 
 inline std::FILE* scratch_file() { return first_scratch(scratch_makers()); }
 
+inline constexpr int deadly_signals[] = {SIGSEGV, SIGABRT, SIGFPE, SIGBUS, SIGILL};
+
+inline char const* how_it_died(int caught) {
+    if (caught == SIGSEGV) return "SIGSEGV: it read or wrote memory it does not own, or ran out of stack";
+    if (caught == SIGABRT) return "SIGABRT: it aborted, as a failed assert does";
+    if (caught == SIGFPE) return "SIGFPE: an arithmetic error, such as an integer division by zero";
+    if (caught == SIGBUS) return "SIGBUS: a memory access the machine refused";
+    return "SIGILL: an illegal instruction, which the end of a function that returns no value can reach";
+}
+
+inline void (*&on_a_deadly_signal())(int) {
+    static void (*hook)(int) = nullptr;
+    return hook;
+}
+
+inline void deadly_signal(int caught) {
+    if (on_a_deadly_signal() != nullptr) on_a_deadly_signal()(caught);
+#ifdef EOLYMP_TESTING
+    throw stop{128 + caught, how_it_died(caught)};
+#else
+    ::raise(caught);
+#endif
+}
+
+inline void write_all(int descriptor, char const* bytes, std::size_t size) {
+    while (size > 0) {
+        ssize_t const wrote = ::write(descriptor, bytes, size);
+        if (wrote < 0 && errno == EINTR) continue;
+        if (wrote <= 0) return;
+        bytes += wrote;
+        size -= static_cast<std::size_t>(wrote);
+    }
+}
+
+inline void stand_on_a_spare_stack() {
+    static char spare[1 << 16];
+    stack_t current{};
+    if (::sigaltstack(nullptr, &current) != 0 || (current.ss_flags & SS_DISABLE) == 0) return;
+    stack_t mine{};
+    mine.ss_sp = spare;
+    mine.ss_size = sizeof(spare);
+    ::sigaltstack(&mine, nullptr);
+}
+
 class reader;
 
 }  // namespace detail
@@ -4523,6 +4575,7 @@ public:
             ::dup2(::fileno(held_), 1);
             ::dup2(::fileno(held_), 2);
             detail::emitter() = &checker::write_log;
+            catch_deadly_signals();
         }
         detail::live_checker() = this;
         detail::live_scorer() = this;
@@ -4534,6 +4587,7 @@ public:
     checker& operator=(checker const&) = delete;
 
     ~checker() noexcept(false) {
+        detail::on_a_deadly_signal() = nullptr;
         detail::unfinished() = nullptr;
         detail::live_checker() = nullptr;
         detail::live_scorer() = nullptr;
@@ -4981,6 +5035,7 @@ private:
     }
 
     void put_the_output_back() {
+        let_go_of_the_signals();
         std::fflush(stdout);
         std::fflush(stderr);
         ::dup2(saved_out_, 1);
@@ -5001,9 +5056,56 @@ private:
         return copied;
     }
 
+    void let_go_of_the_signals() {
+        detail::after_a_log_line() = nullptr;
+        detail::on_a_deadly_signal() = nullptr;
+        for (std::size_t at = 0; at < before_signals_.size(); at++)
+            ::sigaction(detail::deadly_signals[at], &before_signals_[at], nullptr);
+    }
+
     void let_go_of_what_was_held() {
         std::fclose(held_);
         held_ = nullptr;
+    }
+
+    void catch_deadly_signals() {
+        held_descriptor_ = ::fileno(held_);
+        detail::on_a_deadly_signal() = &checker::died;
+        detail::after_a_log_line() = &checker::logged;
+        detail::stand_on_a_spare_stack();
+        struct sigaction deadly {};
+        deadly.sa_handler = &detail::deadly_signal;
+        deadly.sa_flags = static_cast<int>(SA_RESETHAND | SA_ONSTACK);
+        sigemptyset(&deadly.sa_mask);
+        for (std::size_t at = 0; at < before_signals_.size(); at++)
+            ::sigaction(detail::deadly_signals[at], &deadly, &before_signals_[at]);
+    }
+
+    static void logged(std::size_t bytes) {
+        checker* const one = detail::live_checker();
+        if (one->logged_ >= detail::stored_log) return;
+        one->logged_ += bytes;
+        std::fflush(stdout);
+    }
+
+    static void died(int caught) {
+        checker* const one = detail::live_checker();
+        one->replay_the_log(caught);
+        one->let_go_of_the_signals();
+    }
+
+    void replay_the_log(int caught) const {
+        char const head[] = "jury error the checker died of ";
+        detail::write_all(saved_out_, head, sizeof(head) - 1);
+        char const* const how = detail::how_it_died(caught);
+        detail::write_all(saved_out_, how, std::strlen(how));
+        detail::write_all(saved_out_, "\n", 1);
+        char buffer[4096];
+        off_t at = 0;
+        for (ssize_t got = 0; (got = ::pread(held_descriptor_, buffer, sizeof(buffer), at)) > 0; at += got)
+            detail::write_all(saved_out_, buffer, static_cast<std::size_t>(got));
+        char const tail[] = "eolymp.h " EOLYMP_H_VERSION "\n";
+        detail::write_all(saved_out_, tail, sizeof(tail) - 1);
     }
 
     void unwrap(std::string const& verdict) {
@@ -5028,6 +5130,9 @@ private:
     int saved_out_ = -1;
     int saved_err_ = -1;
     std::FILE* held_ = nullptr;
+    int held_descriptor_ = -1;
+    std::size_t logged_ = 0;
+    std::array<struct sigaction, std::size(detail::deadly_signals)> before_signals_{};
 };
 
 }  // namespace eo

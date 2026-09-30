@@ -291,8 +291,14 @@ printed before the end
 eolymp.h 2.2.1
 ```
 
-The verdict is the judge's VERIFICATION_FAILURE, as it is when the C++ library aborts the
-program, which leaves the log empty.
+A checker on the judge that dies of a signal — `SIGSEGV`, a stack overflow included, `SIGABRT`
+from `abort` or a failed `assert`, `SIGFPE`, `SIGBUS` or `SIGILL` — writes the same log from
+its signal handler, `jury error the checker died of SIGSEGV: …` and then what it held, and
+then hands the signal to the handler that was there before, the C library's, which ends the
+program, or a sanitizer's, which reports. `std::cerr` reaches the log, since it is written at once,
+and so does `eo::log` up to the 64 KB a stored log keeps, since on the judge each of its lines
+is flushed until then; what `printf` or `std::cout` still holds in its own buffer is lost.
+Either way the verdict is VERIFICATION_FAILURE, as it was when the log came out empty.
 
 ## Reading the jury's answer and the contestant's with one function
 

@@ -318,13 +318,19 @@ eolymp.h *" ROLE=throws &&
             dies "a checker ended by a thrown int" 3 \
                 "jury error an exception nothing caught ended the checker, and it is not a std::exception*" \
                 ROLE=throws_int &&
-            dies "a checker that aborts" 134 "" ROLE=aborts &&
-            dies "a checker killed by SIGSEGV" 139 "" ROLE=segfaults &&
-            dies "a checker killed by SIGFPE" 136 "" ROLE=divides &&
+            dies "a checker that aborts" 134 "jury error the checker died of SIGABRT: it aborted, as a failed assert does
+printed before the end
+logged before the end
+said on stderr
+eolymp.h *" ROLE=aborts &&
+            dies "a checker killed by SIGSEGV" 139 "jury error the checker died of SIGSEGV*said on stderr*" ROLE=segfaults &&
+            dies "a checker killed by SIGFPE" 136 "jury error the checker died of SIGFPE*said on stderr*" ROLE=divides &&
+            { dies "a checker that runs out of stack" 139 "jury error the checker died of SIGSEGV*said on stderr*" \
+                ROLE=overflows || [ "$(uname -s)" = Darwin ]; } &&
             expect_death "an interactor ended by an exception nothing caught" 3 \
                 "*jury error an exception nothing caught ended the interactor: the interactor lost count*" \
                 env ROLE=interactor TEST_COST=40 "$build/dies" "$build/exits_in.txt" "$build/exits_summary.txt" &&
-            pass "an exception nothing caught is a jury error that says what it was, in a log that keeps what the checker printed; a signal still leaves an empty log"
+            pass "a checker that dies of an exception, an abort, a signal or a stack overflow leaves its verdict first and what it printed in its log"
         ;;
 esac
 

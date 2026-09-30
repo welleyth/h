@@ -75,9 +75,15 @@ inline std::FILE*& log_file() {
     return where;
 }
 
+inline void (*&after_a_log_line())(std::size_t) {
+    static void (*hook)(std::size_t) = nullptr;
+    return hook;
+}
+
 inline void log_line(std::string const& text) {
     std::fwrite(text.data(), 1, text.size(), log_file());
     std::fputc('\n', log_file());
+    if (after_a_log_line() != nullptr) after_a_log_line()(text.size() + 1);
 }
 
 inline void (*&emitter())(std::string const&) {

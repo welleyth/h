@@ -7,6 +7,17 @@
 #include <stdexcept>
 #include <string>
 
+namespace {
+
+int deeper(int depth, int stop) {
+    volatile char pad[4096];
+    pad[0] = static_cast<char>(depth);
+    if (depth == stop) return pad[0];
+    return deeper(depth + 1, stop) + pad[0];
+}
+
+}  // namespace
+
 int main(int argc, char** argv) {
     std::string const role = std::getenv("ROLE") != nullptr ? std::getenv("ROLE") : "";
     if (role == "interactor") {
@@ -24,5 +35,6 @@ int main(int argc, char** argv) {
     if (role == "aborts") std::abort();
     if (role == "segfaults") std::raise(SIGSEGV);
     if (role == "divides") std::raise(SIGFPE);
+    if (role == "overflows") std::printf("%d\n", deeper(0, argc > 1000 ? 0 : -1));
     eo::accept();
 }

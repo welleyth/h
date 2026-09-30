@@ -1807,3 +1807,78 @@ EO_TEST(an_exception_nothing_caught_ends_a_role_as_a_jury_error) {
     EO_CHECK_EQ(replaced_handler_calls(), 1);
     EO_CHECK(std::get_terminate() == &eo::detail::scorer::ended_by_terminate);
 }
+
+EO_TEST(on_the_judge_a_deadly_signal_writes_the_held_log_before_the_checker_dies) {
+    eo::detail::diagnostics::shared().forget_everything();
+    forget_the_environment();
+    three_files files("1\n", "5\n", "5\n");
+    ::setenv("EOLYMP", "1", 1);
+    ::setenv("TEST_COST", "40", 1);
+    std::string program = "checker.cpp";
+    std::vector<char*> arguments{program.data(), const_cast<char*>(files.input.c_str()),
+                                 const_cast<char*>(files.output.c_str()),
+                                 const_cast<char*>(files.answer.c_str())};
+    struct sigaction before {};
+    ::sigaction(SIGSEGV, nullptr, &before);
+    std::string const signals[] = {"SIGSEGV", "SIGABRT", "SIGFPE", "SIGBUS", "SIGILL"};
+    int const numbers[] = {SIGSEGV, SIGABRT, SIGFPE, SIGBUS, SIGILL};
+    struct sigaction before_each[5] = {};
+    for (int at = 0; at < 5; at++) ::sigaction(numbers[at], nullptr, &before_each[at]);
+    for (int at = 0; at < 5; at++) {
+        bool caught = false;
+        bool handed_back = false;
+        eot::outcome const result = eot::run_until_stop([&] {
+            eo::checker c(static_cast<int>(arguments.size()), arguments.data());
+            struct sigaction during {};
+            ::sigaction(numbers[at], nullptr, &during);
+            caught = during.sa_handler == &eo::detail::deadly_signal;
+            std::fprintf(stderr, "said before dying\n");
+            c.input.read_int(1, 9, "n");
+            try {
+                eo::detail::deadly_signal(numbers[at]);
+            } catch (eo::detail::stop const&) {
+                struct sigaction handed_on {};
+                ::sigaction(numbers[at], nullptr, &handed_on);
+                handed_back = handed_on.sa_handler == before_each[at].sa_handler &&
+                              eo::detail::on_a_deadly_signal() == nullptr;
+                throw;
+            }
+        });
+        EO_CHECK(caught);
+        EO_CHECK(handed_back);
+        EO_CHECK_EQ(result.code, 128 + numbers[at]);
+        EO_CHECK(result.printed.rfind("jury error the checker died of " + signals[at], 0) == 0);
+        EO_CHECK_IN(result.printed, "\nsaid before dying\neolymp.h " EOLYMP_H_VERSION "\n");
+    }
+    forget_the_environment();
+    struct sigaction after {};
+    ::sigaction(SIGSEGV, nullptr, &after);
+    EO_CHECK(after.sa_handler == before.sa_handler);
+    eot::outcome const with_no_checker = eot::run_until_stop([] { eo::detail::deadly_signal(SIGFPE); });
+    EO_CHECK_EQ(with_no_checker.code, 128 + SIGFPE);
+    EO_CHECK_EQ(with_no_checker.printed, std::string(""));
+}
+
+EO_TEST(on_the_judge_a_logged_line_survives_a_deadly_signal_after_many) {
+    eo::detail::diagnostics::shared().forget_everything();
+    forget_the_environment();
+    three_files files("1\n", "5\n", "5\n");
+    ::setenv("EOLYMP", "1", 1);
+    ::setenv("TEST_COST", "40", 1);
+    std::string program = "checker.cpp";
+    std::vector<char*> arguments{program.data(), const_cast<char*>(files.input.c_str()),
+                                 const_cast<char*>(files.output.c_str()),
+                                 const_cast<char*>(files.answer.c_str())};
+    eot::outcome const result = eot::run_until_stop([&] {
+        eo::checker c(static_cast<int>(arguments.size()), arguments.data());
+        for (int line = 0; line < 1500; line++) eo::log("an early line, number {}", line);
+        eo::log("the marker");
+        for (int line = 0; line < 2000; line++) eo::log("a late line, number {}", line);
+        c.input.read_int(1, 9, "n");
+        eo::detail::deadly_signal(SIGSEGV);
+    });
+    forget_the_environment();
+    EO_CHECK_EQ(result.code, 128 + SIGSEGV);
+    EO_CHECK(result.printed.rfind("jury error the checker died of SIGSEGV", 0) == 0);
+    EO_CHECK_IN(result.printed, "\nan early line, number 1499\nthe marker\n");
+}
