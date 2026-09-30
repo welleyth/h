@@ -86,7 +86,7 @@ private:
         built += test_;
         built += "\n";
         built += payload;
-        if (built.size() > 64u * 1024 * 1024)
+        if (built.size() > detail::large_file)
             detail::warn("EO407", fmt("this handoff is {} bytes", built.size()),
                          "the judge copies it between runs", where_);
         owner_->hand_the_file_on(built);

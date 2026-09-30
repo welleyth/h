@@ -76,8 +76,8 @@ enum class absorbed { nothing, some, full };
 
 class source {
 public:
-    static std::size_t constexpr default_chunk = 1u << 20;
-    static std::size_t constexpr pipe_chunk = 1u << 16;
+    static std::size_t constexpr default_chunk = mebibyte;
+    static std::size_t constexpr pipe_chunk = pipe_size;
 
     source() = default;
     source(source const&) = delete;

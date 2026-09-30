@@ -612,7 +612,7 @@ private:
 
     long long copy_what_was_held() {
         std::rewind(held_);
-        char buffer[1 << 16];
+        char buffer[detail::pipe_size];
         long long copied = 0;
         std::size_t got = 0;
         while ((got = std::fread(buffer, 1, sizeof(buffer), held_)) > 0) {
@@ -638,7 +638,7 @@ private:
         std::fwrite(EOLYMP_H_VERSION, 1, std::strlen(EOLYMP_H_VERSION), stdout);
         std::fputc('\n', stdout);
         std::fflush(stdout);
-        if (held > 64 * 1024)
+        if (held > static_cast<long long>(detail::stored_log))
             detail::note("EO210", fmt("the checker printed {} bytes before its verdict", held),
                          "stored logs are truncated", detail::site::here());
     }

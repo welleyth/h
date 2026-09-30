@@ -113,7 +113,7 @@ public:
         if (count < 0) refuse(name, fmt("a count of {} cannot be read", count));
         long long const left = from_.bytes_left();
         if (left >= 0) return static_cast<std::size_t>(std::min(count, left / 2 + 1));
-        return static_cast<std::size_t>(std::min(count, 1LL << 20));
+        return static_cast<std::size_t>(std::min(count, static_cast<long long>(mebibyte)));
     }
 
     void blame(fault whose) { whose_ = whose; }
@@ -123,7 +123,7 @@ public:
     int take() { return from_.take(); }
 
     std::string ahead_of_the_value() {
-        std::string const rest = from_.ahead(64);
+        std::string const rest = from_.ahead(lookahead);
         std::size_t at = 0;
         while (at < rest.size() && !is_blank(static_cast<unsigned char>(rest[at]))) at++;
         return rest.substr(0, at);
@@ -143,7 +143,7 @@ public:
     }
 
     std::string rest_of_the_input() {
-        std::string rest = from_.ahead(64);
+        std::string rest = from_.ahead(lookahead);
         std::size_t const stop = rest.find('\n');
         if (stop != std::string::npos) rest.resize(stop);
         return rest;
@@ -232,7 +232,7 @@ public:
         } else if (allowed == nullptr && bounds == stated::yes && !lenient_ && fresh("EO108", where))
             warn("EO108", "this token is read with no charset",
                  "say which characters it may hold, or say eo::any", where);
-        if (token.size() > 1024 * 1024 && fresh("EO111", where))
+        if (token.size() > mebibyte && fresh("EO111", where))
             note("EO111", fmt("a token of {} bytes was held in memory", token.size()),
                  "bound its length if the format allows", where);
         if (bounds == stated::yes) {
@@ -345,6 +345,7 @@ public:
     }
 
     static long long constexpr longest_number = 4096;
+    static std::size_t constexpr lookahead = 64;
 
     std::string take_number(value_name const& name, site where, bool with_a_point, char const* expected) {
         start_value(name, where, expected);

@@ -98,6 +98,11 @@ inline bool on_judge() { return environment("EOLYMP") != nullptr; }
 
 inline bool strict_mode() { return environment_is("EOLYMP_STRICT", "1"); }
 
+inline std::size_t constexpr mebibyte = std::size_t{1} << 20;
+inline std::size_t constexpr pipe_size = std::size_t{1} << 16;
+inline std::size_t constexpr stored_log = std::size_t{1} << 16;
+inline std::size_t constexpr large_file = 64 * mebibyte;
+
 inline bool numbers_as_in_c() {
     return std::fegetround() == FE_TONEAREST && std::strcmp(std::localeconv()->decimal_point, ".") == 0;
 }
@@ -783,8 +788,8 @@ enum class absorbed { nothing, some, full };
 
 class source {
 public:
-    static std::size_t constexpr default_chunk = 1u << 20;
-    static std::size_t constexpr pipe_chunk = 1u << 16;
+    static std::size_t constexpr default_chunk = mebibyte;
+    static std::size_t constexpr pipe_chunk = pipe_size;
 
     source() = default;
     source(source const&) = delete;
@@ -1313,7 +1318,7 @@ public:
         if (count < 0) refuse(name, fmt("a count of {} cannot be read", count));
         long long const left = from_.bytes_left();
         if (left >= 0) return static_cast<std::size_t>(std::min(count, left / 2 + 1));
-        return static_cast<std::size_t>(std::min(count, 1LL << 20));
+        return static_cast<std::size_t>(std::min(count, static_cast<long long>(mebibyte)));
     }
 
     void blame(fault whose) { whose_ = whose; }
@@ -1323,7 +1328,7 @@ public:
     int take() { return from_.take(); }
 
     std::string ahead_of_the_value() {
-        std::string const rest = from_.ahead(64);
+        std::string const rest = from_.ahead(lookahead);
         std::size_t at = 0;
         while (at < rest.size() && !is_blank(static_cast<unsigned char>(rest[at]))) at++;
         return rest.substr(0, at);
@@ -1343,7 +1348,7 @@ public:
     }
 
     std::string rest_of_the_input() {
-        std::string rest = from_.ahead(64);
+        std::string rest = from_.ahead(lookahead);
         std::size_t const stop = rest.find('\n');
         if (stop != std::string::npos) rest.resize(stop);
         return rest;
@@ -1432,7 +1437,7 @@ public:
         } else if (allowed == nullptr && bounds == stated::yes && !lenient_ && fresh("EO108", where))
             warn("EO108", "this token is read with no charset",
                  "say which characters it may hold, or say eo::any", where);
-        if (token.size() > 1024 * 1024 && fresh("EO111", where))
+        if (token.size() > mebibyte && fresh("EO111", where))
             note("EO111", fmt("a token of {} bytes was held in memory", token.size()),
                  "bound its length if the format allows", where);
         if (bounds == stated::yes) {
@@ -1545,6 +1550,7 @@ public:
     }
 
     static long long constexpr longest_number = 4096;
+    static std::size_t constexpr lookahead = 64;
 
     std::string take_number(value_name const& name, site where, bool with_a_point, char const* expected) {
         start_value(name, where, expected);
@@ -3601,7 +3607,7 @@ private:
 
     long long copy_what_was_held() {
         std::rewind(held_);
-        char buffer[1 << 16];
+        char buffer[detail::pipe_size];
         long long copied = 0;
         std::size_t got = 0;
         while ((got = std::fread(buffer, 1, sizeof(buffer), held_)) > 0) {
@@ -3627,7 +3633,7 @@ private:
         std::fwrite(EOLYMP_H_VERSION, 1, std::strlen(EOLYMP_H_VERSION), stdout);
         std::fputc('\n', stdout);
         std::fflush(stdout);
-        if (held > 64 * 1024)
+        if (held > static_cast<long long>(detail::stored_log))
             detail::note("EO210", fmt("the checker printed {} bytes before its verdict", held),
                          "stored logs are truncated", detail::site::here());
     }
@@ -3804,7 +3810,7 @@ public:
         line.push_back('\n');
         pending_ += line;
         sent_bytes_ += static_cast<long long>(line.size());
-        if (pending_.size() >= 1u << 16) flush();
+        if (pending_.size() >= detail::pipe_size) flush();
     }
 
     void flush() {
@@ -3959,7 +3965,7 @@ private:
         built += test_;
         built += "\n";
         built += payload;
-        if (built.size() > 64u * 1024 * 1024)
+        if (built.size() > detail::large_file)
             detail::warn("EO407", fmt("this handoff is {} bytes", built.size()),
                          "the judge copies it between runs", where_);
         owner_->hand_the_file_on(built);
@@ -4385,7 +4391,7 @@ public:
             bool first = true;
             (add(values, first), ...);
             held_.push_back('\n');
-            if (held_.size() >= 1u << 20) flush();
+            if (held_.size() >= detail::mebibyte) flush();
         }
 
         void line() { put("\n"); }
@@ -4410,7 +4416,7 @@ public:
             if constexpr (detail::is_a_list<T>::value && !std::is_convertible_v<T const&, std::string_view>) {
                 for (auto const& one : value) {
                     add(one, first);
-                    if (held_.size() >= 1u << 20) flush();
+                    if (held_.size() >= detail::mebibyte) flush();
                 }
             } else {
                 detail::add_to_line(held_, value, first);
@@ -4419,7 +4425,7 @@ public:
 
         void put(std::string const& bytes) {
             held_ += bytes;
-            if (held_.size() >= 1u << 20) flush();
+            if (held_.size() >= detail::mebibyte) flush();
         }
 
         generator* owner_ = nullptr;
@@ -4510,7 +4516,7 @@ private:
         if (stress_ && !drew_)
             detail::warn("EO501", "this stress run made no random draw",
                          "every iteration would get the same test", where_of_run_);
-        if (written_ > 64ll * 1024 * 1024)
+        if (written_ > static_cast<long long>(detail::large_file))
             detail::warn("EO502", fmt("this test is {} bytes", written_),
                          "storage and judging time", where_of_run_);
         int const flushed = std::fflush(stdout);
