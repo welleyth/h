@@ -13,8 +13,9 @@ in the right-hand columns is in the header; the programs below are compiled by `
 | `inf.readInt(1, n, "n")` | `v.read_int(1, n, "n")` |
 | `inf.readLong(lo, hi, "x")` | `v.read_long(lo, hi, "x")` |
 | `inf.readStrictDouble(lo, hi, 1, 6, "x")` | `v.read_real(lo, hi, 1, 6, "x")` |
-| `inf.readToken("[a-z]{1,10}", "s")` | `v.read_token(1, 10, eo::charset("a-z"), "s")` |
-| `inf.readLine("[a-z ]{1,100}", "s")` | `v.read_line(1, 100, eo::charset("a-z "), "s")` |
+| `inf.readToken("[a-z]{1,10}", "s")` | `v.read_token(eo::pattern("[a-z]{1,10}"), "s")`, or `v.read_token(1, 10, eo::charset("a-z"), "s")` |
+| `inf.readLine("[a-z\\ ]{1,100}", "s")` | `v.read_line(eo::pattern("[a-z ]{1,100}"), "s")`, or `v.read_line(1, 100, eo::charset("a-z "), "s")` |
+| `inf.readTokens(n, "[a-z]{1,10}", "s")` | `v.read_tokens(n, eo::pattern("[a-z]{1,10}"), "s")` |
 | `inf.readInts(n, 1, 1000000000, "a")` | `v.read_ints(n, 1, 1000000000, "a")` |
 | a loop of `inf.readLine("[.#]{m}", "row")` | `v.read_grid(n, m, eo::charset(".#"), "row")` |
 | a loop of `inf.readInt(1, n, "u")`, `readSpace`, `inf.readInt(1, n, "v")`, `readEoln` | `v.read_edges(m, n, "edge")`, a `std::vector<eo::edge>` |
@@ -40,8 +41,10 @@ int main(int argc, char** argv) {
 }
 ```
 
-A pattern such as `[a-z]{1,10}` becomes a charset and a length; there is no regular
-expression syntax. `v.read_eof()` is optional, because the library checks the end of the
+A pattern keeps its text, and six details of the dialect differ, listed under
+[Patterns](validator.md#patterns): testlib drops an unquoted space, so its `[a-z ]` must be
+written `[a-z\ ]`, where here either spelling is a space. A charset and a length say the
+same as `[a-z]{1,10}` and say it faster. `v.read_eof()` is optional, because the library checks the end of the
 input itself. See [validator.md](validator.md).
 
 ## Checker

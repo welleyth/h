@@ -115,11 +115,14 @@ Bounds are inclusive, and come first; the name is last.
 | `v.read_real(low, high, least, most, name)` | a decimal in `[low, high]` with between `least` and `most` digits after the point | `double` |
 | `v.read_token(least, most, eo::charset("a-z"), name)` | a token of that length made only of those characters | `std::string` |
 | `v.read_line(least, most, eo::charset("a-z "), name)` | the rest of the line, and its line break | `std::string` |
+| `v.read_token(eo::pattern("[A-Z][a-z]*"), name)` | a token that matches the [pattern](#patterns) | `std::string` |
+| `v.read_line(eo::pattern("[a-z]+( [a-z]+)*"), name)` | the rest of the line, which matches the pattern, and its line break | `std::string` |
 | `v.read_choice({"insert", "erase"}, name)` | a token equal to one of the choices | `std::string` |
 | `v.read_ints(count, low, high, name)` | `count` integers separated by single spaces | `std::vector<int>` |
 | `v.read_longs(count, low, high, name)` | the same, 64-bit | `std::vector<long long>` |
 | `v.read_reals(count, low, high, least, most, name)` | `count` decimals | `std::vector<double>` |
 | `v.read_tokens(count, least, most, eo::charset("a-z"), name)` | `count` tokens | `std::vector<std::string>` |
+| `v.read_tokens(count, eo::pattern("[a-z]{1,3}"), name)` | `count` tokens that match the pattern | `std::vector<std::string>` |
 | `v.read_grid(rows, cols, eo::charset(".#"), name)` | `rows` lines of exactly `cols` characters from the charset, each with its line break | `std::vector<std::string>` |
 
 Two rules about line breaks:
@@ -159,8 +162,9 @@ read, so nothing invalid slips through: on the input `9a`, `read_int` returns 9 
 
 ### Patterns
 
-`eo::pattern("[a-z]{1,10}")` is testlib's pattern syntax, and `p.matches(token)` says whether
-a whole token matches it; a pattern never matches part of one.
+`eo::pattern("[a-z]{1,10}")` is testlib's pattern syntax. `v.read_token(p, name)`,
+`v.read_tokens(count, p, name)` and `v.read_line(p, name)` read what must match it, and
+`p.matches(token)` says whether a whole token matches; a pattern never matches part of one.
 
 | Write | Matches |
 | --- | --- |
@@ -179,9 +183,15 @@ those places that are live at once, which the pattern bounds. A repeat of a char
 class is one place at any count, so `[a-z]{1,1000000}` costs what `[a-z]` costs; a repeated
 group is one copy per count, so `(ab|cd){1,100}` holds up to 100 copies of its group. A pattern
 whose places would number more than 4,096 is refused where it is made, and the largest pattern
-in these pages, the tests and testlib's own examples needs 27. A token of a million
+in these pages, the tests and testlib's own examples needs 27. A pattern with a longest match,
+`[a-z]{1,10}` or `(YES|NO)`, stops a read one character past it, as a read with a stated
+maximum length does, so a contestant's endless token costs no more than the pattern; one
+without, such as `[a-z]+( [a-z]+)*`, reads the whole token or line, and a line of a million
 characters against a pattern of 300 live places is 300 million steps. Building a pattern
 takes a few microseconds, so build it once, before the loop that uses it.
+
+A read's message names the value and the pattern:
+`line 1, first: "anna" does not match "[A-Z][a-z]{0,9}"`.
 
 A pattern that does not parse is refused where it is made, with the column and what to write
 instead: `eo::pattern("[a-z") does not parse at column 1: the [ that opens here has no ] to
@@ -197,7 +207,8 @@ It differs from testlib's in five places:
 - **It matches as a regular expression does.** testlib's matcher takes as many characters as
   a repeat allows and never gives one back, so `[a-z]*a` matches `ba` here and nothing there.
 - **A space is a space.** testlib drops every space a backslash does not quote, so its
-  `[a-z ]` is `[a-z]`; `\ ` is a space in both.
+  `[a-z ]` is `[a-z]`; `\ ` is a space in both. A ported `readToken("[a-z] {1,5}")` therefore
+  matches no token here, since a token holds no blank, and warning EO113 says so.
 - **`{2,}` is two or more**, where testlib reads it as exactly two.
 - **A group can be repeated, and can stand anywhere:** testlib refuses `(ab|cd){2}` and
   `x(ab|cd)y`.
@@ -510,13 +521,9 @@ eo::allow quiet("EO106", "the statement really says n <= 200001");
 
 ## Not here yet
 
-Still missing:
-
-- A pattern syntax. Use a charset and a length, which is exact and faster; `v.read_choice`
-  covers a fixed set of words.
-
-The whole-problem checks EO806–EO811 and the configuration checks EO9xx are in
-[judge.md](judge.md); they read the coverage this validator records.
+Nothing a validator reads is missing. The whole-problem checks EO806–EO811 and the
+configuration checks EO9xx are in [judge.md](judge.md); they read the coverage this validator
+records.
 
 ## Reference card
 
@@ -524,7 +531,7 @@ The whole-problem checks EO806–EO811 and the configuration checks EO9xx are in
 | --- | --- |
 | `eo::validator v(argc, argv)` | makes the program a validator; `v` is also the input |
 | `read_int`, `read_long`, `read_real` | numbers |
-| `read_token`, `read_line`, `read_choice` | text |
+| `read_token`, `read_line`, `read_choice` | text, by a length and a charset or by an `eo::pattern` |
 | `read_ints`, `read_longs`, `read_reals`, `read_tokens` | several values on one line |
 | `read_grid(rows, cols, charset, name)` | a grid, one row per line |
 | `read_space()`, `read_eoln()`, `read_char(c)`, `read_eof()` | separators |
@@ -547,6 +554,7 @@ The whole-problem checks EO806–EO811 and the configuration checks EO9xx are in
 | `eo::edge`, `eo::weighted_edge` | what the edge readers return: `u`, `v`, and `w` |
 | `eo::any`, `eo::unnamed` | "no bounds, on purpose", "no name, on purpose" |
 | `eo::charset("a-z")` | allowed characters: single ones and ranges |
+| `eo::pattern("[a-z]{1,10}")` | testlib's pattern syntax; `matches(token)` |
 | `eo::element(name, index)` | names one element of a sequence, without a coverage entry of its own |
 | `eo::fmt("…", args)` | build a string with `{}` placeholders |
 | `eo::allow name("EO106", "why")` | silence one warning code in a scope |

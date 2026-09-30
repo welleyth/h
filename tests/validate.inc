@@ -1145,3 +1145,109 @@ EO_TEST(an_element_is_named_by_index_and_covered_under_its_sequence) {
     EO_CHECK(refused.stopped);
     EO_CHECK_IN(refused.text, "a[2]");
 }
+
+EO_TEST(a_validator_reads_a_token_that_matches_a_pattern) {
+    eo::pattern const name("[A-Z][a-z]{0,9}");
+    eot::outcome const good = validate("Anna Bo\nYES\n", [&](eo::validator& v) {
+        EO_CHECK_EQ(v.read_token(name, "first"), std::string("Anna"));
+        v.read_space();
+        EO_CHECK_EQ(v.read_token(name, "last"), std::string("Bo"));
+        v.read_eoln();
+        EO_CHECK_EQ(v.read_token(eo::pattern("YES|NO"), "answer"), std::string("YES"));
+        v.read_eoln();
+    });
+    EO_CHECK(!good.stopped);
+    EO_CHECK_EQ(warnings_of_last_run(), std::string(""));
+    eot::outcome const lower = validate("anna\n", [&](eo::validator& v) { v.read_token(name, "first"); });
+    EO_CHECK_EQ(lower.code, 3);
+    EO_CHECK_EQ(lower.text, std::string("line 1, first: \"anna\" does not match \"[A-Z][a-z]{0,9}\""));
+    eot::outcome const longer = validate("Annabellelee\n", [&](eo::validator& v) { v.read_token(name, "first"); });
+    EO_CHECK_EQ(longer.text, std::string("line 1, first: a token that starts \"Annabellele\" is longer than the 10 "
+                                         "characters \"[A-Z][a-z]{0,9}\" allows"));
+    eot::outcome const missing = validate("\n", [&](eo::validator& v) { v.read_token(name, "first"); });
+    EO_CHECK_EQ(missing.text, std::string("line 1, first: expected a token, found a line break"));
+    eot::outcome const loose = validate("5\n", [&](eo::validator& v) {
+        v.read_token(eo::pattern("[0-9]+"), "k");
+        v.read_eoln();
+    });
+    EO_CHECK(!loose.stopped);
+    eot::outcome const unnamed = validate("x\n", [&](eo::validator& v) {
+        v.read_token(eo::pattern("y"), eo::unnamed);
+    });
+    EO_CHECK_EQ(unnamed.text, std::string("line 1: \"x\" does not match \"y\""));
+}
+
+EO_TEST(a_token_pattern_that_only_matches_with_a_blank_is_pointed_out) {
+    eot::outcome const spaced = validate("ab\n", [](eo::validator& v) { v.read_token(eo::pattern("[a-z] {1,5}"), "s"); });
+    EO_CHECK_EQ(spaced.code, 3);
+    EO_CHECK_IN(warnings_of_last_run(), "warning EO113: \"[a-z] {1,5}\" matches only text with a blank in it, and a "
+                                        "token holds none");
+    for (char const* fine : {"[a-z ]+", "( |x)", "a|\\ b", "[^ ]", "( a)?", "(a|b)( c)*"}) {
+        validate("x\n", [&](eo::validator& v) { (void)eot::run_until_stop([&] { v.read_token(eo::pattern(fine), "s"); }); });
+        EO_CHECK(!eot::contains(warnings_of_last_run(), "EO113"));
+    }
+    for (char const* blank : {"a b", "(\\ |\t)", "[ \t]+", "x( y)+"}) {
+        validate("x\n", [&](eo::validator& v) { (void)eot::run_until_stop([&] { v.read_token(eo::pattern(blank), "s"); }); });
+        EO_CHECK_IN(warnings_of_last_run(), "EO113");
+    }
+    validate("a b\n", [](eo::validator& v) { v.read_line(eo::pattern("a b"), "s"); });
+    EO_CHECK(!eot::contains(warnings_of_last_run(), "EO113"));
+}
+
+EO_TEST(a_validator_reads_tokens_and_a_line_that_match_a_pattern) {
+    eo::pattern const word("[a-z]{1,3}");
+    eot::outcome const good = validate("ab c def\nhello world 42\n", [&](eo::validator& v) {
+        std::vector<std::string> const words = v.read_tokens(3, word, "w");
+        EO_CHECK(words == std::vector<std::string>({"ab", "c", "def"}));
+        v.read_eoln();
+        EO_CHECK_EQ(v.read_line(eo::pattern("[a-z]+( [a-z0-9]+)*"), "line"), std::string("hello world 42"));
+    });
+    EO_CHECK(!good.stopped);
+    eot::outcome const third = validate("ab c dxf1\n", [&](eo::validator& v) { v.read_tokens(3, word, "w"); });
+    EO_CHECK_EQ(third.text,
+                std::string("line 1, w[3]: a token that starts \"dxf1\" is longer than the 3 characters \"[a-z]{1,3}\" "
+                            "allows"));
+    eot::outcome const line = validate("hello  world\n", [&](eo::validator& v) {
+        v.read_line(eo::pattern("[a-z]+( [a-z]+)*"), "line");
+    });
+    EO_CHECK_EQ(line.text, std::string("line 1, line: the line \"hello  world\" does not match \"[a-z]+( [a-z]+)*\""));
+    eot::outcome const wide = validate("abcdef\n", [&](eo::validator& v) { v.read_line(word, "line"); });
+    EO_CHECK_EQ(wide.text, std::string("line 1, line: a line that starts \"abcd\" is longer than the 3 characters "
+                                       "\"[a-z]{1,3}\" allows"));
+    eot::outcome const empty = validate("\n", [&](eo::validator& v) { v.read_line(eo::pattern("(x)?"), "line"); });
+    EO_CHECK(!empty.stopped);
+    eot::outcome const unended = validate("ab", [&](eo::validator& v) { v.read_line(word, "line"); });
+    EO_CHECK_EQ(unended.text, std::string("line 1, line: the line has no line break at its end"));
+    eot::outcome const crlf = validate("ab\r\ncd\r\n", [&](eo::validator& v) {
+        EO_CHECK_EQ(v.read_line(word, "line"), std::string("ab"));
+        EO_CHECK_EQ(v.read_token(word, "w"), std::string("cd"));
+        v.read_eoln();
+    });
+    EO_CHECK(!crlf.stopped);
+    for (char const* one : {"(a*){0}b", "(){3}b", "(|b)", "(b|a*){0}b", "(ab){0,5}|b"}) {
+        eot::outcome const capped = validate("bbbbbbbbbbbb\n", [&](eo::validator& v) {
+            v.read_token(eo::pattern(one), "t");
+        });
+        EO_CHECK_IN(capped.text, "a token that starts \"b");
+    }
+    for (char const* one : {"(ab)*b*", "(ab|b)+", "b{2,}", "(b{3}|a)*"}) {
+        eot::outcome const endless = validate("bbbbbbbbbbbb\n", [&](eo::validator& v) {
+            v.read_token(eo::pattern(one), "t");
+            v.read_eoln();
+        });
+        EO_CHECK(!endless.stopped);
+    }
+    eot::outcome const empty_pattern = validate("x\n", [&](eo::validator& v) { v.read_line(eo::pattern(""), "line"); });
+    EO_CHECK_EQ(empty_pattern.text,
+                std::string("line 1, line: a line that starts \"x\" is longer than the 0 characters \"\" allows"));
+}
+
+EO_TEST(a_huge_token_read_against_an_endless_pattern_is_noted) {
+    std::string const huge(eo::detail::mebibyte + 3, 'a');
+    eot::outcome const read = validate(huge + "\n", [&](eo::validator& v) {
+        EO_CHECK_EQ(v.read_token(eo::pattern("a+"), "s").size(), huge.size());
+        v.read_eoln();
+    });
+    EO_CHECK(!read.stopped);
+    EO_CHECK_IN(warnings_of_last_run(), "note EO111: a token of 1048579 bytes was held in memory");
+}

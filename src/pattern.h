@@ -17,6 +17,8 @@
 namespace eo {
 namespace detail {
 
+class reader;
+
 enum class pattern_problem {
     none,
     unclosed_class,
@@ -576,6 +578,40 @@ private:
     mutable std::uint64_t visits_ = 0;
 };
 
+inline bool matches_without_a_blank(pattern_tree const& tree, int index) {
+    pattern_piece const& piece = tree.at(index);
+    if (piece.shape == piece_shape::one) {
+        byte_set blanks{};
+        for (unsigned const blank : {unsigned{' '}, unsigned{'\t'}, unsigned{'\n'}, unsigned{'\r'}}) add_byte(blanks, blank);
+        for (std::size_t at = 0; at < piece.set.size(); at++)
+            if ((piece.set[at] & ~blanks[at]) != 0) return true;
+        return false;
+    }
+    if (piece.shape == piece_shape::again) return piece.least == 0 || matches_without_a_blank(tree, piece.parts[0]);
+    bool const either = piece.shape == piece_shape::either;
+    for (int const part : piece.parts)
+        if (matches_without_a_blank(tree, part) == either) return either;
+    return !either;
+}
+
+inline long long longest_match(pattern_tree const& tree, int index) {
+    pattern_piece const& piece = tree.at(index);
+    if (piece.shape == piece_shape::one) return 1;
+    if (piece.shape == piece_shape::again) {
+        long long const each = longest_match(tree, piece.parts[0]);
+        if (each == 0 || piece.most == 0) return 0;
+        if (each == unbounded || piece.most == unbounded) return unbounded;
+        return each * piece.most;
+    }
+    long long total = 0;
+    for (int const part : piece.parts) {
+        long long const each = longest_match(tree, part);
+        if (each == unbounded) return unbounded;
+        total = piece.shape == piece_shape::row ? total + each : std::max(total, each);
+    }
+    return total;
+}
+
 }  // namespace detail
 
 class pattern {
@@ -597,16 +633,22 @@ public:
                                       "group",
                                       detail::where_of(told.where()), detail::escaped(text_), detail::most_steps));
         program_ = detail::pattern_program(tree_, root_);
+        longest_ = detail::longest_match(tree_, root_);
+        in_a_token_ = detail::matches_without_a_blank(tree_, root_);
     }
 
     bool matches(std::string_view token) const { return program_.matches(token); }
     std::string const& text() const { return text_; }
 
 private:
+    friend class detail::reader;
+
     std::string text_;
     detail::pattern_tree tree_;
     int root_ = 0;
     detail::pattern_program program_;
+    long long longest_ = 0;
+    bool in_a_token_ = true;
 };
 
 }  // namespace eo

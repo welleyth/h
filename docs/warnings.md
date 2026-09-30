@@ -24,7 +24,7 @@ line on the judge, and the channel each role can afford to write to — is in
 | `eo-judge check` | the emulator, reading the whole problem; **never appears in a judge log** |
 | `eo-judge lint` | a textual scan of the source, for what no run can see |
 
-All 78 designed codes are built.
+All 79 designed codes are built.
 
 ## EO1xx — reading a value
 
@@ -44,6 +44,7 @@ Every role reads through the same engine, so these fire anywhere.
 | `EO110` | note | the program | a local input has CRLF line endings | the judge converts them and so does a local run, so this is a note about the file, not the test |
 | `EO111` | note | the program | a token over 1 MB was held in memory | bound its length if the format allows |
 | `EO112` | warning | the program | a message has more or fewer `{}` than values, or a lone `{` or `}`, such as a printf-style `"%d"` | write one `{}` for each value and `{{` or `}}` for a brace; the message keeps every value, the extra ones appended, and the verdict stands; under C++20, `-DEOLYMP_CHECK_PATTERNS` makes a literal message like that a compile error instead |
+| `EO113` | warning | the program | a token is read against a pattern whose every match holds a space, a tab or a line break, as testlib's `readToken("[a-z] {1,5}")` does when ported: testlib drops the space, this library keeps it, and no token can match | read a line with `read_line(pattern, name)`, or drop the space the way testlib did |
 
 ## EO2xx — the checker
 

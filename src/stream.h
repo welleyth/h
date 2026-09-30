@@ -10,6 +10,7 @@
 #include "fmt.h"
 #include "io.h"
 #include "parse.h"
+#include "pattern.h"
 #include "read.h"
 
 namespace eo {
@@ -237,9 +238,7 @@ public:
         } else if (allowed == nullptr && bounds == stated::yes && !lenient_ && fresh("EO108", where))
             warn("EO108", "this token is read with no charset",
                  "say which characters it may hold, or say eo::any", where);
-        if (token.size() > mebibyte && fresh("EO111", where))
-            note("EO111", fmt("a token of {} bytes was held in memory", token.size()),
-                 "bound its length if the format allows", where);
+        note_a_large_token(token, where);
         if (bounds == stated::yes) {
             long long const length = static_cast<long long>(token.size());
             if (length > most)
@@ -257,11 +256,65 @@ public:
         }
     }
 
+    std::string matching(eo::pattern const& told, value_name const& name, site where) {
+        if (!told.in_a_token_ && fresh("EO113", where))
+            warn("EO113",
+                 fmt("\"{}\" matches only text with a blank in it, and a token holds none", escaped(told.text())),
+                 "read the line with read_line; testlib drops a space its pattern does not quote, so its "
+                 "\"[a-z] {1,5}\" is \"[a-z]{1,5}\" here",
+                 where);
+        std::string token;
+        long long const cap = told.longest_ == unbounded ? 0 : told.longest_ + 1;
+        take_word_into(token, name, where, "a token", cap);
+        note_a_large_token(token, where);
+        if (cap > 0 && static_cast<long long>(token.size()) == cap)
+            refuse(name, fmt("a token that starts \"{}\" is longer than the {} characters \"{}\" allows",
+                             shorten(token), told.longest_, escaped(told.text())));
+        if (!told.matches(token))
+            refuse(name, fmt("\"{}\" does not match \"{}\"", shorten(token), escaped(told.text())));
+        return token;
+    }
+
+    std::string line_matching(eo::pattern const& told, value_name const& name) {
+        std::string text;
+        long long const cap = told.longest_ == unbounded ? 0 : told.longest_ + 1;
+        long long const seen = line_into(text, cap, name);
+        if (cap > 0 && seen >= cap)
+            refuse(name, fmt("a line that starts \"{}\" is longer than the {} characters \"{}\" allows",
+                             shorten(text), told.longest_, escaped(told.text())));
+        if (!told.matches(text))
+            refuse(name, fmt("the line \"{}\" does not match \"{}\"", shorten(text), escaped(told.text())));
+        end_the_line(name);
+        return text;
+    }
+
     std::string rest_of_line(long long least, long long most, charset const* allowed, stated bounds,
                              value_name const& name, site where) {
-        settle();
         std::string text;
         long long const cap = bounds == stated::yes && most < long_high ? most + 1 : 0;
+        long long const seen = line_into(text, cap, name);
+        if (allowed == nullptr && bounds == stated::yes && !lenient_ && fresh("EO108", where))
+            warn("EO108", "this line is read with no charset",
+                 "say which characters it may hold, or say eo::any", where);
+        long long const length = cap == 0 ? static_cast<long long>(text.size()) : seen;
+        if (bounds == stated::yes && length > most)
+            refuse(name, fmt("the line is longer than {} characters", most));
+        if (bounds == stated::yes && length < least)
+            refuse(name, fmt("the line is {} characters long, not {}..{}", length, least, most));
+        if (allowed != nullptr)
+            for (char const one : text)
+                if (!allowed->has(one))
+                    refuse(name, fmt("the line holds \"{}\", which is not in \"{}\"", escaped(std::string(1, one)),
+                                     allowed->text()));
+        if (bounds == stated::yes)
+            remember(name, "length", least, most, length == least, length == most,
+                     where);
+        end_the_line(name);
+        return text;
+    }
+
+    long long line_into(std::string& text, long long cap, value_name const& name) {
+        settle();
         long long seen = 0;
         while (true) {
             int const next = from_.peek();
@@ -283,26 +336,13 @@ public:
             text.pop_back();
             seen--;
         }
-        if (allowed == nullptr && bounds == stated::yes && !lenient_ && fresh("EO108", where))
-            warn("EO108", "this line is read with no charset",
-                 "say which characters it may hold, or say eo::any", where);
-        long long const length = cap == 0 ? static_cast<long long>(text.size()) : seen;
-        if (bounds == stated::yes && length > most)
-            refuse(name, fmt("the line is longer than {} characters", most));
-        if (bounds == stated::yes && length < least)
-            refuse(name, fmt("the line is {} characters long, not {}..{}", length, least, most));
-        if (allowed != nullptr)
-            for (char const one : text)
-                if (!allowed->has(one))
-                    refuse(name, fmt("the line holds \"{}\", which is not in \"{}\"", escaped(std::string(1, one)),
-                                     allowed->text()));
-        if (bounds == stated::yes)
-            remember(name, "length", least, most, length == least, length == most,
-                     where);
+        return seen;
+    }
+
+    void end_the_line(value_name const& name) {
         if (from_.peek() == '\n') from_.take();
         was_read(name);
         separated_ = true;
-        return text;
     }
 
     std::string line_up_to(std::size_t keep, bool& longer, value_name const& name) {
@@ -505,6 +545,12 @@ public:
 
 private:
     static bool fresh(char const* code, site where) { return !diagnostics::shared().again(code, where); }
+
+    static void note_a_large_token(std::string const& token, site where) {
+        if (token.size() > mebibyte && fresh("EO111", where))
+            note("EO111", fmt("a token of {} bytes was held in memory", token.size()),
+                 "bound its length if the format allows", where);
+    }
 
     bool read_before(long long bound) const {
         for (auto const& one : bounds_)

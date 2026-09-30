@@ -261,6 +261,12 @@ public:
         return from_.word(0, 0, nullptr, detail::stated::deliberate, name, where);
     }
 
+    std::string read_token(pattern const& told, detail::value_name name, detail::site where = detail::site::here()) {
+        return from_.matching(told, name, where);
+    }
+
+    std::string read_line(pattern const& told, detail::value_name name) { return from_.line_matching(told, name); }
+
     std::string read_line(long long least, long long most, charset allowed, detail::value_name name,
                           detail::site where = detail::site::here()) {
         return from_.rest_of_line(least, most, &allowed, detail::stated::yes, name, where);
@@ -319,6 +325,12 @@ public:
         return many<std::string>(count, name, [&](detail::value_name const& each) {
             return from_.word(least, most, &allowed, detail::stated::yes, each, where);
         });
+    }
+
+    std::vector<std::string> read_tokens(long long count, pattern const& told, detail::value_name name,
+                                         detail::site where = detail::site::here()) {
+        return many<std::string>(count, name,
+                                 [&](detail::value_name const& each) { return from_.matching(told, each, where); });
     }
 
     std::vector<std::string> read_grid(long long rows, long long cols, charset allowed, detail::value_name name,
