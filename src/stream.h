@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstring>
 #include <map>
 #include <string>
 #include <vector>
@@ -260,6 +261,14 @@ public:
         while (true) {
             int const next = from_.peek();
             if (next < 0 || next == '\n') break;
+            std::size_t const run = plain_run();
+            if (run > 0) {
+                std::size_t const room = cap == 0 ? run : seen >= cap ? 0 : static_cast<std::size_t>(cap - seen);
+                text.append(from_.window(), std::min(run, room));
+                seen += static_cast<long long>(run);
+                from_.skip_plain(run);
+                continue;
+            }
             from_.take();
             seen++;
             if (cap == 0 || seen <= cap) text.push_back(static_cast<char>(next));
@@ -298,6 +307,16 @@ public:
         while (true) {
             int const next = from_.peek();
             if (next < 0 || next == '\n') break;
+            std::size_t const run = plain_run();
+            if (run > 0) {
+                char const* const at = from_.window();
+                std::size_t const kept = std::min(run, keep - std::min(keep, text.size()));
+                text.append(at, kept);
+                for (std::size_t past = kept; past < run && !longer; past++)
+                    if (at[past] != ' ' && at[past] != '\t') longer = true;
+                from_.skip_plain(run);
+                continue;
+            }
             from_.take();
             if (text.size() < keep) text.push_back(static_cast<char>(next));
             else if (next != ' ' && next != '\t' && next != '\r') longer = true;
@@ -380,6 +399,15 @@ public:
             refuse(name, fmt("expected {}, found \"{}\"", expected, shorten(token + ahead_of_the_value())));
         was_read(name);
         return token;
+    }
+
+    std::size_t plain_run() const {
+        char const* const at = from_.window();
+        std::size_t const held = from_.held();
+        char const* const line_end = static_cast<char const*>(std::memchr(at, '\n', held));
+        std::size_t const line = line_end == nullptr ? held : static_cast<std::size_t>(line_end - at);
+        char const* const carriage = static_cast<char const*>(std::memchr(at, '\r', line));
+        return carriage == nullptr ? line : static_cast<std::size_t>(carriage - at);
     }
 
     void digits_into(std::string& token) {
