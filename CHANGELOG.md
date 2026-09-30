@@ -1,5 +1,67 @@
 # Changelog
 
+## 2.1.1
+
+No verdict and no score changes: a program built against 2.1.1 judges every run as it did
+under 2.1.0, with the same messages, exit codes, warnings and warning counts, and a generator
+writes the same bytes. The header is faster. It is not shorter: `eolymp.h` has 4,572 lines
+against 2.1.0's 4,567, and 177,540 bytes against 179,499.
+
+### For problem authors
+
+- **Reading is faster.** Instructions to read, from `make bench`, 2.1.0 → 2.1.1: a validator's
+  `read_ints` 2.65 → 1.05 G for 2 million values, `read_longs` 1.92 → 0.66 G, `read_reals`
+  1.16 → 0.71 G, `read_line` 0.42 → 0.18 G, `read_tree` 1.08 → 0.39 G; a checker's
+  `tokens()` 2.17 → 0.69 G, `reals()` 2.31 → 0.95 G, `lines()` 0.78 → 0.19 G, `read_longs`
+  on both files 3.09 → 1.03 G. `tokens()` on 105 MB of 11.6 million words takes 8.1 G
+  instructions, where testlib's `wcmp` takes 19.2 G and 2.1.0 took 25.8 G. An interactor runs
+  about 850 user-space instructions of its own per round trip instead of about 1,400
+  (`perf stat -e instructions:u` over 200,000 round trips with an echoing solution).
+- **Writing `eo::fixed` is faster**: a generator writing `eo::fixed(x, 6)` runs 2.09 → 0.50 G
+  instructions for 500,000 lines.
+- Integers are parsed where they lie in the buffer, a real is read with `std::from_chars` and
+  `eo::fixed` written with `std::to_chars` where the library has them, and only while the
+  rounding mode is to-nearest and the decimal point is `.`, since `strtod` and `printf` follow
+  both; elsewhere, and on macOS's libc++, the old paths run. Lines are taken a run at a time,
+  names are not copied for every element, and a tree is accepted after one union-find pass.
+- Because the programs finish sooner, the warnings about time, EO209 for a checker, EO303 for a
+  validator and EO504 for a generator, fire less often on the same test.
+- A controller's `eo::channel` is an `eo::stream`, so it has every read a checker's streams
+  have, `read_line`, `read_ints`, `read_reals`, `read_tokens` and `at_eoln` among them, and
+  `numbers(eo::lenient)`, `reals(eo::plain)` and `wrong(…)`. `skip_rest` and `trailing`, which
+  only a checker's closing checks look at, are deleted on a channel.
+- The header builds without a warning under `-Wpedantic -Wconversion -Wsign-conversion
+  -Wold-style-cast -Wuseless-cast`.
+
+### For maintainers
+
+- `make bench` prints the instructions of the main read, check and generate paths under
+  `perf`, and `make bench BASE=<revision>` the change against another revision.
+- `tests/pinned.inc` pins what the reader, the comparisons, the formatting and the roles say
+  today, byte for byte, through buffers of every size and under other rounding modes and
+  locales.
+- The interactor and the controller share one base for their dialogue, the three roles one
+  lookup of their files and one fail-closed ending, the readers one loop for arrays and one for
+  choices, and the sizes the header repeats have names.
+- A warning code is known by its text: two spellings of one code at one site are counted
+  together. The library raises its codes as literals, which compilers merge, so no program
+  sees the difference.
+- The hostile gate builds a program that uses every role under the strict warnings above, and,
+  with libstdc++, a program that includes only `eolymp.h` and uses `std::function`,
+  `std::unordered_map`, `std::hash`, `std::bind`, `std::not_fn` and `std::invoke`, which it
+  has always got through the header. CI runs `make judge` on macOS as well as Linux.
+- Left as they were:
+  - An interactor still polls before each write. The poll is the only call that tells both
+    whether the write can go ahead and whether the solution's output must be taken in first.
+    Pipes refuse `RWF_NOWAIT` on Linux 6.1, a non-blocking standard output would break jury
+    code that writes to it, and writing or taking in at another moment changes the round trips
+    and EO409s the log reports.
+  - EO204 still warns about an empty `jury_error` message in a checker and not in an
+    interactor or a controller: making the roles agree adds or drops a warning on some runs.
+  - The simplification removed about the lines it was planned to remove, and the faster code
+    added about as many: `src/` is 540 lines in and 525 out against 2.1.0, where the plan
+    counted −214 for the simplification alone.
+
 ## 2.1.0
 
 This release changes no verdict. The header is the same library as 2.0.1 under a new

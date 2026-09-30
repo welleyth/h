@@ -13,7 +13,7 @@ import (
 	"syscall"
 )
 
-const version = "2.1.0"
+const version = "2.1.1"
 
 const usage = `eo-judge runs an Eolymp problem the way the judge does.
 

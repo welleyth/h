@@ -1,4 +1,4 @@
-// eolymp.h 2.1.0 — a judging library for the Eolymp platform.
+// eolymp.h 2.1.1 — a judging library for the Eolymp platform.
 // https://github.com/eolymp/h
 //
 // SPDX-License-Identifier: MIT
@@ -51,10 +51,10 @@
 #include <utility>
 #include <vector>
 
-#define EOLYMP_H_VERSION "2.1.0"
+#define EOLYMP_H_VERSION "2.1.1"
 #define EOLYMP_H_VERSION_MAJOR 2
 #define EOLYMP_H_VERSION_MINOR 1
-#define EOLYMP_H_VERSION_PATCH 0
+#define EOLYMP_H_VERSION_PATCH 1
 
 namespace eo {
 
