@@ -52,13 +52,18 @@ def build(root: pathlib.Path, version, order, banner, guard, prelude, too_old) -
     for name in order:
         text = (root / "src" / name).read_text()
         kept = []
+        depth = 0
         for line in text.splitlines():
             if line.strip() == "#pragma once":
                 continue
             if re.match(r'\s*#\s*include\s*"', line):
                 continue
+            if re.match(r'\s*#\s*if', line):
+                depth += 1
+            elif re.match(r'\s*#\s*endif', line):
+                depth -= 1
             include = re.match(r'\s*#\s*include\s*(<[^>]+>)', line)
-            if include:
+            if include and depth == 0:
                 if include.group(1) not in system_includes:
                     system_includes.append(include.group(1))
                 continue
