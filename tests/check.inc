@@ -1575,3 +1575,40 @@ EO_TEST(a_checker_near_its_time_limit_is_reported) {
     EO_CHECK_EQ(garbled.code, 1);
     EO_CHECK_IN(checker_warnings(), "warning EO209: the checker ran for ");
 }
+
+EO_TEST(a_stream_reads_what_matches_a_pattern_and_blames_its_side) {
+    eo::pattern const word("[a-z]{1,5}");
+    eot::outcome const good = check_run("1\n", "  hello  \nab cd\nsome words here\r\n", "yes\n", [&](eo::checker& c) {
+        c.input.read_int(1, 1, "n");
+        c.jury.read_token(eo::pattern("yes|no"), "answer");
+        EO_CHECK_EQ(c.output.read_token(word, "w"), std::string("hello"));
+        EO_CHECK(c.output.read_tokens(2, word, "pair") == std::vector<std::string>({"ab", "cd"}));
+        EO_CHECK_EQ(c.output.read_line(eo::pattern("( ?[a-z]+)*"), "rest"), std::string(""));
+        EO_CHECK_EQ(c.output.read_line(eo::pattern("[a-z]+( [a-z]+)*"), "line"), std::string("some words here"));
+        eo::accept();
+    });
+    EO_CHECK_EQ(good.code, 0);
+    eot::outcome const theirs = check_run("1\n", "heLLo\n", "yes\n", [&](eo::checker& c) {
+        c.output.read_token(word, "w");
+        eo::accept();
+    });
+    EO_CHECK_EQ(theirs.code, 1);
+    EO_CHECK_EQ(theirs.text, std::string("wrong answer: output.txt, line 1, w: \"heLLo\" does not match \"[a-z]{1,5}\""));
+    eot::outcome const ours = check_run("1\n", "yes\n", "nay\n", [&](eo::checker& c) {
+        c.jury.read_token(eo::pattern("yes|no"), "answer");
+        eo::accept();
+    });
+    EO_CHECK_EQ(ours.code, 3);
+    EO_CHECK_EQ(ours.text, std::string("jury error: answer.txt, line 1, answer: \"nay\" does not match \"yes|no\""));
+    eot::outcome const longer = check_run("1\n", "abcdefgh\n", "yes\n", [&](eo::checker& c) {
+        c.output.read_line(word, "line");
+        eo::accept();
+    });
+    EO_CHECK_EQ(longer.text, std::string("wrong answer: output.txt, line 1, line: a line that starts \"abcdef\" is "
+                                         "longer than the 5 characters \"[a-z]{1,5}\" allows"));
+    eot::outcome const unended = check_run("1\n", "abc", "yes\n", [&](eo::checker& c) {
+        EO_CHECK_EQ(c.output.read_line(word, "line"), std::string("abc"));
+        eo::accept();
+    });
+    EO_CHECK_EQ(unended.code, 0);
+}

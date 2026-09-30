@@ -55,6 +55,7 @@ input itself. See [validator.md](validator.md).
 | `inf`, `ouf`, `ans` | `c.input`, `c.output`, `c.jury` |
 | `ouf.readInt(1, n, "k")` | `c.output.read_int(1, n, "k")` |
 | `ans.readLong()` | `c.jury.read_long(eo::any, "sum")`: bounds, or `eo::any` to say there are none |
+| `ouf.readToken("[a-z]{1,5}", "w")`, `ouf.readLine(...)`, `ouf.readTokens(k, ...)` with a pattern | `c.output.read_token(eo::pattern("[a-z]{1,5}"), "w")`, `read_line` and `read_tokens` with an `eo::pattern`, on any of the three streams |
 | `quitf(_ok, "...")` | `eo::accept("...")` |
 | `quitf(_wa, "got %d", x)`, `quitf(_pe, ...)` | `eo::wrong("got {}", x)`; Eolymp has no presentation error |
 | `quitf(_fail, ...)` | `eo::jury_error(...)` |

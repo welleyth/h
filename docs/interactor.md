@@ -132,8 +132,8 @@ turns them into a wrong answer on the spot:
 wrong answer: the solution, line 1, x: 5000 is above 100
 ```
 
-The read functions are the checker's: `read_int`, `read_long`, `read_real`, `read_token`,
-`read_line`, `read_choice`, `read_ints`, `read_longs`, `read_reals`, `read_tokens`,
+The read functions are the checker's, patterns included: `read_int`, `read_long`,
+`read_real`, `read_token`, `read_line`, `read_choice`, `read_ints`, `read_longs`, `read_reals`, `read_tokens`,
 `read_grid`, `read_edges`, `read_tree`, `read_graph`, `at_eof`, `at_eoln`, with bounds first and the name last, and `eo::any` where a value really
 may be anything. They are described in [checker.md](checker.md).
 

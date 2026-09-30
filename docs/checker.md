@@ -138,12 +138,15 @@ Bounds are inclusive, and come first; the name is last.
 | `s.read_real(low, high, name)` | a real number in `[low, high]` |
 | `s.read_token(least, most, eo::charset("a-z"), name)` | a token of that length over those characters |
 | `s.read_line(least, most, eo::charset("a-z "), name)` | the rest of the line, without its line break |
+| `s.read_token(eo::pattern("[a-z]{1,5}"), name)` | a token that matches the pattern, in the syntax of [validator.md](validator.md#patterns) |
+| `s.read_line(eo::pattern("[a-z]+( [a-z]+)*"), name)` | the rest of the line, which matches the pattern |
 | `s.read_choice({"YES", "NO"}, name)` | a token equal to one of the choices |
 | `s.read_choice({"YES", "NO"}, eo::any_case, name)` | the same, ignoring letter case, returning the choice as you wrote it |
 | `s.read_ints(count, low, high, name)` | `count` integers |
 | `s.read_longs(count, low, high, name)` | the same, 64-bit |
 | `s.read_reals(count, low, high, name)` | `count` real numbers |
 | `s.read_tokens(count, least, most, eo::charset("a-z"), name)` | `count` tokens |
+| `s.read_tokens(count, eo::pattern("[a-z]{1,5}"), name)` | `count` tokens that match the pattern |
 | `s.read_grid(rows, cols, eo::charset(".#"), name)` | `rows` tokens of exactly `cols` characters, as `std::vector<std::string>` |
 | `s.read_edges(m, n, name)` | `m` edges, each two vertices in `[1, n]`, as `std::vector<eo::edge>` |
 | `s.read_edges(m, n, eo::weighted(low, high), name)` | the same with a weight in `[low, high]` after each, as `std::vector<eo::weighted_edge>` |
@@ -559,9 +562,7 @@ eo::allow quiet("EO103", "k is checked against n two lines below");
 
 ## Not here yet
 
-Still missing:
-
-- A pattern syntax. Use a charset and a length, or `read_choice`.
+Nothing a checker reads is missing.
 
 ## Reference card
 
