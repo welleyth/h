@@ -558,3 +558,98 @@ EO_TEST(a_generator_near_its_time_limit_is_reported) {
     EO_CHECK_IN(checker_warnings(), "warning EO504: the generator ran for ");
     EO_CHECK_IN(checker_warnings(), " ms of its 60000 ms limit");
 }
+
+EO_TEST(a_stream_draws_a_string_that_matches_a_pattern) {
+    eo::rng r(2026);
+    for (char const* text : {"[a-z]{1,5}", "YES|NO", "[A-Z][a-z0-9_]{0,9}", "(ab|cd){2,3}x?", "[^a-y]{3}", "a*b+",
+                             "(x[0-9]{2,})*", "\\.\\ \\[", "", "()", "(|-)[1-9][0-9]{0,8}"}) {
+        eo::pattern const told(text);
+        for (int round = 0; round < 200; round++) {
+            std::string const drawn = r.pattern(told);
+            EO_CHECK(told.matches(drawn));
+        }
+    }
+    eo::rng same(7);
+    EO_CHECK_EQ(same.pattern("[a-z]{5}"), eo::rng(7).pattern(eo::pattern("[a-z]{5}")));
+}
+
+EO_TEST(a_pattern_is_drawn_uniformly_one_construct_at_a_time) {
+    eo::rng r(11);
+    int yes = 0;
+    int lengths[4] = {0, 0, 0, 0};
+    int letters[3] = {0, 0, 0};
+    long long longest = 0;
+    for (int round = 0; round < 30000; round++) {
+        if (r.pattern("YES|NO") == "YES") yes++;
+        lengths[r.pattern("x{0,3}").size()]++;
+        letters[r.pattern("[abc]")[0] - 'a']++;
+        longest = std::max<long long>(longest, static_cast<long long>(r.pattern("q{2,}").size()));
+    }
+    EO_CHECK(yes > 14500 && yes < 15500);
+    for (int const one : lengths) EO_CHECK(one > 7000 && one < 8000);
+    for (int const one : letters) EO_CHECK(one > 9500 && one < 10500);
+    EO_CHECK_EQ(longest, 22);
+    std::string seen;
+    for (int round = 0; round < 3000; round++) seen += r.pattern("[^a-z]");
+    for (char const one : seen) EO_CHECK(one >= '!' && one <= '~' && !(one >= 'a' && one <= 'z'));
+    EO_CHECK(seen.find('{') != std::string::npos && seen.find('A') != std::string::npos);
+}
+
+EO_TEST(a_pattern_draws_the_same_string_from_the_same_seed_everywhere) {
+    eo::rng r(123456789);
+    std::string drawn;
+    for (int round = 0; round < 4; round++) drawn += r.pattern("[A-Z][a-z]{2,6}|[0-9]{3}|(ab|cd)+") + " ";
+    EO_CHECK_EQ(drawn, std::string("cdabcdabcdababcdabab abab 287 Jzkwg "));
+    std::string more;
+    for (int round = 0; round < 3; round++) more += r.pattern("[^a-z]{3}x?y?z?q{3,}") + " ";
+    EO_CHECK_EQ(more, std::string("U3#xyzqqqqqqq }~}xqqqqq #+7xyqqqqqqqqqqqqqqqqqqqqqqq "));
+}
+
+EO_TEST(a_repeat_of_nothing_is_drawn_at_once) {
+    eo::rng r(5);
+    EO_CHECK_EQ(r.pattern("(){1000000000}a"), std::string("a"));
+    EO_CHECK_EQ(r.pattern("((){1000000000}){1000000000}b(x{0}){4000}"), std::string("b"));
+    for (int round = 0; round < 50; round++) {
+        std::string const endless = r.pattern("(c+)+aa");
+        EO_CHECK(endless.size() > 2 && endless.substr(endless.size() - 2) == "aa" && endless[0] == 'c');
+    }
+}
+
+EO_TEST(a_class_with_nothing_visible_to_draw_is_refused) {
+    int drawn_at = 0;
+    eot::outcome const drawn = eot::run_until_stop([&] {
+        eo::rng r(1);
+        drawn_at = __LINE__ + 1;
+        (void)r.pattern("a[^!-~]");
+    });
+    EO_CHECK_EQ(drawn.code, 3);
+    EO_CHECK_EQ(drawn.text, "eolymp.h: tests/generate.inc:" + std::to_string(drawn_at) + std::string(": eo::pattern(\"a[^!-~]\") has a class written "
+                                        "with ^ that leaves nothing to draw: a draw takes only the visible characters "
+                                        "! to ~ that it does not exclude"));
+    for (std::uint64_t seed = 0; seed < 20; seed++) {
+        eot::outcome const maybe = eot::run_until_stop([&] {
+            eo::rng r(seed);
+            eo::pattern const told("a[^!-~]?");
+            (void)r.pattern(told, eo::detail::site{"here.cpp", 9});
+        });
+        EO_CHECK_EQ(maybe.code, 3);
+        EO_CHECK_IN(maybe.text, "eolymp.h: here.cpp:9: eo::pattern(\"a[^!-~]?\") has a class written with ^");
+    }
+    EO_CHECK(eo::pattern("a[^!-~]?").matches("a"));
+}
+
+EO_TEST(a_pattern_that_could_draw_too_much_is_refused_before_it_draws) {
+    for (char const* huge : {"(a{1000000000}){4000}", "[a-z]{100000001}", "((((((a*)*)*)*)*)*)*",
+                             "(((((((((((((((((((((((((((((((((((((((((((((((((a*)*)*)*)*)*)*)*)*)*)*)*)*)*)*)*)*)*)*)*)*)*)*)*)*)*)*)*)*)*)*)*)*)*)*)*)*)*)*)*)*)*)*)*)*)*)*)*)*)*"}) {
+        eot::outcome const drawn = eot::run_until_stop([&] {
+            eo::rng r(1);
+            (void)r.pattern(huge);
+        });
+        EO_CHECK_EQ(drawn.code, 3);
+        EO_CHECK_IN(drawn.text, "can draw more than 100000000 characters, where * and + draw at most 20 more than "
+                                "their least; bound its repeats");
+    }
+    eo::rng r(2);
+    EO_CHECK_EQ(r.pattern("[a-z]{100000000}").size(), static_cast<std::size_t>(100000000));
+    EO_CHECK(r.pattern("((a*)*)*").size() <= 9261);
+}

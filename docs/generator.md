@@ -175,12 +175,30 @@ and named ones in the same generator gets note EO507 for that reason.
 | `r.perm(n)`, `r.perm(n, first)` | a random permutation |
 | `r.partition(count, sum)`, `r.partition(count, sum, least)` | positive integers adding up to `sum` |
 | `r.letters(length, eo::charset("a-z"))` | a string over those characters |
+| `r.pattern("[A-Z][a-z]{0,9}")`, `r.pattern(p)` | a string that matches the pattern, in the syntax of [validator.md](validator.md#patterns) |
 | `r.shuffle(values)` | shuffles in place |
 
 **Every draw but `shuffle` is `[[nodiscard]]`**, because a draw whose value is thrown away
 silently shifts every later draw. A composite draw checks its own arguments:
 `r.distinct(10, 1, 5)` stops with `cannot draw 10 different values from 1..5` rather than
 looping for ever.
+
+### Drawing from a pattern
+
+`r.pattern("[a-z]{1,5}")` draws one construct at a time, each uniformly on its own:
+
+- a class, each of its characters with the same chance;
+- alternatives, each side with the same chance;
+- a repeat, its count between its least and its most, each count with the same chance, and
+  each copy drawn afresh; `*`, `+` and `{n,}` draw at most 20 more than their least.
+
+So the string is not uniform over everything the pattern matches: `a|bc*` draws `a` half the
+time. A class written with `^` draws from the visible characters `!` to `~` that it does not
+exclude, never a space, a control character or a byte above 127. A draw is refused, with the
+line that asked for it and whatever the seed, when the pattern has a class that excludes them
+all, even under a `?`, or when it could draw more than 100,000,000 characters, as `[a-z]{200000000}`
+or `((((((a*)*)*)*)*)*)*` could. The same seed draws the same string everywhere, but not the
+string testlib's `rnd.next` draws from the same pattern.
 
 ### Why not `rand`, `std::shuffle` or the clock
 
@@ -281,12 +299,9 @@ generator.
 
 ## Not here yet
 
-Still missing:
-
-- A pattern syntax such as `r.pattern("[a-z]{5}")`. Use `r.letters` with a charset.
-
-EO812 (the same bytes under two compilers) and EO813 (the extremes of every option produce a
-valid test) are run by `eo-judge check`; see [judge.md](judge.md).
+Nothing a generator draws is missing. EO812 (the same bytes under two compilers) and EO813
+(the extremes of every option produce a valid test) are run by `eo-judge check`; see
+[judge.md](judge.md).
 
 ## Reference card
 
@@ -305,7 +320,7 @@ valid test) are run by `eo-judge check`; see [judge.md](judge.md).
 | Stream call | Returns |
 | --- | --- |
 | `uniform`, `real`, `chance`, `pick`, `weighted`, `pair` | single values |
-| `ints`, `distinct`, `perm`, `partition`, `letters` | composite values |
+| `ints`, `distinct`, `perm`, `partition`, `letters`, `pattern` | composite values |
 | `shuffle` | shuffles in place |
 
 **Helpers**: `eo::fixed(x, digits)`, `eo::charset("a-z")`, `eo::fmt(…)`, `eo::log(…)`,

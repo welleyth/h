@@ -1333,6 +1333,9 @@ inline detail::value_name element(std::string name, long long index) {
 }  // namespace eo
 
 namespace eo {
+
+class rng;
+
 namespace detail {
 
 class reader;
@@ -1392,13 +1395,15 @@ constexpr bool has_byte(byte_set const& set, unsigned byte) { return (set[byte >
 inline long long constexpr most_in_a_count = 1000000000;
 inline long long constexpr unbounded = -1;
 inline int constexpr deepest_group = 50;
+inline long long constexpr endless_draw = 20;
+inline long long constexpr most_drawn = 100000000;
 
 constexpr bool is_letter_or_digit(char c) {
     return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9');
 }
 
 struct no_pattern_tree {
-    constexpr int one(byte_set const&) { return 0; }
+    constexpr int one(byte_set const&, bool) { return 0; }
     constexpr int row() { return 0; }
     constexpr void extend(int, int) {}
     constexpr int either(int) { return 0; }
@@ -1510,7 +1515,7 @@ private:
         }
         byte_set one{};
         add_byte(one, static_cast<unsigned char>(quoted()));
-        return tree_.one(one);
+        return tree_.one(one, false);
     }
 
     constexpr char quoted() {
@@ -1563,7 +1568,7 @@ private:
         if (!any) fail(opened, pattern_problem::empty_class);
         if (negated)
             for (std::uint64_t& word : chosen) word = ~word;
-        return tree_.one(chosen);
+        return tree_.one(chosen, negated);
     }
 
     std::string_view text_;
@@ -1635,6 +1640,7 @@ struct pattern_piece {
     std::vector<int> parts;
     long long least = 1;
     long long most = 1;
+    std::vector<char> drawable;
 };
 
 inline pattern_piece piece_of(piece_shape shape) {
@@ -1645,9 +1651,12 @@ inline pattern_piece piece_of(piece_shape shape) {
 
 class pattern_tree {
 public:
-    int one(byte_set const& set) {
+    int one(byte_set const& set, bool negated) {
         pattern_piece made = piece_of(piece_shape::one);
         made.set = set;
+        for (unsigned byte = 0; byte < 256; byte++)
+            if (has_byte(set, byte) && (!negated || (byte > ' ' && byte < 0x7F)))
+                made.drawable.push_back(static_cast<char>(byte));
         return add(std::move(made));
     }
 
@@ -1896,6 +1905,27 @@ private:
     mutable std::uint64_t visits_ = 0;
 };
 
+inline long long longest_draw(pattern_tree const& tree, int index) {
+    pattern_piece const& piece = tree.at(index);
+    if (piece.shape == piece_shape::one) return 1;
+    long long total = 0;
+    for (int const part : piece.parts) {
+        long long const each = longest_draw(tree, part);
+        total = piece.shape == piece_shape::either ? std::max(total, each) : std::min(total + each, most_drawn + 1);
+    }
+    if (piece.shape != piece_shape::again || total == 0) return total;
+    long long const copies = piece.most == unbounded ? piece.least + endless_draw : piece.most;
+    return copies > (most_drawn + 1) / total ? most_drawn + 1 : total * copies;
+}
+
+inline bool drawable(pattern_tree const& tree, int index) {
+    pattern_piece const& piece = tree.at(index);
+    if (piece.shape == piece_shape::one) return !piece.drawable.empty();
+    for (int const part : piece.parts)
+        if (!drawable(tree, part)) return false;
+    return true;
+}
+
 inline bool matches_without_a_blank(pattern_tree const& tree, int index) {
     pattern_piece const& piece = tree.at(index);
     if (piece.shape == piece_shape::one) {
@@ -1959,6 +1989,7 @@ public:
     std::string const& text() const { return text_; }
 
 private:
+    friend class rng;
     friend class detail::reader;
 
     std::string text_;
@@ -2992,7 +3023,38 @@ public:
         return out;
     }
 
+    [[nodiscard]] std::string pattern(eo::pattern const& told, detail::site where = detail::site::here()) {
+        if (!detail::drawable(told.tree_, told.root_))
+            detail::library_error(fmt("{}: eo::pattern(\"{}\") has a class written with ^ that leaves nothing to "
+                                      "draw: a draw takes only the visible characters ! to ~ that it does not exclude",
+                                      detail::where_of(where), detail::escaped(told.text())));
+        if (detail::longest_draw(told.tree_, told.root_) > detail::most_drawn)
+            detail::library_error(fmt("{}: eo::pattern(\"{}\") can draw more than {} characters, where * and + draw "
+                                      "at most {} more than their least; bound its repeats",
+                                      detail::where_of(where), detail::escaped(told.text()), detail::most_drawn,
+                                      detail::endless_draw));
+        std::string out;
+        draw(told, told.root_, out);
+        return out;
+    }
+
+    [[nodiscard]] std::string pattern(detail::pattern_text told) { return pattern(eo::pattern(told), told.where()); }
+
 private:
+    void draw(eo::pattern const& told, int index, std::string& out) {
+        detail::pattern_piece const& piece = told.tree_.at(index);
+        if (piece.shape == detail::piece_shape::one) {
+            out.push_back(pick(piece.drawable));
+        } else if (piece.shape == detail::piece_shape::row) {
+            for (int const part : piece.parts) draw(told, part, out);
+        } else if (piece.shape == detail::piece_shape::either) {
+            draw(told, pick(piece.parts), out);
+        } else if (detail::longest_match(told.tree_, piece.parts[0]) != 0) {
+            long long const most = piece.most == detail::unbounded ? piece.least + detail::endless_draw : piece.most;
+            for (long long times = uniform(piece.least, most); times > 0; times--) draw(told, piece.parts[0], out);
+        }
+    }
+
     static std::vector<long long> room_for(long long count) {
         std::vector<long long> values;
         if (static_cast<unsigned long long>(count) > values.max_size())

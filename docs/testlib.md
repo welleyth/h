@@ -123,7 +123,7 @@ See [interactor.md](interactor.md).
 | `rnd.perm(n, 1)` | `r.perm(n, 1)` |
 | `rnd.distinct(k, a, b)` | `r.distinct(k, a, b)` |
 | `rnd.partition(k, sum, least)` | `r.partition(k, sum, least)` |
-| `rnd.next("[a-z]{5}")` | `r.letters(5, eo::charset("a-z"))` |
+| `rnd.next("[a-z]{5}")`, `rnd.next("YES\|NO")` | `r.pattern("[a-z]{5}")`, `r.pattern("YES\|NO")`; see [Drawing from a pattern](generator.md#drawing-from-a-pattern) |
 | `println(a)`, `cout << a` | `g.out.line(a)` |
 | lattice points on a circle, found by a loop over `x` | `eo::shapes::cocircular(r, count, limit)`, from `eolymp-shapes.h` |
 
@@ -156,7 +156,8 @@ See [generator.md](generator.md).
 - **The same seed does not give the same numbers.** eolymp.h draws with its own documented
   algorithm, so a test regenerated after the move is a different test of the same shape.
   `r.weighted(a, b, t)` has the distribution of `rnd.wnext(a, b, t)`, the largest of
-  `t + 1` draws, but not its values.
+  `t + 1` draws, but not its values, and `r.pattern` draws as `rnd.next` does, one construct
+  at a time, but other strings; it also draws `*`, `+` and `{n,}`, which testlib refuses.
 - **Qualify the library's names.** testlib's are global, so a ported program is often written
   without a prefix. Writing `using namespace eo;` to get that back, next to
   `using namespace std;`, makes `unique`, `ignore`, `any` and `ratio` ambiguous, and leaves

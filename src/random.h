@@ -11,6 +11,7 @@
 #include "core.h"
 #include "fmt.h"
 #include "io.h"
+#include "pattern.h"
 #include "read.h"
 
 namespace eo {
@@ -161,7 +162,38 @@ public:
         return out;
     }
 
+    [[nodiscard]] std::string pattern(eo::pattern const& told, detail::site where = detail::site::here()) {
+        if (!detail::drawable(told.tree_, told.root_))
+            detail::library_error(fmt("{}: eo::pattern(\"{}\") has a class written with ^ that leaves nothing to "
+                                      "draw: a draw takes only the visible characters ! to ~ that it does not exclude",
+                                      detail::where_of(where), detail::escaped(told.text())));
+        if (detail::longest_draw(told.tree_, told.root_) > detail::most_drawn)
+            detail::library_error(fmt("{}: eo::pattern(\"{}\") can draw more than {} characters, where * and + draw "
+                                      "at most {} more than their least; bound its repeats",
+                                      detail::where_of(where), detail::escaped(told.text()), detail::most_drawn,
+                                      detail::endless_draw));
+        std::string out;
+        draw(told, told.root_, out);
+        return out;
+    }
+
+    [[nodiscard]] std::string pattern(detail::pattern_text told) { return pattern(eo::pattern(told), told.where()); }
+
 private:
+    void draw(eo::pattern const& told, int index, std::string& out) {
+        detail::pattern_piece const& piece = told.tree_.at(index);
+        if (piece.shape == detail::piece_shape::one) {
+            out.push_back(pick(piece.drawable));
+        } else if (piece.shape == detail::piece_shape::row) {
+            for (int const part : piece.parts) draw(told, part, out);
+        } else if (piece.shape == detail::piece_shape::either) {
+            draw(told, pick(piece.parts), out);
+        } else if (detail::longest_match(told.tree_, piece.parts[0]) != 0) {
+            long long const most = piece.most == detail::unbounded ? piece.least + detail::endless_draw : piece.most;
+            for (long long times = uniform(piece.least, most); times > 0; times--) draw(told, piece.parts[0], out);
+        }
+    }
+
     static std::vector<long long> room_for(long long count) {
         std::vector<long long> values;
         if (static_cast<unsigned long long>(count) > values.max_size())

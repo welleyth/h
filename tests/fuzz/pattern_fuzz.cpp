@@ -131,6 +131,17 @@ void render(node const& one, std::string& ours, std::string& theirs) {
     }
 }
 
+long long longest_draw(node const& one) {
+    if (one.shape == kind::one) return 1;
+    long long total = 0;
+    for (node const& part : one.parts) {
+        long long const each = longest_draw(part);
+        total = one.shape == kind::either ? std::max(total, each) : total + each;
+    }
+    if (one.shape == kind::again) total *= one.most < 0 ? one.least + 20 : one.most;
+    return std::min(total, 1000000LL);
+}
+
 using ends = std::uint32_t;
 
 bool holds(node const& one, char c) {
@@ -192,6 +203,14 @@ extern "C" int LLVMFuzzerTestOneInput(std::uint8_t const* data, std::size_t size
     bool const backtracks = !heavy_for_backtracking(tree);
     std::regex const reference(backtracks ? theirs : std::string(), std::regex::ECMAScript);
     eo::pattern const pattern(ours);
+    eo::rng dice(fdp.ConsumeIntegral<std::uint64_t>());
+    for (int round = 0; round < 4 && longest_draw(tree) <= 2000; round++) {
+        std::string const drawn = dice.pattern(pattern);
+        if (!pattern.matches(drawn)) {
+            ::dprintf(eof::loud(), "pattern %s drew \"%s\"\n", ours.c_str(), drawn.c_str());
+            eof::must(false, "a string drawn from a pattern matches it");
+        }
+    }
     for (int round = 0; round < 8 && fdp.remaining_bytes() > 0; round++) {
         std::string token;
         int const length = fdp.ConsumeIntegralInRange<int>(0, 7);
