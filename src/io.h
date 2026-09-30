@@ -77,6 +77,7 @@ public:
 
     static source over_descriptor(int descriptor, bool owned, bool normalize,
                                   std::size_t chunk = default_chunk) {
+        keep_binary(descriptor);
         source made(normalize, chunk);
         made.descriptor_ = descriptor;
         made.owned_ = owned;
@@ -241,10 +242,7 @@ private:
             long long const got = read_some(descriptor_, buffer_.data() + end_, room);
             if (got < 0) {
                 if (errno == EINTR) continue;
-                if (would_block()) {
-                    wait_for(descriptor_, POLLIN);
-                    continue;
-                }
+                if (waited_to_read(descriptor_)) continue;
                 library_error(fmt("cannot read the input: {}", std::strerror(errno)));
             }
             if (got == 0) {

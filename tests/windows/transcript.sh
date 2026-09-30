@@ -1,6 +1,10 @@
 #!/bin/sh
 bin=$(cd "$1" && pwd)
-suffix=${SUFFIX:-}
+case $(uname -s) in
+    MINGW* | MSYS* | CYGWIN*) suffix=.exe ;;
+    *) suffix= ;;
+esac
+suffix=${SUFFIX-$suffix}
 launch=${LAUNCH:-}
 work="$bin/work"
 rm -rf "$work"
@@ -58,6 +62,10 @@ printf '3\r\n1 2 3\r\n' > in.txt
 run "validator: CRLF on stdin" sh -c "$(program validator) --group 1 < in.txt"
 printf '3\n1 2 3\n\032\n' > in.txt
 run "validator: a Ctrl-Z on stdin" sh -c "$(program validator) --group 1 < in.txt"
+for test in "LF:5\\n" "CRLF:5\\r\\n" "a Ctrl-Z after the test:5\\n\\032\\n" "CRLF, then a Ctrl-Z:5\\r\\n\\032"; do
+    printf "${test#*:}" > fin.txt
+    run "validator: freopen on stdin, ${test%%:*}" env FREOPEN_IN=fin.txt $(program freopen_validator)
+done
 printf '3\r\n1 2 3\r\n' > in.txt
 run "validator: CRLF through a pipe" sh -c "cat in.txt | $(program validator) --group 1"
 printf '3\n1 2 3\n7\n' > in.txt
@@ -136,6 +144,7 @@ generate "with a seed" -n=20 -max=1000 -seed=2
 generate "sorted" -n=20 -max=1000 -shape=sorted
 generate "an unknown option" -n=20 -oops=1
 generate "an argument that is not an option" n=5
+run "generator: freopen on stdout" sh -c "FREOPEN_OUT=fg.txt $(program freopen_generator) -n=3; code=\$?; cat -A fg.txt; exit \$code"
 run "generator: through a pipe" sh -c "$(program generator) -n=5 -max=9 | cat -A"
 run "generator: --eo-describe" $(program generator) --eo-describe
 run "generator: 200000 values" sh -c "$(program generator) -n=200000 > big.txt; code=\$?; cksum < big.txt; exit \$code"

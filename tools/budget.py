@@ -28,8 +28,15 @@ STANDARD_HEADERS = [
 
 
 def baseline(root: pathlib.Path) -> str:
-    included = [line[len("#include "):] for line in (root / "eolymp.h").read_text().splitlines()
-                if line.startswith("#include <")]
+    included = []
+    windows_only = False
+    for line in (root / "eolymp.h").read_text().splitlines():
+        if line == "#if defined(_WIN32)":
+            windows_only = True
+        elif windows_only and line in ("#else", "#endif"):
+            windows_only = False
+        elif line.startswith("#include <") and not windows_only:
+            included.append(line[len("#include "):])
     if sorted(included) != sorted(STANDARD_HEADERS):
         added = sorted(set(included) - set(STANDARD_HEADERS))
         dropped = sorted(set(STANDARD_HEADERS) - set(included))

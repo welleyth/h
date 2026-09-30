@@ -13,7 +13,7 @@ int main(int argc, char** argv) {
     if (role == "quick") {
         eo::checker c(argc, argv);
         (void)c.output.read_int(eo::any, "x");
-#if defined(__APPLE__)
+#if defined(__APPLE__) || (defined(__GLIBCXX__) && !defined(_GLIBCXX_HAVE_AT_QUICK_EXIT))
         std::exit(0);
 #else
         std::quick_exit(0);

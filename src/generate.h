@@ -83,6 +83,7 @@ public:
         base_ = detail::seed_of(all);
         dice_.emplace("", eo::rng(base_));
         std::fflush(stdout);
+        detail::keep_binary(1);
         long long size = 0;
         if (detail::regular_file(1, size)) started_ = detail::offset_of(1);
         out.owner_ = this;

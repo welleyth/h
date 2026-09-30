@@ -89,6 +89,7 @@ protected:
         if (paths_[0].empty() || paths_[1].empty())
             library_error(fmt("{}: {} needs the test and a file for its summary", where_of(where), named));
         ignore_broken_pipes();
+        keep_binary(1);
         log_file() = stderr;
         emitter() = &dialogue::say;
         input = stream(source::over_file(paths_[0].c_str(), true), fault::jury_error, "input.txt");

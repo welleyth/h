@@ -233,7 +233,7 @@ inline void finish_what_exit_left() {
 }
 
 inline void close_on_quick_exit() {
-#if !defined(__APPLE__)
+#if !defined(__APPLE__) && !(defined(__GLIBCXX__) && !defined(_GLIBCXX_HAVE_AT_QUICK_EXIT))
     std::at_quick_exit(&finish_what_exit_left);
 #endif
 }

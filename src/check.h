@@ -410,6 +410,7 @@ public:
     checker(int argc, char** argv, detail::site where = detail::site::here()) {
         if (detail::live_checker() != nullptr)
             detail::library_error(fmt("{}: this program already has a checker", detail::where_of(where)));
+        detail::keep_binary(1);
         detail::diagnostics::shared().start_the_clock("EO209", "checker", 10000, where);
         std::array<char const*, 3> const given = detail::test_paths(argc, argv);
         char const* const kinds[3] = {"input", "output", "answer"};

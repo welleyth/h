@@ -153,6 +153,7 @@ public:
         from_ = detail::reader(std::move(input), detail::fault::invalid_test, "", false, "EO102");
         detail::live_validator() = this;
         detail::live_sums();
+        detail::keep_binary(1);
         detail::close_on_exit(&validator::exited_early);
     }
 
