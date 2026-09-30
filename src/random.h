@@ -131,11 +131,11 @@ public:
     [[nodiscard]] std::vector<long long> partition(long long count, long long sum, long long least = 1) {
         if (count < 1) detail::library_error(fmt("a partition has at least one part, not {}", count));
         long long need = 0;
-        bool const huge = __builtin_mul_overflow(least, count, &need);
+        bool const huge = detail::product_overflows(least, count, &need);
         if ((huge && least > 0) || (!huge && need > sum))
             detail::library_error(fmt("{} parts of at least {} cannot add up to {}", count, least, sum));
         long long high = 0;
-        if (huge || __builtin_sub_overflow(sum, need, &high) || __builtin_add_overflow(high, count - 1, &high))
+        if (huge || detail::difference_overflows(sum, need, &high) || detail::sum_overflows(high, count - 1, &high))
             detail::library_error(fmt("partition({}, {}, {}) spans more values than a long long holds", count, sum,
                                       least));
         std::vector<long long> cuts = distinct(count - 1, 1, high);

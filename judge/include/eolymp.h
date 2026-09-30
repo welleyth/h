@@ -190,6 +190,55 @@ public:
 
 [[noreturn]] inline void library_error(std::string text) { finish(3, "eolymp.h: " + text); }
 
+inline long long wrapped(unsigned long long bits) { return static_cast<long long>(bits); }
+
+inline bool sum_overflows_by_hand(long long left, long long right, long long* sum) {
+    *sum = wrapped(static_cast<unsigned long long>(left) + static_cast<unsigned long long>(right));
+    return right > 0 ? left > LLONG_MAX - right : left < LLONG_MIN - right;
+}
+
+inline bool difference_overflows_by_hand(long long left, long long right, long long* difference) {
+    *difference = wrapped(static_cast<unsigned long long>(left) - static_cast<unsigned long long>(right));
+    return right < 0 ? left > LLONG_MAX + right : left < LLONG_MIN + right;
+}
+
+inline bool product_overflows_by_hand(long long left, long long right, long long* product) {
+    *product = wrapped(static_cast<unsigned long long>(left) * static_cast<unsigned long long>(right));
+    if (left > 0) return right > 0 ? left > LLONG_MAX / right : right < LLONG_MIN / left;
+    if (right > 0) return left < LLONG_MIN / right;
+    return left != 0 && right < LLONG_MAX / left;
+}
+
+#if defined(_MSC_VER) && !defined(__clang__)
+inline bool sum_overflows(long long left, long long right, long long* sum) {
+    return sum_overflows_by_hand(left, right, sum);
+}
+
+inline bool difference_overflows(long long left, long long right, long long* difference) {
+    return difference_overflows_by_hand(left, right, difference);
+}
+
+inline bool product_overflows(long long left, long long right, long long* product) {
+    return product_overflows_by_hand(left, right, product);
+}
+
+[[noreturn]] inline void unreachable() { __assume(false); }
+#else
+inline bool sum_overflows(long long left, long long right, long long* sum) {
+    return __builtin_add_overflow(left, right, sum);
+}
+
+inline bool difference_overflows(long long left, long long right, long long* difference) {
+    return __builtin_sub_overflow(left, right, difference);
+}
+
+inline bool product_overflows(long long left, long long right, long long* product) {
+    return __builtin_mul_overflow(left, right, product);
+}
+
+[[noreturn]] inline void unreachable() { __builtin_unreachable(); }  // LCOV_EXCL: only after a verdict, which ends it
+#endif
+
 inline bool same_text(char const* left, char const* right) {
     if (left == right) return true;
     if (left == nullptr || right == nullptr) return false;
@@ -3123,11 +3172,11 @@ public:
     [[nodiscard]] std::vector<long long> partition(long long count, long long sum, long long least = 1) {
         if (count < 1) detail::library_error(fmt("a partition has at least one part, not {}", count));
         long long need = 0;
-        bool const huge = __builtin_mul_overflow(least, count, &need);
+        bool const huge = detail::product_overflows(least, count, &need);
         if ((huge && least > 0) || (!huge && need > sum))
             detail::library_error(fmt("{} parts of at least {} cannot add up to {}", count, least, sum));
         long long high = 0;
-        if (huge || __builtin_sub_overflow(sum, need, &high) || __builtin_add_overflow(high, count - 1, &high))
+        if (huge || detail::difference_overflows(sum, need, &high) || detail::sum_overflows(high, count - 1, &high))
             detail::library_error(fmt("partition({}, {}, {}) spans more values than a long long holds", count, sum,
                                       least));
         std::vector<long long> cuts = distinct(count - 1, 1, high);
@@ -3529,7 +3578,7 @@ private:
 template <class... Args>
 [[noreturn]] inline void accept(detail::pattern_for<Args...> pattern = "", Args const&... args) {
     detail::judging().pass(1, fmt(pattern, args...));
-    __builtin_unreachable();  // LCOV_EXCL: the verdict above ends the program
+    detail::unreachable();  // LCOV_EXCL: the verdict above ends the program
 }
 
 template <class... Args>
@@ -3537,20 +3586,20 @@ template <class... Args>
     std::string const message = fmt(pattern, args...);
     if (detail::blaming() != nullptr) detail::blaming()->refuse(detail::value_name(unnamed), message);
     detail::judging().fail_run(message);
-    __builtin_unreachable();  // LCOV_EXCL: the verdict above ends the program
+    detail::unreachable();  // LCOV_EXCL: the verdict above ends the program
 }
 
 template <class... Args>
 [[noreturn]] inline void jury_error(detail::pattern_for<Args...> pattern = "", Args const&... args) {
     detail::judging().fail_jury(fmt(pattern, args...));
-    __builtin_unreachable();  // LCOV_EXCL: the verdict above ends the program
+    detail::unreachable();  // LCOV_EXCL: the verdict above ends the program
 }
 
 template <class... Args>
 [[noreturn]] inline void score(detail::scored fraction, detail::pattern_for<Args...> pattern = "",
                                Args const&... args) {
     detail::judging().pass(detail::clamped(fraction.value, fraction.where), fmt(pattern, args...));
-    __builtin_unreachable();  // LCOV_EXCL: the verdict above ends the program
+    detail::unreachable();  // LCOV_EXCL: the verdict above ends the program
 }
 
 template <class... Args>
@@ -3559,7 +3608,7 @@ template <class... Args>
     detail::scorer& one = detail::judging();
     double const paid = detail::rounded(detail::clamped(fraction.value, fraction.where) * one.cost(), how.digits);
     one.pass(one.cost() > 0 ? paid / one.cost() : 0, fmt(pattern, args...));
-    __builtin_unreachable();  // LCOV_EXCL: the verdict above ends the program
+    detail::unreachable();  // LCOV_EXCL: the verdict above ends the program
 }
 
 template <class... Args>
@@ -3576,7 +3625,7 @@ template <class... Args>
         detail::warn("EO207", fmt("{} points is more than the test's {}", paid, one.cost()),
                      "the judge clamps it", given.where);
     one.pass(one.cost() > 0 ? paid / one.cost() : 0, fmt(pattern, args...));
-    __builtin_unreachable();  // LCOV_EXCL: the verdict above ends the program
+    detail::unreachable();  // LCOV_EXCL: the verdict above ends the program
 }
 
 template <class... Args>
@@ -3647,7 +3696,7 @@ public:
 
     sum_limit& operator+=(long long value) {
         long long sum = 0;
-        if (__builtin_add_overflow(total_, value, &sum))
+        if (detail::sum_overflows(total_, value, &sum))
             detail::finish(3, fmt("{} does not fit a long long: {} was added to {}", name_, value, total_));
         total_ = sum;
         return *this;

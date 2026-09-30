@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cfenv>
+#include <climits>
 #include <clocale>
 #include <cstddef>
 #include <cstdio>
@@ -141,6 +142,55 @@ public:
 }
 
 [[noreturn]] inline void library_error(std::string text) { finish(3, "eolymp.h: " + text); }
+
+inline long long wrapped(unsigned long long bits) { return static_cast<long long>(bits); }
+
+inline bool sum_overflows_by_hand(long long left, long long right, long long* sum) {
+    *sum = wrapped(static_cast<unsigned long long>(left) + static_cast<unsigned long long>(right));
+    return right > 0 ? left > LLONG_MAX - right : left < LLONG_MIN - right;
+}
+
+inline bool difference_overflows_by_hand(long long left, long long right, long long* difference) {
+    *difference = wrapped(static_cast<unsigned long long>(left) - static_cast<unsigned long long>(right));
+    return right < 0 ? left > LLONG_MAX + right : left < LLONG_MIN + right;
+}
+
+inline bool product_overflows_by_hand(long long left, long long right, long long* product) {
+    *product = wrapped(static_cast<unsigned long long>(left) * static_cast<unsigned long long>(right));
+    if (left > 0) return right > 0 ? left > LLONG_MAX / right : right < LLONG_MIN / left;
+    if (right > 0) return left < LLONG_MIN / right;
+    return left != 0 && right < LLONG_MAX / left;
+}
+
+#if defined(_MSC_VER) && !defined(__clang__)
+inline bool sum_overflows(long long left, long long right, long long* sum) {
+    return sum_overflows_by_hand(left, right, sum);
+}
+
+inline bool difference_overflows(long long left, long long right, long long* difference) {
+    return difference_overflows_by_hand(left, right, difference);
+}
+
+inline bool product_overflows(long long left, long long right, long long* product) {
+    return product_overflows_by_hand(left, right, product);
+}
+
+[[noreturn]] inline void unreachable() { __assume(false); }
+#else
+inline bool sum_overflows(long long left, long long right, long long* sum) {
+    return __builtin_add_overflow(left, right, sum);
+}
+
+inline bool difference_overflows(long long left, long long right, long long* difference) {
+    return __builtin_sub_overflow(left, right, difference);
+}
+
+inline bool product_overflows(long long left, long long right, long long* product) {
+    return __builtin_mul_overflow(left, right, product);
+}
+
+[[noreturn]] inline void unreachable() { __builtin_unreachable(); }  // LCOV_EXCL: only after a verdict, which ends it
+#endif
 
 inline bool same_text(char const* left, char const* right) {
     if (left == right) return true;

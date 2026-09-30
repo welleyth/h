@@ -71,3 +71,44 @@ EO_TEST(any_and_unnamed_are_distinct_markers) {
     EO_CHECK(std::is_same_v<decltype(eo::any), eo::any_t const>);
     EO_CHECK(std::is_same_v<decltype(eo::unnamed), eo::unnamed_t const>);
 }
+
+EO_TEST(checked_arithmetic_by_hand_agrees_with_the_builtins) {
+    long long const big = std::numeric_limits<long long>::max();
+    long long const small = std::numeric_limits<long long>::min();
+    std::vector<long long> values = {small, small + 1, small + 2, small / 2, -3037000500LL, -3037000499LL,
+                                     -4294967296LL, -2147483648LL, -3, -2, -1, 0, 1, 2, 3, 2147483647LL,
+                                     4294967296LL, 3037000499LL, 3037000500LL, big / 2, big / 2 + 1, big - 2,
+                                     big - 1, big};
+    std::uint64_t state = 0x2545f4914f6cdd1dULL;
+    for (int drawn = 0; drawn < 2000; drawn++) {
+        state ^= state << 13;
+        state ^= state >> 7;
+        state ^= state << 17;
+        values.push_back(static_cast<long long>(state >> (drawn % 63)) * (drawn % 2 == 0 ? 1 : -1));
+    }
+    long long disagreements = 0;
+    for (long long const left : values)
+        for (long long const right : values) {
+            long long by_hand = 0;
+            long long built_in = 0;
+            if (eo::detail::sum_overflows_by_hand(left, right, &by_hand) !=
+                    __builtin_add_overflow(left, right, &built_in) ||
+                by_hand != built_in)
+                disagreements++;
+            if (eo::detail::difference_overflows_by_hand(left, right, &by_hand) !=
+                    __builtin_sub_overflow(left, right, &built_in) ||
+                by_hand != built_in)
+                disagreements++;
+            if (eo::detail::product_overflows_by_hand(left, right, &by_hand) !=
+                    __builtin_mul_overflow(left, right, &built_in) ||
+                by_hand != built_in)
+                disagreements++;
+            if (eo::detail::sum_overflows(left, right, &by_hand) != __builtin_add_overflow(left, right, &built_in) ||
+                eo::detail::difference_overflows(left, right, &by_hand) !=
+                    __builtin_sub_overflow(left, right, &built_in) ||
+                eo::detail::product_overflows(left, right, &by_hand) !=
+                    __builtin_mul_overflow(left, right, &built_in))
+                disagreements++;
+        }
+    EO_CHECK_EQ(disagreements, 0LL);
+}
