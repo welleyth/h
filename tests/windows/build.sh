@@ -39,7 +39,8 @@ for name in exit_codes exits validator checker swallowing_checker generator shap
     build "$name" "tests/e2e/$name.cpp"
 done
 for name in raw_checker lines_checker tokens_checker leaky_generator freopen_validator freopen_generator reals \
-    arithmetic bulk_interactor dialogue_interactor; do
+    arithmetic bulk_interactor dialogue_interactor pattern_validator pattern_generator cases_validator \
+    stock_checker_kinds crashing_checker; do
     build "$name" "tests/windows/$name.cpp"
 done
 for name in solution hostile phased_solution bulk_solution relay_solution; do

@@ -237,6 +237,44 @@ check "a partial answer with TEMP in a folder that does not exist" TEMP="$(nativ
 check "a partial answer with TEMP in a folder with a space and a letter of the ANSI code page" \
     TEMP="$(native "$PWD/tëst temp")" TMP="$(native "$PWD/tëst temp")"
 run "the held output leaves no scratch file behind" sh -c "find . -name 'eolymp-checker-output-*' | wc -l"
+pattern() {
+    label=$1
+    printf "$2" > pin.txt
+    run "pattern validator: $label" $(program pattern_validator) pin.txt
+}
+pattern "words and a title that match" '3\nab c xyz\nThe Old Man\n'
+pattern "a word too long" '2\nab abcd\nTitle\n'
+pattern "a title in lower case" '1\nq\nthe end\n'
+pattern "CRLF" '1\nq\r\nEnd\r\n'
+run "pattern generator" sh -c "$(program pattern_generator) -n=40 | cat -A"
+printf '3\n2\n1 -2\n1\n9\n3\n0 0 0\n' > cases.txt
+run "cases validator: --eo-case 2" sh -c "$(program cases_validator) cases.txt --eo-case 2 | cat -A"
+run "cases validator: --eo-case=3" sh -c "$(program cases_validator) cases.txt --eo-case=3 | cat -A"
+run "cases validator: --eo-case 4" $(program cases_validator) cases.txt --eo-case 4
+run "cases validator: --eo-describe" $(program cases_validator) cases.txt --eo-describe
+printf '3\r\n2\r\n1 -2\r\n1\r\n9\r\n3\r\n0 0 0\r\n' > cases.txt
+run "cases validator: --eo-case 2 of a CRLF test" sh -c "$(program cases_validator) cases.txt --eo-case 2 | cat -A"
+kind() {
+    label=$1
+    printf -- "$3" > kout.txt
+    printf -- "$4" > kans.txt
+    run "stock checker $2: $label" env EOLYMP=1 TEST_COST=40 KIND=$2 $(program stock_checker_kinds) cin.txt kout.txt kans.txt
+}
+kind "the same up to case" any_case 'Hello WORLD\n' 'hello world\n'
+kind "another word" any_case 'Hello there\n' 'hello world\n'
+kind "the same tokens in another order" any_order 'c a b a\n' 'a b c a\n'
+kind "one token more" any_order 'c a b a a\n' 'a b c a\n'
+kind "equal numbers" integers '-0 7\n' '0 7\n'
+kind "not a number" integers '7 x\n' '7 8\n'
+kind "a long integer" big '123456789012345678901234567890\n' '123456789012345678901234567890\n'
+kind "a long integer one off" big '123456789012345678901234567891\n' '123456789012345678901234567890\n'
+kind "within 1e-6" absolute '0.500001 2\n' '0.5 2\n'
+kind "beyond 1e-6" absolute '0.500002 2\n' '0.5 2\n'
+kind "the same answers" yes_no 'yes No YES\n' 'YES NO YES\n'
+kind "another answer" yes_no 'YES YES\n' 'YES NO\n'
+printf '4\n' > crash.txt
+run "a checker that aborts after logging, on the judge" sh -c "EOLYMP=1 TEST_COST=40 $(program crashing_checker) \
+    crash.txt crash.txt crash.txt 2> /dev/null; [ \$? -ne 0 ] && echo 'ended with an error'"
 mkdir -p com
 printf '3 12345\n' > com/in.txt
 serve() {
