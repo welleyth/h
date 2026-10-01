@@ -109,7 +109,7 @@ number that testlib reads as a presentation error is a wrong answer: Eolymp has 
 | `icmp` | `c.integers()` | a `long long` where `icmp` reads an `int` |
 | `hcmp` | `c.integers(eo::big)` | |
 | `uncmp` | `c.tokens(eo::any_order)` | the tokens are compared as text, which on integers is `uncmp`'s verdict, since neither takes `+`, a leading zero or `-0`, and any other token is compared too, where `uncmp` refuses it |
-| `rcmp4`, `rcmp6`, `rcmp9`, `dcmp` | `c.reals(1e-4)`, `c.reals(1e-6)`, `c.reals(1e-9)`, `c.reals(1e-6)` | a real is read in the stream's syntax, so `+1.5`, `.5`, `5.` and `05` are text and not numbers, and differ from the answer's `1.5`, `0.5`, `5` and `5`, where testlib reads them all as numbers; a token that is not a number must be equal |
+| `rcmp4`, `rcmp6`, `rcmp9`, `dcmp` | `c.reals(1e-4)`, `c.reals(1e-6)`, `c.reals(1e-9)`, `c.reals(1e-6)` | a real is read in the stream's syntax, so `+1.5`, `.5`, `5.` and `05` are text and not numbers, and differ from the answer's `1.5`, `0.5`, `5` and `5`, where testlib reads them all as numbers; a token that is not a number must be equal; the tolerance allows `1e-15` more, as testlib's does |
 | `rcmp`, `acmp` | `c.reals(1.5e-6, eo::absolute)` | as above; the error allowed is `eps + 1e-15`, as testlib's is |
 | `rncmp` | `c.reals(1.5e-5, eo::absolute)` | as above |
 | `yesno`, `nyesno` | `c.yes_no()` | every word of the answer is read, so an answer file with anything but YES and NO in it, a comment after the words say, is a jury error, where testlib's `nyesno`, once the output has ended, counts the answer's remaining words without reading them and calls the run a wrong answer |

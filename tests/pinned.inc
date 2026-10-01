@@ -1114,26 +1114,36 @@ EO_TEST(eo_case_refuses_a_count_that_another_integer_before_the_cases_equals) {
     EO_CHECK_EQ(apart.printed, std::string("1 3\n8\n"));
 }
 
-EO_TEST(pin_a_real_one_rounding_above_its_tolerance) {
-    EO_CHECK(!eo::close_enough(0.5, 0.500001, 1e-6));
+EO_TEST(a_real_one_rounding_above_its_tolerance_is_within_it) {
+    EO_CHECK(eo::close_enough(0.5, 0.500001, 1e-6));
+    EO_CHECK(!eo::close_enough(0.5, 0.5000011, 1e-6));
+    EO_CHECK(eo::close_enough(1e9, 1e9 + 1000, 1e-6));
+    EO_CHECK(!eo::close_enough(1e9, 1e9 + 1001, 1e-6));
     EO_CHECK(eo::close_enough(0.5, 0.499999, 1e-6));
     EO_CHECK(eo::close_enough(913908.32525340363, 914822.23357865703, 1e-3));
-    EO_CHECK(!eo::close_enough(1000, 1000.1, 1e-4));
-    EO_CHECK(!eo::close_enough(1000, 999.9, 1e-4));
-    EO_CHECK(!eo::close_enough(1000000, 1000000.001, 1e-9));
-    EO_CHECK(eo::compare(0.500001, 0.5, eo::minimize, eo::within(1e-6)) == eo::standing::worse);
+    EO_CHECK(eo::close_enough(1000, 1000.1, 1e-4));
+    EO_CHECK(eo::close_enough(1000, 999.9, 1e-4));
+    EO_CHECK(eo::close_enough(1000000, 1000000.001, 1e-9));
+    EO_CHECK(!eo::close_enough(1000, 1000.11, 1e-4));
+    for (double const expected : {0.75, 3.0, 913908.32525340363, 1e45, -7.5e12})
+        for (double const epsilon : {1e-3, 1e-5, 1e-9})
+            for (int const steps : {-3, -1, 0, 1, 3}) {
+                double const found = expected * (1 + epsilon) + steps * std::fabs(expected) * 1e-16;
+                bool const by_the_quotient = std::fabs(expected - found) / std::fabs(expected) <= epsilon;
+                if (by_the_quotient) EO_CHECK(eo::close_enough(expected, found, epsilon));
+            }
+    EO_CHECK(eo::compare(0.500001, 0.5, eo::minimize, eo::within(1e-6)) == eo::standing::equal);
     auto const micro = [](eo::checker& c) { c.reals(1e-6); };
-    EO_CHECK_EQ(compared_by("0.500001", "0.5", micro), std::string("wrong answer value 1 is 0.500001, expected 0.5"));
+    EO_CHECK_EQ(compared_by("0.500001", "0.5", micro), std::string("ok 1 values"));
     EO_CHECK_EQ(compared_by("0.499999", "0.5", micro), std::string("ok 1 values"));
     auto const milli = [](eo::checker& c) { c.reals(1e-3); };
     EO_CHECK_EQ(compared_by("914822.23357865703", "913908.32525340363", milli), std::string("ok 1 values"));
     auto const ten_thousandth = [](eo::checker& c) { c.reals(1e-4); };
-    EO_CHECK_EQ(compared_by("1000.1 999.9", "1000 1000", ten_thousandth),
-                std::string("wrong answer value 1 is 1000.1, expected 1000"));
+    EO_CHECK_EQ(compared_by("1000.1 999.9", "1000 1000", ten_thousandth), std::string("ok 2 values"));
     eot::outcome const optimum = check_run("1\n", "0.500001\n", "0.5\n", [](eo::checker& c) {
         c.input.skip_rest("not needed");
         c.optimum(c.jury.read_real(eo::any, "best"), c.output.read_real(eo::any, "best"), eo::minimize,
                   eo::within(1e-6));
     });
-    EO_CHECK_EQ(optimum.text, std::string("wrong answer the answer is 0.500001; the optimum is 0.5"));
+    EO_CHECK_EQ(optimum.text, std::string("ok 0.500001"));
 }

@@ -29,9 +29,9 @@ inline double ratio(long long part, long long whole) {
 
 inline bool close_enough(double expected, double found, double epsilon) {
     double const spread = std::fabs(expected - found);
-    if (spread <= epsilon) return true;
+    if (spread <= epsilon + 1e-15) return true;
     double const scale = std::fabs(expected);
-    return scale > 0 && spread / scale <= epsilon;
+    return scale > 0 && (spread / scale <= epsilon || spread <= (epsilon + 1e-15) * scale);
 }
 
 namespace detail {

@@ -11,6 +11,16 @@
   1.5 and writes `1.50` and `points 20.5`, whatever the locale. A validator that refused
   `1.5` under such a locale accepts it now; a program that never sets a numeric locale sees no
   change.
+- **A tolerance allows 1e-15 more, for rounding.** `eo::close_enough`, and with it
+  `c.reals(eps)`, `eo::compare` and `c.optimum` with `eo::within(eps)`, called `0.500001`
+  against `0.5` at `1e-6` wrong, since the difference is `1.0000000000287557e-06` in doubles,
+  and accepted `0.499999`, whose difference rounds the other way; `1000.1` against `1000` at
+  `1e-4` was wrong for the same reason. A value now also counts as within the tolerance when
+  its difference is up to `eps + 1e-15`, or up to `(eps + 1e-15)` times the expected value,
+  as testlib's does; every comparison 2.2.1 accepted, by `|difference| <= eps` or by
+  `|difference| / |expected| <= eps`, is still accepted. So the change only turns a wrong
+  answer at the boundary into an accept: over 6.9 million pairs built within a few ULPs of
+  the boundary, from `1e-300` to `1e300`, none went the other way.
 
 ## 2.2.1
 

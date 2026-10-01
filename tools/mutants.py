@@ -40,7 +40,7 @@ MUTANTS = [
      "while (loop < edges.size() && edges[loop].u != edges[loop].v) loop++;",
      "while (loop < edges.size()) loop++;"),
     ("a tolerance that excludes its bound", "src/role.h",
-     "if (spread <= epsilon) return true;", "if (spread < epsilon) return true;"),
+     "if (spread <= epsilon + 1e-15) return true;", "if (spread <= epsilon) return true;"),
     ("two infinities that are not equal within a tolerance", "src/check.h",
      "if (found == by_the_jury || close_enough(by_the_jury, found, allowed.epsilon))",
      "if (close_enough(by_the_jury, found, allowed.epsilon))"),
