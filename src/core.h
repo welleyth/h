@@ -10,9 +10,9 @@
 #include <string>
 #include <utility>
 
-#define EOLYMP_H_VERSION "2.4.0"
+#define EOLYMP_H_VERSION "2.5.0"
 #define EOLYMP_H_VERSION_MAJOR 2
-#define EOLYMP_H_VERSION_MINOR 4
+#define EOLYMP_H_VERSION_MINOR 5
 #define EOLYMP_H_VERSION_PATCH 0
 
 namespace eo {

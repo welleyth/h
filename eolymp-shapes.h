@@ -1,4 +1,4 @@
-// eolymp-shapes.h 2.4.0 — test shapes for eolymp.h generators.
+// eolymp-shapes.h 2.5.0 — test shapes for eolymp.h generators.
 // https://github.com/eolymp/h
 //
 // SPDX-License-Identifier: MIT

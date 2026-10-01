@@ -8,13 +8,13 @@ and is written in Go with no dependencies beyond the standard library.
 for Linux and macOS on amd64 and arm64, with a `SHA256SUMS` file to check them against:
 
 ```bash
-curl -LO https://github.com/eolymp/h/releases/download/judge/v2.4.0/eo-judge-linux-amd64
-curl -LO https://github.com/eolymp/h/releases/download/judge/v2.4.0/SHA256SUMS
+curl -LO https://github.com/eolymp/h/releases/download/judge/v2.5.0/eo-judge-linux-amd64
+curl -LO https://github.com/eolymp/h/releases/download/judge/v2.5.0/SHA256SUMS
 sha256sum --check --ignore-missing SHA256SUMS
 install -m 755 eo-judge-linux-amd64 ~/.local/bin/eo-judge
 ```
 
-With Go 1.23 or later, `go install github.com/eolymp/h/judge/v2@v2.4.0` builds the same
+With Go 1.23 or later, `go install github.com/eolymp/h/judge/v2@v2.5.0` builds the same
 program from the tag; the `/v2` is Go's rule for a module at major version 2, and Go names the
 binary `judge` after its directory. In a checkout, `make build/eo-judge`
 writes `build/eo-judge`, and `make judge` runs gofmt, go vet and the eo-judge tests.
@@ -442,12 +442,12 @@ once each, as `run` reports them.
 ## JSON
 
 With `--json`, `run`, `check`, `lint` and `stress` print nothing on stdout but one object, and
-the exit code is the same as without it; `version --json` prints `{"version": "2.4.0"}`, and `init`
+the exit code is the same as without it; `version --json` prints `{"version": "2.5.0"}`, and `init`
 refuses the flag:
 
 ```json
 {
-  "version": "2.4.0",
+  "version": "2.5.0",
   "problem": "tests/live/degrees",
   "invalid": [{"group": 1, "test": 2, "why": "line 1, n: 1 is below 2"}],
   "attempts": [
@@ -489,7 +489,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - uses: eolymp/h@v2.4.0
+      - uses: eolymp/h@v2.5.0
         with:
           problem: problems/degrees
           expect: true

@@ -1,5 +1,63 @@
 # Changelog
 
+## 2.5.0
+
+The header builds on Windows, with MSVC for x64 and x86, clang-cl and mingw-w64, and judges
+there as it does on Linux. On Linux nothing changes: a program built against 2.5.0 gives the
+verdicts, scores, messages, exit codes, warnings and bytes it gave under 2.4.0, apart from the
+`eo-report` fix below, which touches only a path holding a quote, a backslash or a control
+character. The header's own line numbers in warnings move, since it grew: `eolymp.h` has 6,662
+lines against 2.4.0's 6,227, and 263,367 bytes against 247,845.
+
+### For problem authors
+
+- **Windows.** Validators, checkers, generators, interactors, phases and controllers build with
+  `cl` and `clang-cl` under `/W4 /WX` and with mingw-w64 under `-Wall -Wextra -Werror`, in
+  C++17 and later, before or after `<windows.h>`, with or without `NOMINMAX`; the header never
+  includes it. Standard input, output and error are binary and every file is opened in binary,
+  and set to binary again when the library takes one over, so a `freopen` of the author's
+  cannot undo it. CRLF and Ctrl-Z mean on Windows what they mean on the judge: the jury's CRLF
+  is folded with an EO110 note, the contestant's output is read as it is, and a generator
+  writes `\n`. An interactor and a controller take in the other side's answers while they
+  write, from one standing writer thread per pipe, so a large send does not deadlock; a
+  controller's instances are named pipes. What is Windows' own, the 1 MB default stack first,
+  is in [docs/README.md](docs/README.md#windows).
+- **`eo-report` is JSON for every path.** A warning raised in a file whose path holds `"`, `\`
+  or a control character, as every Windows path does, made the line invalid JSON, and
+  eo-judge fell back to the spoken lines, which split at spaces. The path is now escaped.
+- **eo-judge on Windows** stops at once and says to run it under WSL2, which
+  [docs/judge.md](docs/judge.md#on-windows) describes; it runs on Linux and macOS as before.
+
+### For maintainers
+
+- Every call to the operating system is in `src/os.h`, with a POSIX branch that is the code of
+  2.4.0 and a Windows branch; the amalgamator leaves an include inside `#if` where it is, and
+  the C++17 check reads `_MSVC_LANG`. GCC's checked-arithmetic builtins and
+  `__builtin_unreachable` go through `core.h`, with portable versions for `cl` that the suite
+  compares with the builtins.
+- `make transcript` runs the file roles, the interactor, the phases and the controller on 138
+  scenarios and writes each run's exit code and output bytes. CI's `windows` job builds the
+  same programs on `windows-latest` with mingw-w64, `cl` for x64 and for x86, and `clang-cl`,
+  fails on any byte that differs from Linux's, runs `tests/all.cpp` there without the 17 tests
+  that need `fork`, `setrlimit`, signals, FIFOs or `O_NONBLOCK`, and runs eo-judge's Windows
+  build. The scenarios include the paths only Windows takes: EO409 while writing, last words
+  to a solution that sleeps or never reads, solutions that stop reading, the checker's
+  scratch file with a missing `TEMP`, and a `freopen` of the standard streams; and 2.3.0's
+  features: patterns read and drawn, every stock comparison, `--eo-case` and
+  `--eo-describe`, and the log a checker held when it aborts.
+- `make judge` also builds eo-judge for Windows. `tests/hostile` builds both headers after the
+  macros `<windows.h>` defines.
+
+### Left as it was
+
+- A native eo-judge for Windows, which would need a job object per run and its tests ported
+  off `/bin/sh`: WSL2 runs the Linux one.
+- Non-ASCII paths outside the ANSI code page, which `_open` cannot open; a UTF-8 manifest or
+  `_wopen` would, when an author needs it.
+- A real read after `fesetround` under MSVC or clang-cl, where the UCRT's `strtod` rounds an
+  exact decimal such as `1.5` one step away under `FE_UPWARD`; the default rounding reads
+  every real the same on every platform.
+
 ## 2.4.0
 
 The header is 2.3.0's with a new version: a program built against 2.4.0 judges every run as
