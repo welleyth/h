@@ -34,14 +34,12 @@ def cpu_of_children():
     return usage.ru_utime + usage.ru_stime
 
 
-def fastest(command, root, runs=3, enough=0.0):
+def fastest(command, root, runs=3):
     best = float("inf")
     for _ in range(runs):
         before = cpu_of_children()
         subprocess.run(command, cwd=root, check=True, env={**os.environ, "CCACHE_DISABLE": "1"})
         best = min(best, cpu_of_children() - before)
-        if best <= enough:
-            break
     return best
 
 
@@ -59,9 +57,8 @@ def main() -> int:
         source = build / f"{name}.cpp"
         source.write_text(code)
         target = build / f"{name}.o"
-        ceiling = 0.0 if name == "baseline" else CEILING_RATIO * measured["baseline"][0]
         compile_time = fastest([*compiler(), f"-std={standard()}", f"-I{root}", "-O2", "-c", "-o", str(target),
-                                str(source)], root, enough=ceiling)
+                                str(source)], root)
         measured[name] = (compile_time, target.stat().st_size)
     base = measured["baseline"][0]
     worst = 0.0
