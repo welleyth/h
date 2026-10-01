@@ -17,9 +17,28 @@ CEILING_RATIO = 8.5
 CEILING_KB = 220
 
 
+STANDARD_HEADERS = [
+    "<algorithm>", "<array>", "<cerrno>", "<cfenv>", "<charconv>", "<chrono>", "<climits>",
+    "<clocale>", "<cmath>", "<csignal>", "<cstddef>", "<cstdint>", "<cstdio>", "<cstdlib>",
+    "<cstring>", "<exception>", "<fcntl.h>", "<functional>", "<initializer_list>", "<iterator>",
+    "<limits>", "<map>", "<memory>", "<new>", "<optional>", "<poll.h>", "<set>", "<signal.h>",
+    "<string>", "<string_view>", "<sys/ioctl.h>", "<sys/stat.h>", "<sys/syscall.h>",
+    "<system_error>", "<type_traits>", "<unistd.h>", "<utility>", "<vector>"
+]
+
+
 def baseline(root: pathlib.Path) -> str:
-    included = [line for line in (root / "eolymp.h").read_text().splitlines() if line.startswith("#include <")]
-    return "\n".join(included) + "\nint main() { return 0; }\n"
+    included = [line[len("#include "):] for line in (root / "eolymp.h").read_text().splitlines()
+                if line.startswith("#include <")]
+    if sorted(included) != sorted(STANDARD_HEADERS):
+        added = sorted(set(included) - set(STANDARD_HEADERS))
+        dropped = sorted(set(STANDARD_HEADERS) - set(included))
+        changes = [f"now includes {', '.join(added)}"] if added else []
+        changes += [f"no longer includes {', '.join(dropped)}"] if dropped else []
+        raise SystemExit(f"budget: eolymp.h {' and '.join(changes)}, against STANDARD_HEADERS in tools/budget.py; "
+                         f"change the list with the header, since the baseline the ceiling divides by is built "
+                         f"from it")
+    return "".join(f"#include {header}\n" for header in STANDARD_HEADERS) + "int main() { return 0; }\n"
 
 
 def first_program(page: pathlib.Path) -> str:
