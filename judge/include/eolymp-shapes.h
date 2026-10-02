@@ -697,6 +697,27 @@ inline std::vector<edge> filled(rng& draw, int n, long long m, std::vector<edge>
     return detail::undirected(n, std::move(missing));
 }
 
+[[nodiscard]] inline graph cactus(rng& draw, int n, int longest) {
+    detail::at_least(n, 1, "a cactus");
+    if (longest < 2)
+        eo::detail::library_error(
+            fmt("cactus needs a longest cycle of at least 2, where 2 builds bridges alone, not {}", longest));
+    std::vector<edge> edges;
+    int made = 1;
+    while (made < n) {
+        int const at = static_cast<int>(draw.uniform(1, made));
+        int const length = static_cast<int>(draw.uniform(2, (std::min)(longest, n - made + 1)));
+        int previous = at;
+        for (int vertex = made + 1; vertex < made + length; vertex++) {
+            edges.push_back(edge{previous, vertex});
+            previous = vertex;
+        }
+        if (length > 2) edges.push_back(edge{previous, at});
+        made += length - 1;
+    }
+    return detail::undirected(n, std::move(edges));
+}
+
 [[nodiscard]] inline std::vector<int> functional(rng& draw, int n, std::string const& shape) {
     detail::at_least(n, 1, "a functional graph");
     std::vector<int> next(static_cast<std::size_t>(n) + 1, 0);
