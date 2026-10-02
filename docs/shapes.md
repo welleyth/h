@@ -186,6 +186,30 @@ than `k`, and plants one of length `k` on their last elements; it reaches most p
 with that subsequence length, not all of them. Under its
 name, `involution` has as few fixed points as `n` allows, 0 or 1.
 
+## Intervals
+
+`eo::interval` holds `l` and `r`, two `long long`s with `l <= r`, read as the closed interval
+`[l, r]`. An interval problem needs the three ways two intervals relate, apart, overlapping
+and one inside the other, each on its own and mixed; the touching case, where closed and
+half-open readings disagree; and the degenerate ones, intervals that are points and
+intervals that are all the same.
+
+| Call | Gives | Kills |
+| --- | --- | --- |
+| `intervals(draw, count, low, high, "random")` | both ends uniform, then ordered | nothing in particular; the typical case |
+| `intervals(draw, count, low, high, "disjoint")` | no two share a point | a sweep that assumes something is always open |
+| `intervals(draw, count, low, high, "touching")` | sorted, each ends where the next begins | a half-open reading of closed intervals, or the reverse |
+| `intervals(draw, count, low, high, "nested")` | each strictly inside the one before it, `count` deep | recursion or a stack as deep as the nesting; "sort by left end, keep the last" |
+| `intervals(draw, count, low, high, "laminar")` | any two apart or nested, never crossing, uniform over the nestings | a solution that builds the containment tree and assumes a chain or a forest of single intervals |
+| `intervals(draw, count, low, high, "chain")` | each overlaps exactly its two neighbours and contains neither | "overlap is transitive" |
+| `intervals(draw, count, low, high, "through")` | every interval contains one common point | output-sensitive work: all count(count − 1)/2 pairs intersect |
+| `intervals(draw, count, low, high, "same")` | one interval `count` times | ties in a sort by both ends; deduplication |
+| `intervals(draw, count, low, high, "points")` | every interval a single point | `l < r` assumed |
+
+Every family comes out shuffled. The shapes built from different endpoints, `disjoint`,
+`touching`, `nested`, `laminar` and `chain`, refuse a range with too few values for them,
+and say how many they need.
+
 ## Strings
 
 A string problem needs one letter repeated, which maximises borders and periods, a binary
@@ -253,8 +277,9 @@ exist under 10^9 — r = 48,612,265 carries 2,916 — but they are not worth the
 | graphs | `connected_graph`, `sparse_graph`, `complete_graph`, `cycle`, `cycle_with_chords`, `grid`, `bipartite_graph`, `complete_bipartite`, `many_components`, `dag`, `functional` |
 | sequences | `equal_values`, `few_distinct`, `plateaus`, `nearly_sorted`, `alternating`, `hash_collisions`, `log_uniform`, `near_bounds`, `spikes`, `split_sum`, `distinct_gapped`, `mountain`, `valley` |
 | permutations | `permutation`, `permutation_cycles`, `derangement`, `involution`, `with_inversions`, `with_lis` |
+| intervals | `intervals` |
 | strings | `repeated`, `periodic`, `near_periodic`, `fibonacci_word`, `thue_morse`, `palindrome` |
 | geometry | `scattered`, `collinear`, `convex_position`, `cocircular`, `extreme_points` |
-| types | `eo::graph` (`n`, `edges`, `directed`), `eo::edge`, `eo::point` |
+| types | `eo::graph` (`n`, `edges`, `directed`), `eo::edge`, `eo::point`, `eo::interval` (`l`, `r`) |
 
-Everything lives in `eo::shapes::`, except `eo::graph`, `eo::edge` and `eo::point`.
+Everything lives in `eo::shapes::`, except `eo::graph`, `eo::edge`, `eo::point` and `eo::interval`.
