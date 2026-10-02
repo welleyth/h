@@ -439,3 +439,38 @@ EO_TEST(a_digraph_has_exactly_the_strong_components_asked_for) {
     EO_CHECK_IN(refusal([&] { (void)eo::shapes::with_sccs(draw, 0, 1, 0); }),
                 "a digraph with strong components needs at least 1 vertices, not 0");
 }
+
+EO_TEST(a_graph_has_exactly_the_diameter_asked_for_and_the_edges) {
+    eo::rng draw(510);
+    struct asked {
+        int n;
+        long long m;
+        int d;
+    };
+    for (asked const one : {asked{1, 0, 0}, asked{2, 1, 1}, asked{5, 10, 1}, asked{10, 30, 2}, asked{10, 37, 2},
+                            asked{30, 60, 5}, asked{30, 200, 5}, asked{1000, 5000, 10}, asked{1000, 3000, 900},
+                            asked{100000, 300000, 50}}) {
+        eo::graph const made = eo::shapes::graph_with_diameter(draw, one.n, one.m, one.d);
+        EO_CHECK_EQ(static_cast<long long>(made.edges.size()), one.m);
+        EO_CHECK(static_cast<bool>(eo::is_simple_graph(made.n, made.edges)));
+        EO_CHECK(static_cast<bool>(eo::is_connected(made.n, made.edges)));
+        if (one.n <= 1000) {
+            int widest = 0;
+            for (int vertex = 1; vertex <= made.n; vertex++) widest = std::max(widest, eccentricity(made, vertex));
+            EO_CHECK_EQ(widest, one.d);
+        } else {
+            EO_CHECK_EQ(eccentricity(made, 1), one.d);
+        }
+    }
+    std::string const drawn = edges_of(eo::shapes::graph_with_diameter(draw, 12, 25, 4).edges);
+    pin_bytes(drawn, 112, 0x1700b0506a7b8ad3ull, __FILE__, __LINE__);
+    EO_CHECK_IN(refusal([&] { (void)eo::shapes::graph_with_diameter(draw, 10, 38, 2); }),
+                "graph_with_diameter builds a graph on 10 vertices with diameter 2 from 9..37 edges, not 38");
+    EO_CHECK_IN(refusal([&] { (void)eo::shapes::graph_with_diameter(draw, 10, 8, 2); }), "from 9..37 edges, not 8");
+    EO_CHECK_IN(refusal([&] { (void)eo::shapes::graph_with_diameter(draw, 10, 20, 1); }),
+                "a graph on 10 vertices with diameter 1 is complete, with 45 edges, not 20");
+    EO_CHECK_IN(refusal([&] { (void)eo::shapes::graph_with_diameter(draw, 10, 20, 10); }),
+                "a connected graph on 10 vertices has a diameter of 1..9, not 10");
+    EO_CHECK_IN(refusal([&] { (void)eo::shapes::graph_with_diameter(draw, 0, 0, 0); }),
+                "a graph with a diameter needs at least 1 vertices, not 0");
+}

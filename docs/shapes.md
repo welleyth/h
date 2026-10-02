@@ -142,6 +142,7 @@ for ordering. Every graph goes through `presented` before it is printed.
 | `euler_circuit(draw, n, m)`, `euler_path(draw, n, m)` | connected and simple, `m` edges, every degree even; or exactly two odd, the path's ends. A random walk that first visits every vertex, so `m` is at most half the pairs | Hierholzer written recursively, `m` deep; an Euler path started at vertex 1 instead of at an odd vertex; a connectivity check forgotten in the other tests |
 | `tournament(draw, n)` | every pair joined by one arc, its direction a coin flip, `directed` set | ranking by the number of wins as if it were transitive; a Hamiltonian path search that assumes no cycle. `dag(draw, n, n(n−1)/2)` is the transitive one |
 | `with_sccs(draw, n, k, m)` | a digraph with exactly `k` strongly connected components and `m` arcs: each component a random cycle plus arcs inside it, every other arc forward in a hidden order of the components | Tarjan's recursion at its deepest, inside one large component; Kosaraju's second pass run in the wrong order; DP over the condensation that forgets an arc between components |
+| `graph_with_diameter(draw, n, m, d)` | connected, `m` edges, diameter exactly `d`: `tree_with_diameter` plus edges only between vertices whose distance from one end of its path differs by at most 1 | an answer read off one BFS, or off a double sweep, which only bounds a graph's diameter from below; distance arrays sized by a smaller diameter |
 | `functional(draw, n, name)` | `f(i)` for each `i`: `cycle`, `rho`, `self` or `random` | a cycle finder that assumes one cycle, or no tails |
 
 **The edge count is exact or it is a jury error.** `connected_graph(draw, 10, 8)` says
@@ -152,6 +153,13 @@ passes a quarter of `n(n−1)/2`, so a near-complete graph does not stall.
 **Exact counts of bridges and of cut vertices are what those shapes are for.** A connected
 graph on `n` vertices never has exactly `n − 2` bridges, so `with_bridges` refuses it; every
 other count from 0 to `n − 1` is built. Their blocks are plain cycles and single edges.
+
+**`graph_with_diameter` keeps both bounds by construction.** The tree it starts from has
+diameter `d` and an added edge can only shorten distances, so the diameter is at most `d`;
+every added edge joins two vertices whose distances from one end of the tree's longest path
+differ by at most one, so those distances do not change, and the other end stays `d` away.
+That caps the edges below a complete graph's, and the refusal names the most it builds; `d =
+1` is the complete graph itself.
 
 **A DAG never comes out in topological order.** `dag` draws a random order first and emits
 every arrow along it, so a solution that ignores the actual sort cannot pass by accident.
@@ -325,7 +333,7 @@ exist under 10^9 — r = 48,612,265 carries 2,916 — but they are not worth the
 | --- | --- |
 | presentation | `presented`, `parent_array` |
 | trees | `tree`, `random_tree`, `uniform_tree`, `deep_tree`, `path`, `star`, `caterpillar`, `broom`, `binary_tree`, `kary_tree`, `dumbbell`, `spider`, `tree_from_pruefer`, `tree_from_degrees`, `tree_with_leaves`, `tree_with_diameter`, `tree_with_height`, `bounded_degree_tree`, `comb`, `staircase` |
-| graphs | `connected_graph`, `sparse_graph`, `complete_graph`, `cycle`, `cycle_with_chords`, `grid`, `bipartite_graph`, `complete_bipartite`, `perfect_matching`, `many_components`, `dag`, `functional`, `regular_graph`, `cactus`, `with_bridges`, `with_cut_vertices`, `euler_circuit`, `euler_path`, `tournament`, `with_sccs` |
+| graphs | `connected_graph`, `sparse_graph`, `complete_graph`, `cycle`, `cycle_with_chords`, `grid`, `bipartite_graph`, `complete_bipartite`, `perfect_matching`, `many_components`, `dag`, `functional`, `regular_graph`, `cactus`, `with_bridges`, `with_cut_vertices`, `euler_circuit`, `euler_path`, `tournament`, `with_sccs`, `graph_with_diameter` |
 | sequences | `equal_values`, `few_distinct`, `plateaus`, `nearly_sorted`, `alternating`, `hash_collisions`, `log_uniform`, `near_bounds`, `spikes`, `split_sum`, `distinct_gapped`, `mountain`, `valley` |
 | permutations | `permutation`, `permutation_cycles`, `derangement`, `involution`, `with_inversions`, `with_lis` |
 | intervals | `intervals` |

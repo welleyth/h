@@ -190,6 +190,33 @@ inline std::pair<long long, long long> arcs_between(long long n, std::vector<lon
     return {least, (n * n + squares) / 2 - n};
 }
 
+inline std::vector<int> steps_from(graph const& made, int from) {
+    std::vector<std::vector<int>> around(static_cast<std::size_t>(made.n) + 1);
+    for (edge const& one : made.edges) {
+        around[static_cast<std::size_t>(one.u)].push_back(one.v);
+        around[static_cast<std::size_t>(one.v)].push_back(one.u);
+    }
+    std::vector<int> steps(static_cast<std::size_t>(made.n) + 1, -1);
+    std::vector<int> waiting{from};
+    steps[static_cast<std::size_t>(from)] = 0;
+    for (std::size_t at = 0; at < waiting.size(); at++)
+        for (int const other : around[static_cast<std::size_t>(waiting[at])])
+            if (steps[static_cast<std::size_t>(other)] < 0) {
+                steps[static_cast<std::size_t>(other)] = steps[static_cast<std::size_t>(waiting[at])] + 1;
+                waiting.push_back(other);
+            }
+    return steps;
+}
+
+inline long long pairs_within_reach(std::vector<long long> const& layers) {
+    long long count = 0;
+    for (std::size_t at = 0; at < layers.size(); at++) {
+        count += layers[at] * (layers[at] - 1) / 2;
+        if (at + 1 < layers.size()) count += layers[at] * layers[at + 1];
+    }
+    return count;
+}
+
 }  // namespace detail
 
 [[nodiscard]] inline graph connected_graph(rng& draw, int n, long long m) {
@@ -549,6 +576,66 @@ inline std::pair<long long, long long> arcs_between(long long n, std::vector<lon
         }
     }
     return graph{n, std::move(arrows), true};
+}
+
+[[nodiscard]] inline graph graph_with_diameter(rng& draw, int n, long long m, int d) {
+    detail::at_least(n, 1, "a graph with a diameter");
+    int const least = n == 1 ? 0 : 1;
+    if (d < least || d > n - 1)
+        eo::detail::library_error(
+            fmt("a connected graph on {} vertices has a diameter of {}..{}, not {}", n, least, n - 1, d));
+    if (d == 1) {
+        if (m != detail::pairs_of(n))
+            eo::detail::library_error(fmt("a graph on {} vertices with diameter 1 is complete, with {} edges, not {}",
+                                          n, detail::pairs_of(n), m));
+        return complete_graph(n);
+    }
+    std::vector<long long> crowded(static_cast<std::size_t>(d) + 1, 1);
+    if (d >= 2) crowded[static_cast<std::size_t>(d / 2 + 1)] += n - d - 1;
+    long long const most = detail::pairs_within_reach(crowded);
+    if (m < n - 1 || m > most)
+        eo::detail::library_error(fmt("graph_with_diameter builds a graph on {} vertices with diameter {} from {}..{} "
+                                      "edges, not {}",
+                                      n, d, n - 1, most, m));
+    graph made = tree_with_diameter(draw, n, d);
+    std::vector<int> const layer = detail::steps_from(made, 1);
+    std::vector<std::vector<int>> levels(static_cast<std::size_t>(d) + 1);
+    for (int vertex = 1; vertex <= n; vertex++)
+        levels[static_cast<std::size_t>(layer[static_cast<std::size_t>(vertex)])].push_back(vertex);
+    std::vector<long long> sizes;
+    for (std::vector<int> const& level : levels) sizes.push_back(static_cast<long long>(level.size()));
+    if (detail::pairs_within_reach(sizes) < m) {
+        std::vector<edge> edges;
+        for (int vertex = 2; vertex <= d + 1; vertex++) edges.push_back(edge{vertex - 1, vertex});
+        for (int vertex = d + 2; vertex <= n; vertex++) edges.push_back(edge{d / 2 + 1, vertex});
+        made = detail::undirected(n, std::move(edges));
+        levels.assign(static_cast<std::size_t>(d) + 1, {});
+        for (int vertex = 1; vertex <= d + 1; vertex++)
+            levels[static_cast<std::size_t>(vertex) - 1].push_back(vertex);
+        for (int vertex = d + 2; vertex <= n; vertex++) levels[static_cast<std::size_t>(d / 2 + 1)].push_back(vertex);
+        sizes = crowded;
+    }
+    detail::pair_set seen(static_cast<std::size_t>(m));
+    for (edge const& one : made.edges) seen.insert((std::min)(one.u, one.v), (std::max)(one.u, one.v));
+    std::vector<long long> reach;
+    long long total = 0;
+    for (std::size_t at = 0; at < sizes.size(); at++) {
+        total += sizes[at] * (sizes[at] - 1) / 2;
+        reach.push_back(total);
+        total += at + 1 < sizes.size() ? sizes[at] * sizes[at + 1] : 0;
+        reach.push_back(total);
+    }
+    while (static_cast<long long>(made.edges.size()) < m) {
+        long long const chosen = draw.uniform(0, total - 1);
+        std::size_t const kind =
+            static_cast<std::size_t>(std::upper_bound(reach.begin(), reach.end(), chosen) - reach.begin());
+        std::vector<int> const& one = levels[kind / 2];
+        std::vector<int> const& other = levels[kind / 2 + kind % 2];
+        int const u = draw.pick(one);
+        int const v = draw.pick(other);
+        if (u != v && seen.insert((std::min)(u, v), (std::max)(u, v))) made.edges.push_back(edge{u, v});
+    }
+    return made;
 }
 
 [[nodiscard]] inline std::vector<int> functional(rng& draw, int n, std::string const& shape) {
