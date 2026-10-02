@@ -138,3 +138,32 @@ EO_TEST(a_split_sum_adds_up_with_every_part_inside_its_bounds) {
                                                           4000000000000000000LL); }),
                 "3 parts of 4000000000000000000..4000000000000000000 add up to more than a long long holds, not 5");
 }
+
+EO_TEST(gapped_values_are_distinct_and_never_closer_than_the_gap) {
+    eo::rng draw(206);
+    for (long long const gap : {1LL, 2LL, 1000LL, 1000000LL}) {
+        std::vector<long long> values = eo::shapes::distinct_gapped(draw, 1000, -1000000000, 1000000000, gap);
+        EO_CHECK_EQ(values.size(), static_cast<std::size_t>(1000));
+        EO_CHECK(!static_cast<bool>(eo::is_sorted(values)));
+        std::sort(values.begin(), values.end());
+        bool apart = true;
+        for (std::size_t at = 1; at < values.size(); at++) apart = apart && values[at] - values[at - 1] >= gap;
+        EO_CHECK(apart);
+        EO_CHECK(values.front() >= -1000000000 && values.back() <= 1000000000);
+    }
+    std::vector<long long> tight = eo::shapes::distinct_gapped(draw, 5, 0, 20, 5);
+    std::sort(tight.begin(), tight.end());
+    EO_CHECK_EQ(values_of(tight), std::string("0;5;10;15;20;"));
+    EO_CHECK(eo::shapes::distinct_gapped(draw, 0, 0, 0, 3).empty());
+    std::string drawn = values_of(eo::shapes::distinct_gapped(draw, 20, 1, 1000, 7));
+    pin_bytes(drawn, 76, 0x80015819593af6efull, __FILE__, __LINE__);
+    EO_CHECK_IN(refusal([&] { (void)eo::shapes::distinct_gapped(draw, 6, 0, 20, 5); }),
+                "6 values at least 5 apart need a range of 25, and 0..20 spans 20");
+    EO_CHECK_IN(refusal([&] { (void)eo::shapes::distinct_gapped(draw, 3, 0, 20, 0); }),
+                "distinct_gapped keeps values at least 1 apart, not 0");
+    EO_CHECK_IN(refusal([&] { (void)eo::shapes::distinct_gapped(draw, 3, 0, 9223372036854775807LL,
+                                                                 9223372036854775807LL); }),
+                "3 values at least 9223372036854775807 apart need more range than a long long holds");
+    EO_CHECK_IN(refusal([&] { (void)eo::shapes::distinct_gapped(draw, 4611686018427387906LL, 0, 1, 2); }),
+                "4611686018427387906 values at least 2 apart need more range than a long long holds");
+}

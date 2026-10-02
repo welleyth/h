@@ -177,5 +177,27 @@ inline int decimal_length(long long value) {
     return shares;
 }
 
+[[nodiscard]] inline std::vector<long long> distinct_gapped(rng& draw, long long count, long long low,
+                                                            long long high, long long gap) {
+    detail::room_for_values(count, low, high, "a sequence of gapped values");
+    if (gap < 1) eo::detail::library_error(fmt("distinct_gapped keeps values at least 1 apart, not {}", gap));
+    if (count == 0) return {};
+    long long taken = 0;
+    long long need = 0;
+    if (eo::detail::product_overflows(count - 1, gap - 1, &taken) ||
+        eo::detail::sum_overflows(taken, count - 1, &need))
+        eo::detail::library_error(
+            fmt("{} values at least {} apart need more range than a long long holds", count, gap));
+    long long const span = detail::width_of(low, high);
+    if (need > span)
+        eo::detail::library_error(fmt("{} values at least {} apart need a range of {}, and {}..{} spans {}", count,
+                                      gap, need, low, high, span));
+    std::vector<long long> values = draw.distinct(count, low, high - taken);
+    std::sort(values.begin(), values.end());
+    for (std::size_t at = 0; at < values.size(); at++) values[at] += static_cast<long long>(at) * (gap - 1);
+    draw.shuffle(values);
+    return values;
+}
+
 }  // namespace shapes
 }  // namespace eo
