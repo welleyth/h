@@ -2949,6 +2949,27 @@ inline unsigned long long kinds_between(long long low, long long high) {
     return out;
 }
 
+[[nodiscard]] inline long long count_permutations(int n) {
+    detail::room_for_elements(n, 0, "a permutation to count");
+    long long total = 1;
+    for (int factor = 2; factor <= n; factor++) {
+        if (total > 9223372036854775807LL / factor)
+            eo::detail::library_error(fmt("there are more permutations of {} elements than a long long counts", n));
+        total *= factor;
+    }
+    return total;
+}
+
+[[nodiscard]] inline std::vector<int> permutation_at(int n, long long index) {
+    detail::numbered(index, count_permutations(n), fmt("permutations of {} elements", n));
+    std::vector<long long> code(static_cast<std::size_t>(n), 0);
+    for (int place = n; place >= 1; place--) {
+        code[static_cast<std::size_t>(place) - 1] = index % (n - place + 1);
+        index /= n - place + 1;
+    }
+    return detail::from_lehmer(code);
+}
+
 }  // namespace shapes
 }  // namespace eo
 

@@ -39,3 +39,29 @@ EO_TEST(small_arrays_and_strings_are_numbered_in_lexicographic_order) {
     EO_CHECK_IN(refusal([] { (void)eo::shapes::string_at(2, eo::charset("ab"), -1); }),
                 "the strings of 2 letters over \"ab\" are numbered 0..3, not -1");
 }
+
+EO_TEST(small_permutations_are_numbered_in_lexicographic_order) {
+    for (int n = 0; n <= 7; n++) {
+        long long const count = eo::shapes::count_permutations(n);
+        std::vector<int> expected(static_cast<std::size_t>(n));
+        for (int at = 0; at < n; at++) expected[static_cast<std::size_t>(at)] = at + 1;
+        bool same = true;
+        long long index = 0;
+        do {
+            same = same && eo::shapes::permutation_at(n, index) == expected;
+            index++;
+        } while (std::next_permutation(expected.begin(), expected.end()));
+        EO_CHECK(same);
+        EO_CHECK_EQ(index, count);
+    }
+    EO_CHECK_EQ(eo::shapes::count_permutations(20), 2432902008176640000LL);
+    std::vector<int> const last = eo::shapes::permutation_at(20, 2432902008176639999LL);
+    EO_CHECK_EQ(last.front(), 20);
+    EO_CHECK_EQ(last.back(), 1);
+    EO_CHECK_IN(refusal([] { (void)eo::shapes::count_permutations(21); }),
+                "there are more permutations of 21 elements than a long long counts");
+    EO_CHECK_IN(refusal([] { (void)eo::shapes::permutation_at(3, 6); }),
+                "the permutations of 3 elements are numbered 0..5, not 6");
+    EO_CHECK_IN(refusal([] { (void)eo::shapes::count_permutations(-1); }),
+                "a permutation to count has at least no elements, not -1");
+}

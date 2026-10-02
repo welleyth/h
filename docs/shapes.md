@@ -412,6 +412,7 @@ a jury error.
 | --- | --- | --- |
 | `count_arrays(length, low, high)`, `array_at(length, low, high, index)` | every array of `length` values in `low..high`, in lexicographic order | any bug a small input can show: the random tests reach some of them, these reach all |
 | `count_strings(length, allowed)`, `string_at(length, allowed, index)` | every string of `length` letters from `allowed`, in lexicographic order | the same, for strings |
+| `count_permutations(n)`, `permutation_at(n, index)` | every permutation of 1..n, in lexicographic order, through the factorial number system; n at most 20 | the same, for permutations |
 
 ## What the shapes do not do
 
@@ -441,7 +442,7 @@ a jury error.
 | strings | `repeated`, `periodic`, `near_periodic`, `fibonacci_word`, `thue_morse`, `palindrome`, `de_bruijn`, `lyndon`, `abacaba`, `thue_morse_twins`, `anti_hash` |
 | numbers | `is_prime`, `next_prime`, `prev_prime`, `random_prime`, `semiprime`, `prime_power`, `most_divisors`, `strong_pseudoprime`, `carmichael`, `fibonacci_pair` |
 | geometry | `scattered`, `collinear`, `convex_position`, `cocircular`, `extreme_points`, `general_position`, `simple_polygon`, `strictly_convex`, `crossing_segments` |
-| small exhaustive tests | `count_arrays`, `array_at`, `count_strings`, `string_at` |
+| small exhaustive tests | `count_arrays`, `array_at`, `count_strings`, `string_at`, `count_permutations`, `permutation_at` |
 | types | `eo::graph` (`n`, `edges`, `directed`), `eo::edge`, `eo::weighted_graph` (`n`, `edges`, `directed`), `eo::weighted_edge`, `eo::point`, `eo::interval` (`l`, `r`) |
 
 Everything lives in `eo::shapes::`, except the types: `eo::graph`, `eo::weighted_graph`, `eo::edge`,
