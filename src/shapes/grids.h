@@ -83,5 +83,63 @@ inline void room_for_grid(int rows, int columns, char const* what) {
     return grid;
 }
 
+[[nodiscard]] inline std::vector<std::string> serpentine(int rows, int columns) {
+    detail::room_for_grid(rows, columns, "a serpentine");
+    std::vector<std::string> grid(static_cast<std::size_t>(rows), std::string(static_cast<std::size_t>(columns), '#'));
+    for (int row = 0; row < rows; row++) {
+        if (row % 2 == 0) {
+            grid[static_cast<std::size_t>(row)].assign(static_cast<std::size_t>(columns), '.');
+        } else {
+            grid[static_cast<std::size_t>(row)][static_cast<std::size_t>(row % 4 == 1 ? columns - 1 : 0)] = '.';
+        }
+    }
+    return grid;
+}
+
+[[nodiscard]] inline std::vector<std::string> spiral(int rows, int columns) {
+    detail::room_for_grid(rows, columns, "a spiral");
+    std::vector<std::string> grid(static_cast<std::size_t>(rows), std::string(static_cast<std::size_t>(columns), '#'));
+    auto const open = [&](int row, int column) {
+        return row >= 0 && column >= 0 && row < rows && column < columns &&
+               grid[static_cast<std::size_t>(row)][static_cast<std::size_t>(column)] == '.';
+    };
+    int const steps[4][2] = {{0, 1}, {1, 0}, {0, -1}, {-1, 0}};
+    int row = 0;
+    int column = 0;
+    int heading = 0;
+    auto const fits = [&](int way) {
+        int const next_row = row + steps[way][0];
+        int const next_column = column + steps[way][1];
+        if (next_row < 0 || next_column < 0 || next_row >= rows || next_column >= columns) return false;
+        if (open(next_row, next_column)) return false;
+        for (auto const& step : steps) {
+            int const beside_row = next_row + step[0];
+            int const beside_column = next_column + step[1];
+            if ((beside_row != row || beside_column != column) && open(beside_row, beside_column)) return false;
+        }
+        return true;
+    };
+    grid[0][0] = '.';
+    for (;;) {
+        if (!fits(heading)) {
+            heading = (heading + 1) % 4;
+            if (!fits(heading)) break;
+        }
+        row += steps[heading][0];
+        column += steps[heading][1];
+        grid[static_cast<std::size_t>(row)][static_cast<std::size_t>(column)] = '.';
+    }
+    return grid;
+}
+
+[[nodiscard]] inline std::vector<std::string> checkerboard(int rows, int columns) {
+    detail::room_for_grid(rows, columns, "a checkerboard");
+    std::vector<std::string> grid(static_cast<std::size_t>(rows), std::string(static_cast<std::size_t>(columns), '#'));
+    for (int row = 0; row < rows; row++)
+        for (int column = row % 2; column < columns; column += 2)
+            grid[static_cast<std::size_t>(row)][static_cast<std::size_t>(column)] = '.';
+    return grid;
+}
+
 }  // namespace shapes
 }  // namespace eo

@@ -128,3 +128,44 @@ EO_TEST(scattered_walls_keep_a_path_from_corner_to_corner) {
     EO_CHECK_IN(refusal([&] { (void)eo::shapes::scattered_walls(draw, 3, 0, 0.5); }),
                 "a grid with walls is at least 1 by 1, not 3 by 0");
 }
+
+EO_TEST(a_serpentine_and_a_spiral_are_single_corridors_from_the_corner) {
+    for (int rows = 1; rows <= 15; rows++)
+        for (int columns = 1; columns <= 15; columns++) {
+            for (bool const coiled : {false, true}) {
+                std::vector<std::string> const grid =
+                    coiled ? eo::shapes::spiral(rows, columns) : eo::shapes::serpentine(rows, columns);
+                EO_CHECK(shaped_as(grid, rows, columns));
+                open_cells const found = survey(grid);
+                EO_CHECK_EQ(found.joins, found.cells - 1);
+                EO_CHECK(found.most_neighbours <= 2);
+                EO_CHECK_EQ(found.reached, found.cells);
+                EO_CHECK_EQ(found.farthest, found.cells - 1);
+                EO_CHECK(2 * found.cells >= static_cast<long long>(rows) * columns - rows - columns);
+            }
+        }
+    open_cells const snake = survey(eo::shapes::serpentine(1000, 1000));
+    EO_CHECK_EQ(snake.farthest, snake.cells - 1);
+    EO_CHECK(snake.farthest >= 500000);
+    open_cells const coil = survey(eo::shapes::spiral(1000, 1000));
+    EO_CHECK_EQ(coil.farthest, coil.cells - 1);
+    EO_CHECK(coil.farthest >= 499000);
+    EO_CHECK_EQ(eo::shapes::spiral(5, 5)[0], std::string("....."));
+    EO_CHECK_EQ(eo::shapes::spiral(5, 5)[2], std::string("...#."));
+    EO_CHECK_EQ(eo::shapes::spiral(5, 5)[3], std::string(".###."));
+    EO_CHECK_IN(refusal([] { (void)eo::shapes::serpentine(0, 1); }), "a serpentine is at least 1 by 1, not 0 by 1");
+    EO_CHECK_IN(refusal([] { (void)eo::shapes::spiral(1, 0); }), "a spiral is at least 1 by 1, not 1 by 0");
+}
+
+EO_TEST(a_checkerboard_has_no_two_open_cells_side_by_side) {
+    for (int const rows : {1, 2, 5, 100})
+        for (int const columns : {1, 4, 7, 100}) {
+            std::vector<std::string> const board = eo::shapes::checkerboard(rows, columns);
+            EO_CHECK(shaped_as(board, rows, columns));
+            open_cells const found = survey(board);
+            EO_CHECK_EQ(found.joins, 0LL);
+            EO_CHECK_EQ(found.cells, (static_cast<long long>(rows) * columns + 1) / 2);
+            EO_CHECK_EQ(board[0][0], '.');
+        }
+    EO_CHECK_IN(refusal([] { (void)eo::shapes::checkerboard(0, 0); }), "a checkerboard is at least 1 by 1, not 0 by 0");
+}

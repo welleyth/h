@@ -202,6 +202,9 @@ decide everything, and walls at a density with a path kept through them.
 | --- | --- | --- |
 | `maze(draw, rows, columns)` | a perfect maze: rooms at even coordinates joined by a random depth-first search, so the open cells form a tree; `(0, 0)` is open, and so is the far corner when both sizes are odd | flood fill written recursively, as deep as the maze's longest corridor; a BFS that stops at the first dead end |
 | `scattered_walls(draw, rows, columns, density)` | each cell a wall with probability `density`, except a random monotone path from `(0, 0)` to the far corner, which stays open | "unreachable" answered by default; a BFS that never meets a wall in the other tests; at `density` 1 only the path is left |
+| `serpentine(rows, columns)` | every other row open, joined at alternate ends: one corridor from `(0, 0)` through half the cells | distance arrays or a BFS queue sized by `rows + columns`; recursion along the corridor; an "answer at most `rows · columns / 4`" bound |
+| `spiral(rows, columns)` | one corridor from `(0, 0)` spiralling inward, a wall between its laps, ending near the centre | the same, with the far end in the middle rather than at a corner |
+| `checkerboard(rows, columns)` | `(r + c)` even open, odd a wall; `(0, 0)` open | 4- against 8-connectivity: ⌈rows·columns/2⌉ components under one and a single component under the other; DSU without union by size at its most components |
 
 ## Sequences
 
@@ -374,7 +377,7 @@ exist under 10^9 — r = 48,612,265 carries 2,916 — but they are not worth the
 | shortest paths and flows | `with_weights`, `anti_spfa`, `anti_dijkstra`, `layered_network` |
 | trees | `tree`, `random_tree`, `uniform_tree`, `deep_tree`, `path`, `star`, `caterpillar`, `broom`, `binary_tree`, `kary_tree`, `dumbbell`, `spider`, `tree_from_pruefer`, `tree_from_degrees`, `tree_with_leaves`, `tree_with_diameter`, `tree_with_height`, `bounded_degree_tree`, `comb`, `staircase` |
 | graphs | `connected_graph`, `sparse_graph`, `complete_graph`, `cycle`, `cycle_with_chords`, `grid`, `bipartite_graph`, `complete_bipartite`, `perfect_matching`, `many_components`, `dag`, `functional`, `regular_graph`, `cactus`, `with_bridges`, `with_cut_vertices`, `euler_circuit`, `euler_path`, `tournament`, `with_sccs`, `graph_with_diameter` |
-| grids | `maze`, `scattered_walls` |
+| grids | `maze`, `scattered_walls`, `serpentine`, `spiral`, `checkerboard` |
 | sequences | `equal_values`, `few_distinct`, `plateaus`, `nearly_sorted`, `alternating`, `hash_collisions`, `log_uniform`, `near_bounds`, `spikes`, `split_sum`, `distinct_gapped`, `mountain`, `valley` |
 | permutations | `permutation`, `permutation_cycles`, `derangement`, `involution`, `with_inversions`, `with_lis` |
 | intervals | `intervals` |
