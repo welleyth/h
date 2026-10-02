@@ -1939,6 +1939,13 @@ inline void room_for_letters(long long length, char const* what) {
     if (length < 0) eo::detail::library_error(fmt("{} is at least empty, not {} long", what, length));
 }
 
+inline std::vector<char> letters_of(charset const& allowed) {
+    std::vector<char> found;
+    for (int one = 0; one < 256; one++)
+        if (allowed.has(static_cast<char>(one))) found.push_back(static_cast<char>(one));
+    return found;
+}
+
 }  // namespace detail
 
 [[nodiscard]] inline std::string repeated(char one, long long length) {
@@ -2004,6 +2011,33 @@ inline void room_for_letters(long long length, char const* what) {
     std::string out = draw.letters(length, allowed);
     for (long long at = 0; at * 2 < length; at++)
         out[static_cast<std::size_t>(length - 1 - at)] = out[static_cast<std::size_t>(at)];
+    return out;
+}
+
+[[nodiscard]] inline std::string de_bruijn(charset const& allowed, int order) {
+    if (order < 1) eo::detail::library_error(fmt("a de Bruijn sequence has an order of at least 1, not {}", order));
+    std::vector<char> const letters = detail::letters_of(allowed);
+    if (letters.empty()) eo::detail::library_error(fmt("charset(\"{}\") holds no characters", allowed.text()));
+    long long const kinds = static_cast<long long>(letters.size());
+    long long words = 1;
+    for (int at = 0; at < order && words <= 100000000; at++) words *= kinds;
+    if (words > 100000000)
+        eo::detail::library_error(fmt(
+            "a de Bruijn sequence of order {} over {} letters is {} long; 100000000 is the most", order, kinds,
+            words <= 100000000 * kinds ? fmt("{}", words) : std::string("more than 10^8")));
+    std::string out;
+    out.reserve(static_cast<std::size_t>(words) + static_cast<std::size_t>(order) - 1);
+    std::vector<long long> word{-1};
+    while (!word.empty()) {
+        word.back()++;
+        std::size_t const length = word.size();
+        if (static_cast<std::size_t>(order) % length == 0)
+            for (long long const one : word) out.push_back(letters[static_cast<std::size_t>(one)]);
+        while (word.size() < static_cast<std::size_t>(order)) word.push_back(word[word.size() - length]);
+        while (!word.empty() && word.back() == kinds - 1) word.pop_back();
+    }
+    std::size_t const cycle = out.size();
+    for (std::size_t at = 0; at + 1 < static_cast<std::size_t>(order); at++) out.push_back(out[at % cycle]);
     return out;
 }
 

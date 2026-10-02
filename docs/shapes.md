@@ -324,6 +324,7 @@ random string over the full alphabet as the easy case.
 | `near_periodic(draw, unit, length, allowed)` | exactly one mismatch from periodic | a period check that stops at the first match |
 | `fibonacci_word(length)`, `thue_morse(length)` | many distinct factors | worst cases for suffix structures |
 | `palindrome(draw, length, allowed)` | a palindrome | Manacher and palindromic trees at their deepest |
+| `de_bruijn(allowed, order)` | every word of length `order` over `allowed` exactly once, as a linear sequence of kᵒʳᵈᵉʳ + order − 1 letters; the least such sequence | a dictionary or trie that assumes repeats; counting distinct substrings of one length, at its most |
 
 A uniform random string over a large alphabet is the easy case; `draw.letters(n,
 eo::charset("ab"))` over an alphabet of two maximises repeats, borders and periods.
@@ -382,7 +383,7 @@ exist under 10^9 — r = 48,612,265 carries 2,916 — but they are not worth the
 | permutations | `permutation`, `permutation_cycles`, `derangement`, `involution`, `with_inversions`, `with_lis` |
 | intervals | `intervals` |
 | queries | `ranges`, `query_order` |
-| strings | `repeated`, `periodic`, `near_periodic`, `fibonacci_word`, `thue_morse`, `palindrome` |
+| strings | `repeated`, `periodic`, `near_periodic`, `fibonacci_word`, `thue_morse`, `palindrome`, `de_bruijn` |
 | geometry | `scattered`, `collinear`, `convex_position`, `cocircular`, `extreme_points` |
 | types | `eo::graph` (`n`, `edges`, `directed`), `eo::edge`, `eo::weighted_graph` (`n`, `edges`, `directed`), `eo::weighted_edge`, `eo::point`, `eo::interval` (`l`, `r`) |
 
