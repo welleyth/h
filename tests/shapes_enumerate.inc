@@ -116,3 +116,31 @@ EO_TEST(small_labelled_trees_are_numbered_by_their_pruefer_codes) {
                 "the labelled trees on 4 vertices are numbered 0..15, not 16");
     EO_CHECK_IN(refusal([] { (void)eo::shapes::count_trees(0); }), "a tree to count needs at least 1 vertices, not 0");
 }
+
+EO_TEST(small_graphs_are_numbered_by_their_edge_masks) {
+    for (int n = 1; n <= 5; n++) {
+        long long const count = eo::shapes::count_graphs(n);
+        EO_CHECK_EQ(count, 1LL << (n * (n - 1) / 2));
+        std::vector<std::string> numbered;
+        bool simple = true;
+        long long connected = 0;
+        for (long long index = 0; index < count; index++) {
+            eo::graph const made = eo::shapes::graph_at(n, index);
+            simple = simple && made.n == n && !made.directed && static_cast<bool>(eo::is_simple_graph(n, made.edges));
+            connected += static_cast<bool>(eo::is_connected(n, made.edges)) ? 1 : 0;
+            numbered.push_back(edge_set_of(made));
+        }
+        EO_CHECK(simple);
+        std::sort(numbered.begin(), numbered.end());
+        EO_CHECK(std::adjacent_find(numbered.begin(), numbered.end()) == numbered.end());
+        long long const connected_labelled[] = {0, 1, 1, 4, 38, 728};
+        EO_CHECK_EQ(connected, connected_labelled[n]);
+    }
+    EO_CHECK_EQ(edge_set_of(eo::shapes::graph_at(4, 1 + 8 + 32)), std::string("1-2;2-3;3-4;"));
+    EO_CHECK_EQ(eo::shapes::count_graphs(11), 1LL << 55);
+    EO_CHECK_IN(refusal([] { (void)eo::shapes::count_graphs(12); }),
+                "there are more labelled graphs on 12 vertices than a long long counts");
+    EO_CHECK_IN(refusal([] { (void)eo::shapes::graph_at(3, 8); }),
+                "the labelled graphs on 3 vertices are numbered 0..7, not 8");
+    EO_CHECK_IN(refusal([] { (void)eo::shapes::count_graphs(0); }), "a graph to count needs at least 1 vertices, not 0");
+}

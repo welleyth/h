@@ -408,12 +408,36 @@ argument says which slice a file holds; the counts say how many files that takes
 `*_at` is a bijection from `0..count − 1` onto its objects, and a count past a `long long` is
 a jury error.
 
+```cpp
+#include <eolymp.h>
+#include <eolymp-shapes.h>
+
+int main(int argc, char** argv) {
+    eo::generator g(argc, argv);
+    int n = g.option<int>("n", 1, 8);
+    long long from = g.option<long long>("from", 0, 1000000000000LL);
+    long long cases = g.option<long long>("cases", 1, 100000);
+    long long to = std::min(eo::shapes::count_trees(n), from + cases);
+    g.out.line(to - from);
+    for (long long index = from; index < to; index++) {
+        eo::graph tree = eo::shapes::tree_at(n, index);
+        g.out.line(n);
+        for (eo::edge const& one : tree.edges) g.out.line(one.u, one.v);
+    }
+}
+```
+
+`gen -n=7 -from=0 -cases=10000` and `gen -n=7 -from=10000 -cases=10000` are every tree on 7
+vertices in two files. **Do not relabel an exhaustive test.** The numbering already covers
+every labelling once; `presented` would map two indices to one tree and miss another.
+
 | Call | Gives | Kills |
 | --- | --- | --- |
 | `count_arrays(length, low, high)`, `array_at(length, low, high, index)` | every array of `length` values in `low..high`, in lexicographic order | any bug a small input can show: the random tests reach some of them, these reach all |
 | `count_strings(length, allowed)`, `string_at(length, allowed, index)` | every string of `length` letters from `allowed`, in lexicographic order | the same, for strings |
 | `count_permutations(n)`, `permutation_at(n, index)` | every permutation of 1..n, in lexicographic order, through the factorial number system; n at most 20 | the same, for permutations |
 | `count_trees(n)`, `tree_at(n, index)` | every labelled tree on n vertices, the index read as a Prüfer code in base n; nⁿ⁻² of them, n at most 17 | the same, for trees: 16,807 cases cover every tree on 7 vertices |
+| `count_graphs(n)`, `graph_at(n, index)` | every labelled simple graph on n vertices, bit `j` of the index standing for the `j`-th pair in the order (1,2), (1,3), …, (n−1,n); 2^(n(n−1)/2) of them, n at most 11 | the same, for graphs: 1,024 cases cover every graph on 5 vertices |
 
 ## What the shapes do not do
 
@@ -443,7 +467,7 @@ a jury error.
 | strings | `repeated`, `periodic`, `near_periodic`, `fibonacci_word`, `thue_morse`, `palindrome`, `de_bruijn`, `lyndon`, `abacaba`, `thue_morse_twins`, `anti_hash` |
 | numbers | `is_prime`, `next_prime`, `prev_prime`, `random_prime`, `semiprime`, `prime_power`, `most_divisors`, `strong_pseudoprime`, `carmichael`, `fibonacci_pair` |
 | geometry | `scattered`, `collinear`, `convex_position`, `cocircular`, `extreme_points`, `general_position`, `simple_polygon`, `strictly_convex`, `crossing_segments` |
-| small exhaustive tests | `count_arrays`, `array_at`, `count_strings`, `string_at`, `count_permutations`, `permutation_at`, `count_trees`, `tree_at` |
+| small exhaustive tests | `count_arrays`, `array_at`, `count_strings`, `string_at`, `count_permutations`, `permutation_at`, `count_trees`, `tree_at`, `count_graphs`, `graph_at` |
 | types | `eo::graph` (`n`, `edges`, `directed`), `eo::edge`, `eo::weighted_graph` (`n`, `edges`, `directed`), `eo::weighted_edge`, `eo::point`, `eo::interval` (`l`, `r`) |
 
 Everything lives in `eo::shapes::`, except the types: `eo::graph`, `eo::weighted_graph`, `eo::edge`,

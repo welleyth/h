@@ -2984,6 +2984,21 @@ inline unsigned long long kinds_between(long long low, long long high) {
     return tree_from_pruefer(code);
 }
 
+[[nodiscard]] inline long long count_graphs(int n) {
+    detail::at_least(n, 1, "a graph to count");
+    return detail::counted(2, detail::pairs_of(n), fmt("labelled graphs on {} vertices", n));
+}
+
+[[nodiscard]] inline graph graph_at(int n, long long index) {
+    detail::numbered(index, count_graphs(n), fmt("labelled graphs on {} vertices", n));
+    std::vector<edge> edges;
+    int bit = 0;
+    for (int u = 1; u <= n; u++)
+        for (int v = u + 1; v <= n; v++, bit++)
+            if (((index >> bit) & 1) != 0) edges.push_back(edge{u, v});
+    return detail::undirected(n, std::move(edges));
+}
+
 }  // namespace shapes
 }  // namespace eo
 
