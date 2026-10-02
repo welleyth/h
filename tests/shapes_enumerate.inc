@@ -65,3 +65,54 @@ EO_TEST(small_permutations_are_numbered_in_lexicographic_order) {
     EO_CHECK_IN(refusal([] { (void)eo::shapes::count_permutations(-1); }),
                 "a permutation to count has at least no elements, not -1");
 }
+
+namespace {
+
+std::string edge_set_of(eo::graph const& made) {
+    std::vector<std::pair<int, int>> pairs;
+    for (eo::edge const& one : made.edges) pairs.push_back({std::min(one.u, one.v), std::max(one.u, one.v)});
+    std::sort(pairs.begin(), pairs.end());
+    std::string out;
+    for (auto const& one : pairs) out += eo::fmt("{}-{};", one.first, one.second);
+    return out;
+}
+
+std::vector<std::string> every_spanning_tree(int n) {
+    std::vector<eo::edge> pairs;
+    for (int u = 1; u <= n; u++)
+        for (int v = u + 1; v <= n; v++) pairs.push_back(eo::edge{u, v});
+    std::vector<std::string> trees;
+    for (unsigned mask = 0; mask < (1u << pairs.size()); mask++) {
+        std::vector<eo::edge> chosen;
+        for (std::size_t at = 0; at < pairs.size(); at++)
+            if ((mask >> at) & 1u) chosen.push_back(pairs[at]);
+        if (static_cast<int>(chosen.size()) == n - 1 && static_cast<bool>(eo::is_tree(n, chosen)))
+            trees.push_back(edge_set_of(eo::graph{n, chosen, false}));
+    }
+    std::sort(trees.begin(), trees.end());
+    return trees;
+}
+
+}  // namespace
+
+EO_TEST(small_labelled_trees_are_numbered_by_their_pruefer_codes) {
+    for (int n = 1; n <= 6; n++) {
+        long long const count = eo::shapes::count_trees(n);
+        std::vector<std::string> numbered;
+        for (long long index = 0; index < count; index++) {
+            eo::graph const made = eo::shapes::tree_at(n, index);
+            EO_CHECK(holds_a_tree(made));
+            numbered.push_back(edge_set_of(made));
+        }
+        std::sort(numbered.begin(), numbered.end());
+        EO_CHECK(numbered == every_spanning_tree(n));
+    }
+    EO_CHECK_EQ(eo::shapes::count_trees(7), 16807LL);
+    EO_CHECK_EQ(eo::shapes::count_trees(16), 72057594037927936LL);
+    EO_CHECK_EQ(eo::shapes::count_trees(17), 2862423051509815793LL);
+    EO_CHECK_IN(refusal([] { (void)eo::shapes::count_trees(18); }),
+                "there are more labelled trees on 18 vertices than a long long counts");
+    EO_CHECK_IN(refusal([] { (void)eo::shapes::tree_at(4, 16); }),
+                "the labelled trees on 4 vertices are numbered 0..15, not 16");
+    EO_CHECK_IN(refusal([] { (void)eo::shapes::count_trees(0); }), "a tree to count needs at least 1 vertices, not 0");
+}

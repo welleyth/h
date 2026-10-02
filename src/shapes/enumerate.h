@@ -9,6 +9,7 @@
 #include "permutations.h"
 #include "sequences.h"
 #include "strings.h"
+#include "trees.h"
 
 namespace eo {
 namespace shapes {
@@ -102,6 +103,20 @@ inline unsigned long long kinds_between(long long low, long long high) {
         index /= n - place + 1;
     }
     return detail::from_lehmer(code);
+}
+
+[[nodiscard]] inline long long count_trees(int n) {
+    detail::at_least(n, 1, "a tree to count");
+    return detail::counted(static_cast<unsigned long long>(n), n <= 2 ? 0 : n - 2,
+                           fmt("labelled trees on {} vertices", n));
+}
+
+[[nodiscard]] inline graph tree_at(int n, long long index) {
+    detail::numbered(index, count_trees(n), fmt("labelled trees on {} vertices", n));
+    if (n == 1) return detail::undirected(1, {});
+    std::vector<int> code;
+    for (long long const digit : detail::digits_of(index, n, n - 2)) code.push_back(static_cast<int>(digit) + 1);
+    return tree_from_pruefer(code);
 }
 
 }  // namespace shapes
