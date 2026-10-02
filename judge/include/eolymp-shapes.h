@@ -174,28 +174,8 @@ inline graph decoded(int n, std::vector<int> const& code) {
         return detail::undirected(n, std::move(edges));
     }
     std::vector<int> code;
-    std::vector<int> degree(static_cast<std::size_t>(n) + 1, 1);
-    for (int at = 0; at < n - 2; at++) {
-        int const chosen = static_cast<int>(draw.uniform(1, n));
-        code.push_back(chosen);
-        degree[static_cast<std::size_t>(chosen)]++;
-    }
-    std::vector<edge> edges;
-    int lowest = 1;
-    while (degree[static_cast<std::size_t>(lowest)] != 1) lowest++;
-    int leaf = lowest;
-    for (int const chosen : code) {
-        edges.push_back(edge{leaf, chosen});
-        if (--degree[static_cast<std::size_t>(chosen)] == 1 && chosen < lowest) {
-            leaf = chosen;
-        } else {
-            lowest++;
-            while (degree[static_cast<std::size_t>(lowest)] != 1) lowest++;
-            leaf = lowest;
-        }
-    }
-    edges.push_back(edge{leaf, n});
-    return detail::undirected(n, std::move(edges));
+    for (int at = 0; at < n - 2; at++) code.push_back(static_cast<int>(draw.uniform(1, n)));
+    return detail::decoded(n, code);
 }
 
 [[nodiscard]] inline graph path(int n) {
