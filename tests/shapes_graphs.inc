@@ -353,3 +353,89 @@ EO_TEST(a_tournament_orients_every_pair_once) {
     EO_CHECK_IN(refusal([&] { (void)eo::shapes::tournament(draw, 0); }),
                 "a tournament needs at least 1 vertices, not 0");
 }
+
+namespace {
+
+int strong_components(int n, std::vector<eo::edge> const& arrows) {
+    std::vector<std::vector<int>> out(static_cast<std::size_t>(n) + 1);
+    std::vector<std::vector<int>> in(static_cast<std::size_t>(n) + 1);
+    for (eo::edge const& one : arrows) {
+        out[static_cast<std::size_t>(one.u)].push_back(one.v);
+        in[static_cast<std::size_t>(one.v)].push_back(one.u);
+    }
+    std::vector<int> finished;
+    std::vector<bool> seen(static_cast<std::size_t>(n) + 1, false);
+    for (int root = 1; root <= n; root++) {
+        if (seen[static_cast<std::size_t>(root)]) continue;
+        std::vector<std::pair<int, std::size_t>> stack{{root, 0}};
+        seen[static_cast<std::size_t>(root)] = true;
+        while (!stack.empty()) {
+            auto& [here, next] = stack.back();
+            if (next < out[static_cast<std::size_t>(here)].size()) {
+                int const other = out[static_cast<std::size_t>(here)][next++];
+                if (!seen[static_cast<std::size_t>(other)]) {
+                    seen[static_cast<std::size_t>(other)] = true;
+                    stack.push_back({other, 0});
+                }
+            } else {
+                finished.push_back(here);
+                stack.pop_back();
+            }
+        }
+    }
+    std::vector<bool> placed(static_cast<std::size_t>(n) + 1, false);
+    int components = 0;
+    for (std::size_t at = finished.size(); at-- > 0;) {
+        int const start = finished[at];
+        if (placed[static_cast<std::size_t>(start)]) continue;
+        components++;
+        std::vector<int> waiting{start};
+        placed[static_cast<std::size_t>(start)] = true;
+        while (!waiting.empty()) {
+            int const here = waiting.back();
+            waiting.pop_back();
+            for (int const other : in[static_cast<std::size_t>(here)])
+                if (!placed[static_cast<std::size_t>(other)]) {
+                    placed[static_cast<std::size_t>(other)] = true;
+                    waiting.push_back(other);
+                }
+        }
+    }
+    return components;
+}
+
+}  // namespace
+
+EO_TEST(a_digraph_has_exactly_the_strong_components_asked_for) {
+    eo::rng draw(509);
+    struct asked {
+        int n;
+        int k;
+        long long m;
+    };
+    for (asked const one : {asked{1, 1, 0}, asked{5, 5, 0}, asked{5, 5, 10}, asked{5, 1, 5}, asked{5, 1, 20},
+                            asked{30, 4, 100}, asked{30, 4, 400}, asked{30, 4, 700}, asked{1000, 30, 5000},
+                            asked{100000, 300, 300000}}) {
+        eo::graph const made = eo::shapes::with_sccs(draw, one.n, one.k, one.m);
+        EO_CHECK(made.directed);
+        EO_CHECK_EQ(static_cast<long long>(made.edges.size()), one.m);
+        std::vector<std::pair<int, int>> arcs;
+        bool loops = false;
+        for (eo::edge const& arc : made.edges) {
+            arcs.push_back({arc.u, arc.v});
+            loops = loops || arc.u == arc.v;
+        }
+        std::sort(arcs.begin(), arcs.end());
+        EO_CHECK(!loops);
+        EO_CHECK(std::adjacent_find(arcs.begin(), arcs.end()) == arcs.end());
+        EO_CHECK_EQ(strong_components(one.n, made.edges), one.k);
+    }
+    std::string const drawn = edges_of(eo::shapes::with_sccs(draw, 12, 3, 25).edges);
+    pin_bytes(drawn, 112, 0x60ba53fb555c1f4dull, __FILE__, __LINE__);
+    EO_CHECK_IN(refusal([&] { (void)eo::shapes::with_sccs(draw, 5, 6, 0); }),
+                "5 vertices fall into 1..5 strong components, not 6");
+    EO_CHECK_IN(refusal([&] { (void)eo::shapes::with_sccs(draw, 5, 1, 4); }),
+                "a digraph on 5 vertices in 1 strong components has 5..20 arcs, not 4");
+    EO_CHECK_IN(refusal([&] { (void)eo::shapes::with_sccs(draw, 0, 1, 0); }),
+                "a digraph with strong components needs at least 1 vertices, not 0");
+}

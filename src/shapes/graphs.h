@@ -180,6 +180,16 @@ inline graph walked(rng& draw, int n, long long m, bool closed, char const* what
     }
 }
 
+inline std::pair<long long, long long> arcs_between(long long n, std::vector<long long> const& sizes) {
+    long long least = 0;
+    long long squares = 0;
+    for (long long const size : sizes) {
+        least += size >= 2 ? size : 0;
+        squares += size * size;
+    }
+    return {least, (n * n + squares) / 2 - n};
+}
+
 }  // namespace detail
 
 [[nodiscard]] inline graph connected_graph(rng& draw, int n, long long m) {
@@ -484,6 +494,60 @@ inline graph walked(rng& draw, int n, long long m, bool closed, char const* what
     arrows.reserve(static_cast<std::size_t>(detail::pairs_of(n)));
     for (int u = 1; u <= n; u++)
         for (int v = u + 1; v <= n; v++) arrows.push_back(draw.chance(0.5) ? edge{u, v} : edge{v, u});
+    return graph{n, std::move(arrows), true};
+}
+
+[[nodiscard]] inline graph with_sccs(rng& draw, int n, int k, long long m) {
+    detail::at_least(n, 1, "a digraph with strong components");
+    if (k < 1 || k > n)
+        eo::detail::library_error(fmt("{} vertices fall into 1..{} strong components, not {}", n, n, k));
+    std::vector<long long> widest(static_cast<std::size_t>(k), 1);
+    widest[0] = n - k + 1;
+    std::pair<long long, long long> const reach = detail::arcs_between(n, widest);
+    if (m < reach.first || m > reach.second)
+        eo::detail::library_error(fmt("a digraph on {} vertices in {} strong components has {}..{} arcs, not {}", n,
+                                      k, reach.first, reach.second, m));
+    std::vector<long long> sizes = draw.partition(k, n);
+    std::pair<long long, long long> const fits = detail::arcs_between(n, sizes);
+    if (m < fits.first || m > fits.second) {
+        sizes = widest;
+        draw.shuffle(sizes);
+    }
+    std::vector<int> const order = draw.perm(n, 1);
+    std::vector<int> group(static_cast<std::size_t>(n) + 1, 0);
+    detail::pair_set seen(static_cast<std::size_t>(m));
+    std::vector<edge> arrows;
+    std::size_t first = 0;
+    for (std::size_t at = 0; at < sizes.size(); at++) {
+        std::size_t const last = first + static_cast<std::size_t>(sizes[at]);
+        for (std::size_t one = first; one < last; one++)
+            group[static_cast<std::size_t>(order[one])] = static_cast<int>(at);
+        for (std::size_t one = first; sizes[at] >= 2 && one < last; one++) {
+            int const to = order[one + 1 < last ? one + 1 : first];
+            seen.insert(order[one], to);
+            arrows.push_back(edge{order[one], to});
+        }
+        first = last;
+    }
+    auto const allowed = [&](int u, int v) {
+        return u != v && group[static_cast<std::size_t>(u)] <= group[static_cast<std::size_t>(v)];
+    };
+    if (m * 4 > detail::arcs_between(n, sizes).second) {
+        std::vector<edge> spare;
+        for (int u = 1; u <= n; u++)
+            for (int v = 1; v <= n; v++)
+                if (allowed(u, v) && !seen.contains(u, v)) spare.push_back(edge{u, v});
+        draw.shuffle(spare);
+        spare.resize(static_cast<std::size_t>(m) - arrows.size());
+        arrows.insert(arrows.end(), spare.begin(), spare.end());
+    } else {
+        while (static_cast<long long>(arrows.size()) < m) {
+            int u = static_cast<int>(draw.uniform(1, n));
+            int v = static_cast<int>(draw.uniform(1, n));
+            if (!allowed(u, v)) std::swap(u, v);
+            if (allowed(u, v) && seen.insert(u, v)) arrows.push_back(edge{u, v});
+        }
+    }
     return graph{n, std::move(arrows), true};
 }
 

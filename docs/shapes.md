@@ -141,6 +141,7 @@ for ordering. Every graph goes through `presented` before it is printed.
 | `with_cut_vertices(draw, n, cuts)` | connected, exactly `cuts` articulation points: blocks glued so that each new block either creates one or reuses one | the root rule of the articulation-point DFS, which needs two children; `low[v] >= tin[u]` against `>` |
 | `euler_circuit(draw, n, m)`, `euler_path(draw, n, m)` | connected and simple, `m` edges, every degree even; or exactly two odd, the path's ends. A random walk that first visits every vertex, so `m` is at most half the pairs | Hierholzer written recursively, `m` deep; an Euler path started at vertex 1 instead of at an odd vertex; a connectivity check forgotten in the other tests |
 | `tournament(draw, n)` | every pair joined by one arc, its direction a coin flip, `directed` set | ranking by the number of wins as if it were transitive; a Hamiltonian path search that assumes no cycle. `dag(draw, n, n(n−1)/2)` is the transitive one |
+| `with_sccs(draw, n, k, m)` | a digraph with exactly `k` strongly connected components and `m` arcs: each component a random cycle plus arcs inside it, every other arc forward in a hidden order of the components | Tarjan's recursion at its deepest, inside one large component; Kosaraju's second pass run in the wrong order; DP over the condensation that forgets an arc between components |
 | `functional(draw, n, name)` | `f(i)` for each `i`: `cycle`, `rho`, `self` or `random` | a cycle finder that assumes one cycle, or no tails |
 
 **The edge count is exact or it is a jury error.** `connected_graph(draw, 10, 8)` says
@@ -324,7 +325,7 @@ exist under 10^9 — r = 48,612,265 carries 2,916 — but they are not worth the
 | --- | --- |
 | presentation | `presented`, `parent_array` |
 | trees | `tree`, `random_tree`, `uniform_tree`, `deep_tree`, `path`, `star`, `caterpillar`, `broom`, `binary_tree`, `kary_tree`, `dumbbell`, `spider`, `tree_from_pruefer`, `tree_from_degrees`, `tree_with_leaves`, `tree_with_diameter`, `tree_with_height`, `bounded_degree_tree`, `comb`, `staircase` |
-| graphs | `connected_graph`, `sparse_graph`, `complete_graph`, `cycle`, `cycle_with_chords`, `grid`, `bipartite_graph`, `complete_bipartite`, `perfect_matching`, `many_components`, `dag`, `functional`, `regular_graph`, `cactus`, `with_bridges`, `with_cut_vertices`, `euler_circuit`, `euler_path`, `tournament` |
+| graphs | `connected_graph`, `sparse_graph`, `complete_graph`, `cycle`, `cycle_with_chords`, `grid`, `bipartite_graph`, `complete_bipartite`, `perfect_matching`, `many_components`, `dag`, `functional`, `regular_graph`, `cactus`, `with_bridges`, `with_cut_vertices`, `euler_circuit`, `euler_path`, `tournament`, `with_sccs` |
 | sequences | `equal_values`, `few_distinct`, `plateaus`, `nearly_sorted`, `alternating`, `hash_collisions`, `log_uniform`, `near_bounds`, `spikes`, `split_sum`, `distinct_gapped`, `mountain`, `valley` |
 | permutations | `permutation`, `permutation_cycles`, `derangement`, `involution`, `with_inversions`, `with_lis` |
 | intervals | `intervals` |
