@@ -97,6 +97,16 @@ inline std::vector<char> letters_of(charset const& allowed) {
     return out;
 }
 
+[[nodiscard]] inline std::pair<std::string, std::string> thue_morse_twins(long long length) {
+    if (length < 1 || length % 1024 != 0)
+        eo::detail::library_error(fmt(
+            "Thue-Morse twins collide modulo 2^64 at lengths that are multiples of 1024, not {}", length));
+    std::string first = thue_morse(length);
+    std::string second = first;
+    for (char& one : second) one = one == 'a' ? 'b' : 'a';
+    return {std::move(first), std::move(second)};
+}
+
 [[nodiscard]] inline std::string palindrome(rng& draw, long long length, charset const& allowed) {
     detail::room_for_letters(length, "a palindrome");
     std::string out = draw.letters(length, allowed);

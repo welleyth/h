@@ -327,6 +327,7 @@ random string over the full alphabet as the easy case.
 | `de_bruijn(allowed, order)` | every word of length `order` over `allowed` exactly once, as a linear sequence of kᵒʳᵈᵉʳ + order − 1 letters; the least such sequence | a dictionary or trie that assumes repeats; counting distinct substrings of one length, at its most |
 | `lyndon(draw, length, allowed)` | a Lyndon word, strictly smaller than each of its rotations: the least rotation of a random primitive word | a minimal-rotation or Duval implementation that is off by one when the answer is the whole word |
 | `abacaba(length)` | `abacabadabacaba…`: letter `i`, counting from 1, is the number of times 2 divides `i`, capped at `z`; the Zimin words | quadratic work on nested borders and squares, where every prefix of length 2ᵏ − 1 is a palindrome made of two copies around one new letter |
+| `thue_morse_twins(length)` | the Thue–Morse word and its complement, `a` and `b` swapped, at a length that is a multiple of 1024 | a polynomial hash modulo 2⁶⁴, unsigned overflow, with any odd base, in either direction and with any letter values: the two strings hash the same |
 
 A uniform random string over a large alphabet is the easy case; `draw.letters(n,
 eo::charset("ab"))` over an alphabet of two maximises repeats, borders and periods.
@@ -385,7 +386,7 @@ exist under 10^9 — r = 48,612,265 carries 2,916 — but they are not worth the
 | permutations | `permutation`, `permutation_cycles`, `derangement`, `involution`, `with_inversions`, `with_lis` |
 | intervals | `intervals` |
 | queries | `ranges`, `query_order` |
-| strings | `repeated`, `periodic`, `near_periodic`, `fibonacci_word`, `thue_morse`, `palindrome`, `de_bruijn`, `lyndon`, `abacaba` |
+| strings | `repeated`, `periodic`, `near_periodic`, `fibonacci_word`, `thue_morse`, `palindrome`, `de_bruijn`, `lyndon`, `abacaba`, `thue_morse_twins` |
 | geometry | `scattered`, `collinear`, `convex_position`, `cocircular`, `extreme_points` |
 | types | `eo::graph` (`n`, `edges`, `directed`), `eo::edge`, `eo::weighted_graph` (`n`, `edges`, `directed`), `eo::weighted_edge`, `eo::point`, `eo::interval` (`l`, `r`) |
 

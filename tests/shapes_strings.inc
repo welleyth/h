@@ -74,3 +74,49 @@ EO_TEST(abacaba_doubles_around_a_new_letter_at_every_power_of_two) {
     EO_CHECK_EQ(capped.find_first_not_of("abcdefghijklmnopqrstuvwxyz"), std::string::npos);
     EO_CHECK_IN(refusal([] { (void)eo::shapes::abacaba(-1); }), "an abacaba word is at least empty, not -1 long");
 }
+
+namespace {
+
+std::uint64_t overflowing_hash(std::string const& text, std::uint64_t base, std::uint64_t shift, bool forward) {
+    std::uint64_t hash = 0;
+    std::uint64_t power = 1;
+    for (char const one : text) {
+        std::uint64_t const letter = static_cast<unsigned char>(one) - shift;
+        if (forward) {
+            hash += letter * power;
+            power *= base;
+        } else {
+            hash = hash * base + letter;
+        }
+    }
+    return hash;
+}
+
+}  // namespace
+
+EO_TEST(thue_morse_twins_collide_under_every_odd_base_modulo_two_to_the_64) {
+    eo::rng draw(802);
+    for (long long const length : {1024LL, 2048LL, 3 * 1024LL, 50 * 1024LL}) {
+        std::pair<std::string, std::string> const twins = eo::shapes::thue_morse_twins(length);
+        EO_CHECK_EQ(static_cast<long long>(twins.first.size()), length);
+        EO_CHECK_EQ(twins.second.size(), twins.first.size());
+        EO_CHECK(twins.first != twins.second);
+        EO_CHECK_EQ(twins.first, eo::shapes::thue_morse(length));
+        std::vector<std::uint64_t> bases{3, 31, 131, 1000000007, 0xffffffffffffffffull};
+        for (int round = 0; round < 20; round++) bases.push_back(draw.next() | 1);
+        bool collide = true;
+        for (std::uint64_t const base : bases)
+            for (std::uint64_t const shift : {0ull, 96ull})
+                for (bool const forward : {false, true})
+                    collide = collide && overflowing_hash(twins.first, base, shift, forward) ==
+                                             overflowing_hash(twins.second, base, shift, forward);
+        EO_CHECK(collide);
+        EO_CHECK(overflowing_hash(twins.first, 2, 0, false) != overflowing_hash(twins.second, 2, 0, false));
+    }
+    std::pair<std::string, std::string> const short_pair{eo::shapes::thue_morse(512),
+                                                         eo::shapes::thue_morse_twins(1024).second.substr(0, 512)};
+    EO_CHECK(overflowing_hash(short_pair.first, 3, 0, false) != overflowing_hash(short_pair.second, 3, 0, false));
+    EO_CHECK_IN(refusal([] { (void)eo::shapes::thue_morse_twins(512); }),
+                "Thue-Morse twins collide modulo 2^64 at lengths that are multiples of 1024, not 512");
+    EO_CHECK_IN(refusal([] { (void)eo::shapes::thue_morse_twins(0); }), "multiples of 1024, not 0");
+}
