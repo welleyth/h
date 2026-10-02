@@ -6496,7 +6496,6 @@ public:
     }
 
     eo::rng& rng(std::string label = "") {
-        drew_ = true;
         if (label.empty()) used_the_default_ = true;
         else used_a_label_ = true;
         auto const found = dice_.find(label);
@@ -6699,7 +6698,7 @@ private:
 
     void closing_warnings() {
         every_option_was_asked_for();
-        if (stress_ && !drew_)
+        if (stress_ && !drawn())
             detail::warn("EO501", "this stress run made no random draw",
                          "every iteration would get the same test", where_of_run_);
         if (written_ > static_cast<long long>(detail::large_file))
@@ -6752,7 +6751,6 @@ private:
     long long written_ = 0;
     bool stress_ = false;
     bool salted_ = false;
-    bool drew_ = false;
     bool describing_ = false;
     bool checked_ = false;
     bool declared_ = false;

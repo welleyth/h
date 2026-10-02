@@ -335,7 +335,7 @@ Eolymp keeps for stress runs.
 
 | Code | Fires when |
 | --- | --- |
-| EO501 | a stress run, recognised by its seed argument, made no random draw |
+| EO501 | a stress run, recognised by its seed argument, made no random draw: asking for a stream with `g.rng` is not one, and drawing from a copy of a stream is |
 | EO502 | the test exceeded 64 MB |
 | EO503 | bytes reached stdout without going through `g.out` |
 | EO506 | a random draw's result was ignored (at compile time, through `[[nodiscard]]`) |

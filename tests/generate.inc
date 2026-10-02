@@ -476,7 +476,7 @@ EO_TEST(a_stress_run_that_draws_nothing_is_reported) {
         g.out.line(g.option<int>("n", 1, 9));
     });
     EO_CHECK(!asked.stopped);
-    EO_CHECK(!eot::contains(checker_warnings(), "EO501"));
+    EO_CHECK_IN(checker_warnings(), "warning EO501: this stress run made no random draw");
     made const copied = generate({"-n=5", "9f3a0c41d2e87b60"}, [](eo::generator& g) {
         int const n = g.option<int>("n", 1, 9);
         eo::rng copy = g.rng();
