@@ -341,6 +341,28 @@ inline graph hung_from_path(rng& draw, int n, std::vector<int> const& allowance)
     return detail::hung_from_path(draw, n, allowance);
 }
 
+[[nodiscard]] inline graph bounded_degree_tree(rng& draw, int n, int most) {
+    detail::at_least(n, 1, "a tree with bounded degree");
+    int const needed = n >= 3 ? 2 : n - 1;
+    if (most < needed)
+        eo::detail::library_error(fmt(
+            "a tree on {} vertices has a vertex of degree at least {}; a bound of {} leaves none", n, needed, most));
+    std::vector<int> room(static_cast<std::size_t>(n) + 1, most);
+    std::vector<int> open{1};
+    std::vector<edge> edges;
+    for (int vertex = 2; vertex <= n; vertex++) {
+        std::size_t const at = static_cast<std::size_t>(draw.uniform(0, static_cast<long long>(open.size()) - 1));
+        int const parent = open[at];
+        edges.push_back(edge{parent, vertex});
+        if (--room[static_cast<std::size_t>(parent)] == 0) {
+            open[at] = open.back();
+            open.pop_back();
+        }
+        if (--room[static_cast<std::size_t>(vertex)] > 0) open.push_back(vertex);
+    }
+    return detail::undirected(n, std::move(edges));
+}
+
 [[nodiscard]] inline graph tree(rng& draw, int n, std::string const& shape) {
     if (shape == "random") return random_tree(draw, n);
     if (shape == "uniform") return uniform_tree(draw, n);

@@ -170,3 +170,24 @@ EO_TEST(trees_by_diameter_and_height_are_the_same_bytes_for_the_same_seed) {
     drawn += edges_of(eo::shapes::tree_with_height(draw, 30, 4).edges);
     pin_bytes(drawn, 290, 0xf461531bd2f0df67ull, __FILE__, __LINE__);
 }
+
+EO_TEST(a_tree_with_bounded_degree_never_exceeds_it_and_reaches_it) {
+    eo::rng draw(408);
+    for (int const most : {2, 3, 4, 10}) {
+        eo::graph const made = eo::shapes::bounded_degree_tree(draw, 20000, most);
+        EO_CHECK(holds_a_tree(made));
+        EO_CHECK_EQ(highest_degree(made), most);
+    }
+    EO_CHECK_EQ(tree_diameter(eo::shapes::bounded_degree_tree(draw, 500, 2)), 499);
+    EO_CHECK(longest_walk(eo::shapes::bounded_degree_tree(draw, 20000, 3)) < 400);
+    EO_CHECK_EQ(eo::shapes::bounded_degree_tree(draw, 2, 1).edges.size(), static_cast<std::size_t>(1));
+    EO_CHECK(eo::shapes::bounded_degree_tree(draw, 1, 0).edges.empty());
+    std::string const drawn = edges_of(eo::shapes::bounded_degree_tree(draw, 30, 3).edges);
+    pin_bytes(drawn, 149, 0x8eee3b073d4d8011ull, __FILE__, __LINE__);
+    EO_CHECK_IN(refusal([&] { (void)eo::shapes::bounded_degree_tree(draw, 3, 1); }),
+                "a tree on 3 vertices has a vertex of degree at least 2; a bound of 1 leaves none");
+    EO_CHECK_IN(refusal([&] { (void)eo::shapes::bounded_degree_tree(draw, 2, 0); }),
+                "a tree on 2 vertices has a vertex of degree at least 1; a bound of 0 leaves none");
+    EO_CHECK_IN(refusal([&] { (void)eo::shapes::bounded_degree_tree(draw, 0, 3); }),
+                "a tree with bounded degree needs at least 1 vertices, not 0");
+}
