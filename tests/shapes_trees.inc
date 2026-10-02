@@ -116,3 +116,57 @@ EO_TEST(trees_through_pruefer_codes_are_the_same_bytes_for_the_same_seed) {
     drawn += edges_of(eo::shapes::tree_with_leaves(draw, 30, 9).edges);
     pin_bytes(drawn, 196, 0x8ac484b964453a80ull, __FILE__, __LINE__);
 }
+
+EO_TEST(a_tree_has_exactly_the_diameter_asked_for) {
+    eo::rng draw(405);
+    for (int n = 1; n <= 30; n++) {
+        int const least = n == 1 ? 0 : (n == 2 ? 1 : 2);
+        for (int d = least; d <= std::max(n - 1, least); d++) {
+            eo::graph const made = eo::shapes::tree_with_diameter(draw, n, d);
+            EO_CHECK(holds_a_tree(made));
+            EO_CHECK_EQ(tree_diameter(made), d);
+        }
+    }
+    for (int const d : {2, 3, 10, 777, 99999}) {
+        eo::graph const made = eo::shapes::tree_with_diameter(draw, 100000, d);
+        EO_CHECK(holds_a_tree(made));
+        EO_CHECK_EQ(tree_diameter(made), d);
+    }
+    EO_CHECK(highest_degree(eo::shapes::tree_with_diameter(draw, 1000, 2)) == 999);
+    EO_CHECK_IN(refusal([&] { (void)eo::shapes::tree_with_diameter(draw, 10, 1); }),
+                "a tree on 10 vertices has a diameter of 2..9, not 1");
+    EO_CHECK_IN(refusal([&] { (void)eo::shapes::tree_with_diameter(draw, 2, 0); }),
+                "a tree on 2 vertices has a diameter of 1..1, not 0");
+    EO_CHECK_IN(refusal([&] { (void)eo::shapes::tree_with_diameter(draw, 1, 1); }),
+                "a tree on 1 vertices has a diameter of 0..0, not 1");
+    EO_CHECK_IN(refusal([&] { (void)eo::shapes::tree_with_diameter(draw, 0, 0); }),
+                "a tree with a diameter needs at least 1 vertices, not 0");
+}
+
+EO_TEST(a_tree_has_exactly_the_height_asked_for_from_vertex_1) {
+    eo::rng draw(406);
+    for (int n = 1; n <= 30; n++)
+        for (int h = n == 1 ? 0 : 1; h <= n - 1; h++) {
+            eo::graph const made = eo::shapes::tree_with_height(draw, n, h);
+            EO_CHECK(holds_a_tree(made));
+            EO_CHECK_EQ(eccentricity(made, 1), h);
+        }
+    for (int const h : {1, 2, 17, 5000, 99999})
+        EO_CHECK_EQ(eccentricity(eo::shapes::tree_with_height(draw, 100000, h), 1), h);
+    std::vector<int> const parents = eo::shapes::parent_array(draw, eo::shapes::tree_with_height(draw, 50, 7), 1);
+    std::vector<int> depth(51, 0);
+    for (std::size_t at = 0; at < parents.size(); at++)
+        depth[at + 2] = depth[static_cast<std::size_t>(parents[at])] + 1;
+    EO_CHECK_EQ(*std::max_element(depth.begin(), depth.end()), 7);
+    EO_CHECK_IN(refusal([&] { (void)eo::shapes::tree_with_height(draw, 10, 0); }),
+                "a tree on 10 vertices has a height of 1..9, not 0");
+    EO_CHECK_IN(refusal([&] { (void)eo::shapes::tree_with_height(draw, 1, 1); }),
+                "a tree on 1 vertices has a height of 0..0, not 1");
+}
+
+EO_TEST(trees_by_diameter_and_height_are_the_same_bytes_for_the_same_seed) {
+    eo::rng draw(407);
+    std::string drawn = edges_of(eo::shapes::tree_with_diameter(draw, 30, 6).edges);
+    drawn += edges_of(eo::shapes::tree_with_height(draw, 30, 4).edges);
+    pin_bytes(drawn, 290, 0xf461531bd2f0df67ull, __FILE__, __LINE__);
+}

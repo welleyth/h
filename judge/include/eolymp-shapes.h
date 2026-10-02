@@ -147,6 +147,26 @@ inline graph decoded(int n, std::vector<int> const& code) {
     return undirected(n, std::move(edges));
 }
 
+inline graph hung_from_path(rng& draw, int n, std::vector<int> const& allowance) {
+    int const along = static_cast<int>(allowance.size());
+    std::vector<edge> edges;
+    edges.reserve(static_cast<std::size_t>(n) - 1);
+    for (int vertex = 2; vertex <= along; vertex++) edges.push_back(edge{vertex - 1, vertex});
+    std::vector<int> room(static_cast<std::size_t>(n) + 1, 0);
+    std::vector<int> open;
+    for (int vertex = 1; vertex <= along; vertex++) {
+        room[static_cast<std::size_t>(vertex)] = allowance[static_cast<std::size_t>(vertex) - 1];
+        if (room[static_cast<std::size_t>(vertex)] > 0) open.push_back(vertex);
+    }
+    for (int vertex = along + 1; vertex <= n; vertex++) {
+        int const parent = draw.pick(open);
+        edges.push_back(edge{parent, vertex});
+        room[static_cast<std::size_t>(vertex)] = room[static_cast<std::size_t>(parent)] - 1;
+        if (room[static_cast<std::size_t>(vertex)] > 0) open.push_back(vertex);
+    }
+    return undirected(n, std::move(edges));
+}
+
 }  // namespace detail
 
 [[nodiscard]] inline graph random_tree(rng& draw, int n) {
@@ -297,6 +317,28 @@ inline graph decoded(int n, std::vector<int> const& code) {
     for (int& chosen : code)
         if (chosen == 0) chosen = inner[static_cast<std::size_t>(draw.uniform(0, static_cast<long long>(kinds) - 1))];
     return detail::decoded(n, code);
+}
+
+[[nodiscard]] inline graph tree_with_diameter(rng& draw, int n, int d) {
+    detail::at_least(n, 1, "a tree with a diameter");
+    int const least = n == 1 ? 0 : (n == 2 ? 1 : 2);
+    int const most = n - 1;
+    if (d < least || d > most)
+        eo::detail::library_error(
+            fmt("a tree on {} vertices has a diameter of {}..{}, not {}", n, least, most, d));
+    std::vector<int> allowance;
+    for (int at = 0; at <= d; at++) allowance.push_back((std::min)(at, d - at));
+    return detail::hung_from_path(draw, n, allowance);
+}
+
+[[nodiscard]] inline graph tree_with_height(rng& draw, int n, int h) {
+    detail::at_least(n, 1, "a tree with a height");
+    int const least = n == 1 ? 0 : 1;
+    if (h < least || h > n - 1)
+        eo::detail::library_error(fmt("a tree on {} vertices has a height of {}..{}, not {}", n, least, n - 1, h));
+    std::vector<int> allowance;
+    for (int at = 0; at <= h; at++) allowance.push_back(h - at);
+    return detail::hung_from_path(draw, n, allowance);
 }
 
 [[nodiscard]] inline graph tree(rng& draw, int n, std::string const& shape) {

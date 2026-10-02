@@ -96,6 +96,8 @@ and a uniform tree for everything typical. Every tree goes through `presented` o
 | `tree_from_pruefer(code)` | the tree whose Prüfer code is `code`, on `code.size() + 2` vertices | — ; the decoder the next two use, and [`tree_at`](#small-exhaustive-tests) |
 | `tree_from_degrees(draw, degrees)` | vertex `i` has degree `degrees[i − 1]` exactly; uniform over such trees | a solution that only meets the degree sequences random trees have |
 | `tree_with_leaves(draw, n, leaves)` | exactly `leaves` leaves, from 2 (a path) to n − 1 (a star) | leaf-counting off by one; "a leaf is a vertex of degree 1" forgotten at the root |
+| `tree_with_diameter(draw, n, d)` | a diameter of exactly `d`: a path of `d` edges, everything else hung within reach of its middle | an answer of "n − 1" or "about 2 log n"; a diameter by two BFS that starts its second sweep from the wrong end |
+| `tree_with_height(draw, n, h)` | rooted at vertex 1, its deepest vertex exactly `h` below it | depth arrays one short; binary lifting with too few levels at the height that needs one more |
 | `tree(draw, n, name)` | any of `random`, `uniform`, `path`, `star`, `caterpillar`, `broom`, `binary`, `dumbbell` by name | — |
 
 **`random_tree` is not "a random tree".** It is a random recursive tree, and its depth is
@@ -104,6 +106,9 @@ produce a long path. It is a good default case and one shape, not the shape.
 
 **`deep_tree` cannot give you a bamboo either.** Even `lean = 50` reaches depth about 429 out
 of 100,000. If you need Θ(n) depth, that is `path`.
+
+A tree with a root keeps it through the relabelling with `parent_array(draw, made, 1)`,
+which prints vertex 1 as the root; `tree_with_height` measures its height from there.
 
 `tree(draw, n, name)` exists so that one generator covers several shapes and the generation
 script documents the plan by itself. A name it does not know is a jury error, not a silent
@@ -304,7 +309,7 @@ exist under 10^9 — r = 48,612,265 carries 2,916 — but they are not worth the
 | Group | Names |
 | --- | --- |
 | presentation | `presented`, `parent_array` |
-| trees | `tree`, `random_tree`, `uniform_tree`, `deep_tree`, `path`, `star`, `caterpillar`, `broom`, `binary_tree`, `kary_tree`, `dumbbell`, `spider`, `tree_from_pruefer`, `tree_from_degrees`, `tree_with_leaves` |
+| trees | `tree`, `random_tree`, `uniform_tree`, `deep_tree`, `path`, `star`, `caterpillar`, `broom`, `binary_tree`, `kary_tree`, `dumbbell`, `spider`, `tree_from_pruefer`, `tree_from_degrees`, `tree_with_leaves`, `tree_with_diameter`, `tree_with_height` |
 | graphs | `connected_graph`, `sparse_graph`, `complete_graph`, `cycle`, `cycle_with_chords`, `grid`, `bipartite_graph`, `complete_bipartite`, `many_components`, `dag`, `functional` |
 | sequences | `equal_values`, `few_distinct`, `plateaus`, `nearly_sorted`, `alternating`, `hash_collisions`, `log_uniform`, `near_bounds`, `spikes`, `split_sum`, `distinct_gapped`, `mountain`, `valley` |
 | permutations | `permutation`, `permutation_cycles`, `derangement`, `involution`, `with_inversions`, `with_lis` |
