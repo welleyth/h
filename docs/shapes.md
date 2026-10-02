@@ -328,6 +328,19 @@ random string over the full alphabet as the easy case.
 | `lyndon(draw, length, allowed)` | a Lyndon word, strictly smaller than each of its rotations: the least rotation of a random primitive word | a minimal-rotation or Duval implementation that is off by one when the answer is the whole word |
 | `abacaba(length)` | `abacabadabacaba…`: letter `i`, counting from 1, is the number of times 2 divides `i`, capped at `z`; the Zimin words | quadratic work on nested borders and squares, where every prefix of length 2ᵏ − 1 is a palindrome made of two copies around one new letter |
 | `thue_morse_twins(length)` | the Thue–Morse word and its complement, `a` and `b` swapped, at a length that is a multiple of 1024 | a polynomial hash modulo 2⁶⁴, unsigned overflow, with any odd base, in either direction and with any letter values: the two strings hash the same |
+| `anti_hash(draw, {{base, mod}, …}, allowed)` | two different strings of one length with the same polynomial hash `Σ s[i]·base^(n−1−i) mod mod` under every pair given, over `allowed` | a single or double hash with a fixed base and modulus, read from the solution |
+
+**`anti_hash` is the tree attack.** Pairs with coprime moduli are joined by the Chinese
+remainder theorem into one modulus of up to 126 bits; it weights each position by its power
+of the base, sorts, and subtracts neighbours level by level until a difference is zero, which
+names a combination of +1, −1 and 0 that cancels. Measured lengths: 256 to 512 letters for one
+modulus near 10⁹, 4,096 for two or for 2⁶¹ − 1, 32,768 for three near 10⁹, 131,072 for four.
+Pairs that share a modulus cannot be joined and are broken one after the other, with the
+strings of one stage as the two letters of the next, so their lengths multiply; past 10⁷
+letters it is a jury error. The strings collide whatever values the letters are given, since
+only their differences enter. A hash summed the other way, `Σ s[i]·base^i`, is the same hash
+of the reversed string, so reversing both strings breaks it; to break both directions at once,
+pass the pair `(base⁻¹ mod mod, mod)` too.
 
 A uniform random string over a large alphabet is the easy case; `draw.letters(n,
 eo::charset("ab"))` over an alphabet of two maximises repeats, borders and periods.
@@ -406,7 +419,7 @@ exist under 10^9 — r = 48,612,265 carries 2,916 — but they are not worth the
 | permutations | `permutation`, `permutation_cycles`, `derangement`, `involution`, `with_inversions`, `with_lis` |
 | intervals | `intervals` |
 | queries | `ranges`, `query_order` |
-| strings | `repeated`, `periodic`, `near_periodic`, `fibonacci_word`, `thue_morse`, `palindrome`, `de_bruijn`, `lyndon`, `abacaba`, `thue_morse_twins` |
+| strings | `repeated`, `periodic`, `near_periodic`, `fibonacci_word`, `thue_morse`, `palindrome`, `de_bruijn`, `lyndon`, `abacaba`, `thue_morse_twins`, `anti_hash` |
 | numbers | `is_prime`, `next_prime`, `prev_prime`, `random_prime`, `semiprime`, `prime_power`, `most_divisors`, `strong_pseudoprime`, `carmichael`, `fibonacci_pair` |
 | geometry | `scattered`, `collinear`, `convex_position`, `cocircular`, `extreme_points` |
 | types | `eo::graph` (`n`, `edges`, `directed`), `eo::edge`, `eo::weighted_graph` (`n`, `edges`, `directed`), `eo::weighted_edge`, `eo::point`, `eo::interval` (`l`, `r`) |

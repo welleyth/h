@@ -120,3 +120,86 @@ EO_TEST(thue_morse_twins_collide_under_every_odd_base_modulo_two_to_the_64) {
                 "Thue-Morse twins collide modulo 2^64 at lengths that are multiples of 1024, not 512");
     EO_CHECK_IN(refusal([] { (void)eo::shapes::thue_morse_twins(0); }), "multiples of 1024, not 0");
 }
+
+namespace {
+
+std::uint64_t slow_product(std::uint64_t left, std::uint64_t right, std::uint64_t modulus) {
+    std::uint64_t product = 0;
+    left %= modulus;
+    for (; right != 0; right >>= 1) {
+        if ((right & 1) != 0) product = product >= modulus - left ? product - (modulus - left) : product + left;
+        left = left >= modulus - left ? left - (modulus - left) : left + left;
+    }
+    return product;
+}
+
+std::uint64_t modular_hash(std::string const& text, std::uint64_t base, std::uint64_t modulus, std::uint64_t shift,
+                           bool forward) {
+    std::uint64_t hash = 0;
+    std::uint64_t power = 1;
+    for (char const one : text) {
+        std::uint64_t const letter = (static_cast<unsigned char>(one) - shift) % modulus;
+        if (forward) {
+            hash = (hash + slow_product(letter, power, modulus)) % modulus;
+            power = slow_product(power, base, modulus);
+        } else {
+            hash = (slow_product(hash, base, modulus) + letter) % modulus;
+        }
+    }
+    return hash;
+}
+
+}  // namespace
+
+EO_TEST(anti_hash_strings_collide_under_every_pair_they_were_built_for) {
+    eo::rng draw(803);
+    using pairs = std::vector<std::pair<long long, long long>>;
+    struct asked {
+        pairs hashes;
+        char const* letters;
+        std::size_t longest;
+    };
+    for (asked const& one :
+         {asked{{{131, 1000000007}}, "a-z", 1024}, asked{{{31, 1000000007}, {37, 998244353}}, "a-z", 16384},
+          asked{{{1000003, 2305843009213693951LL}}, "ab", 16384}, asked{{{10, 1000}, {7, 1000}}, "0-9", 4096},
+          asked{{{131, 1000000007}, {137, 998244353}, {10007, 1000000009}}, "a-z", 1 << 20},
+          asked{{{2, 3}}, "xy", 64}, asked{{{256, 2}}, "ab", 64}, asked{{{-5, 1000000007}}, "a-z", 1024}}) {
+        std::pair<std::string, std::string> const twins = eo::shapes::anti_hash(draw, one.hashes, eo::charset(one.letters));
+        EO_CHECK_EQ(twins.first.size(), twins.second.size());
+        EO_CHECK(twins.first != twins.second);
+        EO_CHECK(!twins.first.empty() && twins.first.size() <= one.longest);
+        bool inside = true;
+        for (std::size_t at = 0; at < twins.first.size(); at++)
+            inside = inside && eo::charset(one.letters).has(twins.first[at]) &&
+                     eo::charset(one.letters).has(twins.second[at]);
+        EO_CHECK(inside);
+        bool collide = true;
+        for (std::pair<long long, long long> const& hash : one.hashes) {
+            std::uint64_t const modulus = static_cast<std::uint64_t>(hash.second);
+            std::uint64_t const base =
+                static_cast<std::uint64_t>((hash.first % hash.second + hash.second) % hash.second);
+            for (std::uint64_t const shift : {0ull, 96ull})
+                collide = collide && modular_hash(twins.first, base, modulus, shift, false) ==
+                                         modular_hash(twins.second, base, modulus, shift, false);
+        }
+        EO_CHECK(collide);
+    }
+    std::pair<std::string, std::string> const twins =
+        eo::shapes::anti_hash(draw, {{31, 1000000007}, {129032259, 1000000007}}, eo::charset("a-z"));
+    EO_CHECK_EQ(modular_hash(twins.first, 31, 1000000007, 0, true), modular_hash(twins.second, 31, 1000000007, 0, true));
+    std::pair<std::string, std::string> const again =
+        eo::shapes::anti_hash(draw, {{31, 1000000007}, {37, 998244353}}, eo::charset("a-z"));
+    pin_bytes(again.first + "|" + again.second, 8193, 0x3e9257b64a7b62e1ull, __FILE__, __LINE__);
+    EO_CHECK_IN(refusal([&] { (void)eo::shapes::anti_hash(draw, {}, eo::charset("a-z")); }),
+                "anti_hash needs at least one (base, modulus) pair to break");
+    EO_CHECK_IN(refusal([&] { (void)eo::shapes::anti_hash(draw, {{31, 1}}, eo::charset("a-z")); }),
+                "hash 1 has modulus 1; a modulus is at least 2");
+    EO_CHECK_IN(refusal([&] { (void)eo::shapes::anti_hash(draw, {{31, 1000000007}}, eo::charset("a")); }),
+                "anti_hash needs two different letters; charset(\"a\") has fewer");
+    EO_CHECK_IN(refusal([&] {
+                    (void)eo::shapes::anti_hash(
+                        draw, {{31, 1000000007}, {37, 1000000007}, {41, 1000000007}, {43, 1000000007}},
+                        eo::charset("a-z"));
+                }),
+                "anti_hash needs more than 10000000 letters to break these 4 hashes at once; break fewer");
+}
