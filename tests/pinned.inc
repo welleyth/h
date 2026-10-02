@@ -692,6 +692,23 @@ EO_TEST(pin_the_bytes_a_generator_writes) {
                                          "-0.000 0.50000000000000000000 1e-07 -2.5e+300\n"));
 }
 
+EO_TEST(pin_the_bytes_of_named_streams_and_a_stress_seed_without_a_salt) {
+    auto const body = [](eo::generator& g) {
+        int const n = g.option<int>("n", 1, 10);
+        g.out.line(g.rng("values").ints(n, 1, 1000000000));
+        g.out.line(g.rng("order").perm(n, 1));
+        g.out.line(g.rng("big").uniform(1, 1000000000000LL));
+    };
+    made const stored = generate({"-n=4"}, body);
+    EO_CHECK_EQ(stored.test, std::string("225460112 143423820 172945383 61074298\n"
+                                         "1 3 2 4\n"
+                                         "652551573150\n"));
+    made const stressed = generate({"-n=4", "9f3a0c41d2e87b60"}, body);
+    EO_CHECK_EQ(stressed.test, std::string("790706617 887542728 609220649 846671414\n"
+                                           "3 4 1 2\n"
+                                           "851663664071\n"));
+}
+
 namespace {
 
 char const* comma_locale() {
