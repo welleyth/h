@@ -311,8 +311,8 @@ inline std::vector<int> cancelling_signs(std::vector<wide> const& values, wide m
         while (word.size() < static_cast<std::size_t>(order)) word.push_back(word[word.size() - length]);
         while (!word.empty() && word.back() == kinds - 1) word.pop_back();
     }
-    std::size_t const cycle = out.size();
-    for (std::size_t at = 0; at + 1 < static_cast<std::size_t>(order); at++) out.push_back(out[at % cycle]);
+    std::size_t const period = out.size();
+    for (std::size_t at = 0; at + 1 < static_cast<std::size_t>(order); at++) out.push_back(out[at % period]);
     return out;
 }
 

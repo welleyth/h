@@ -13,7 +13,7 @@ namespace eo {
 namespace shapes {
 namespace detail {
 
-#if defined(__SIZEOF_INT128__)
+#if defined(__SIZEOF_INT128__) && !defined(_MSC_VER)
 inline std::uint64_t mul_mod(std::uint64_t left, std::uint64_t right, std::uint64_t modulus) {
     __extension__ typedef unsigned __int128 wide;
     return static_cast<std::uint64_t>(static_cast<wide>(left) * right % modulus);

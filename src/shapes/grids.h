@@ -31,12 +31,12 @@ inline void room_for_grid(int rows, int columns, char const* what) {
     auto const open = [&](int row, int column) {
         grid[static_cast<std::size_t>(row)][static_cast<std::size_t>(column)] = '.';
     };
-    std::vector<std::pair<int, int>> path{{0, 0}};
+    std::vector<std::pair<int, int>> trail{{0, 0}};
     seen[0] = 1;
     open(0, 0);
     int const steps[4][2] = {{0, 1}, {1, 0}, {0, -1}, {-1, 0}};
-    while (!path.empty()) {
-        std::pair<int, int> const here = path.back();
+    while (!trail.empty()) {
+        std::pair<int, int> const here = trail.back();
         std::vector<std::pair<int, int>> fresh;
         for (auto const& step : steps) {
             int const row = here.first + step[0];
@@ -45,14 +45,14 @@ inline void room_for_grid(int rows, int columns, char const* what) {
             if (seen[room(row, column)] == 0) fresh.push_back({row, column});
         }
         if (fresh.empty()) {
-            path.pop_back();
+            trail.pop_back();
             continue;
         }
         std::pair<int, int> const next = draw.pick(fresh);
         seen[room(next.first, next.second)] = 1;
         open(here.first + next.first, here.second + next.second);
         open(2 * next.first, 2 * next.second);
-        path.push_back(next);
+        trail.push_back(next);
     }
     return grid;
 }

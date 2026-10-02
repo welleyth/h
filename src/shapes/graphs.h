@@ -482,27 +482,27 @@ inline long long pairs_within_reach(std::vector<long long> const& layers) {
         for (long long const at : draw.distinct(cuts - 1, 2, blocks - 1)) fresh[static_cast<std::size_t>(at)] = 1;
     }
     std::vector<edge> edges;
-    std::vector<int> plain;
+    std::vector<int> unshared;
     std::vector<int> shared_ones;
     int made = 0;
     for (std::size_t at = 0; at < sizes.size(); at++) {
         int shared = 1;
         if (at == 0) {
-            plain.push_back(1);
+            unshared.push_back(1);
             made = 1;
         } else if (fresh[at] != 0) {
             std::size_t const which =
-                static_cast<std::size_t>(draw.uniform(0, static_cast<long long>(plain.size()) - 1));
-            shared = plain[which];
-            plain[which] = plain.back();
-            plain.pop_back();
+                static_cast<std::size_t>(draw.uniform(0, static_cast<long long>(unshared.size()) - 1));
+            shared = unshared[which];
+            unshared[which] = unshared.back();
+            unshared.pop_back();
             shared_ones.push_back(shared);
         } else {
             shared = draw.pick(shared_ones);
         }
         int const before = made;
         made = detail::block_at(edges, shared, made, static_cast<int>(sizes[at]) + 1);
-        for (int vertex = before + 1; vertex <= made; vertex++) plain.push_back(vertex);
+        for (int vertex = before + 1; vertex <= made; vertex++) unshared.push_back(vertex);
     }
     return detail::undirected(n, std::move(edges));
 }

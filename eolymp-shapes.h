@@ -921,27 +921,27 @@ inline long long pairs_within_reach(std::vector<long long> const& layers) {
         for (long long const at : draw.distinct(cuts - 1, 2, blocks - 1)) fresh[static_cast<std::size_t>(at)] = 1;
     }
     std::vector<edge> edges;
-    std::vector<int> plain;
+    std::vector<int> unshared;
     std::vector<int> shared_ones;
     int made = 0;
     for (std::size_t at = 0; at < sizes.size(); at++) {
         int shared = 1;
         if (at == 0) {
-            plain.push_back(1);
+            unshared.push_back(1);
             made = 1;
         } else if (fresh[at] != 0) {
             std::size_t const which =
-                static_cast<std::size_t>(draw.uniform(0, static_cast<long long>(plain.size()) - 1));
-            shared = plain[which];
-            plain[which] = plain.back();
-            plain.pop_back();
+                static_cast<std::size_t>(draw.uniform(0, static_cast<long long>(unshared.size()) - 1));
+            shared = unshared[which];
+            unshared[which] = unshared.back();
+            unshared.pop_back();
             shared_ones.push_back(shared);
         } else {
             shared = draw.pick(shared_ones);
         }
         int const before = made;
         made = detail::block_at(edges, shared, made, static_cast<int>(sizes[at]) + 1);
-        for (int vertex = before + 1; vertex <= made; vertex++) plain.push_back(vertex);
+        for (int vertex = before + 1; vertex <= made; vertex++) unshared.push_back(vertex);
     }
     return detail::undirected(n, std::move(edges));
 }
@@ -1820,12 +1820,12 @@ inline void room_for_grid(int rows, int columns, char const* what) {
     auto const open = [&](int row, int column) {
         grid[static_cast<std::size_t>(row)][static_cast<std::size_t>(column)] = '.';
     };
-    std::vector<std::pair<int, int>> path{{0, 0}};
+    std::vector<std::pair<int, int>> trail{{0, 0}};
     seen[0] = 1;
     open(0, 0);
     int const steps[4][2] = {{0, 1}, {1, 0}, {0, -1}, {-1, 0}};
-    while (!path.empty()) {
-        std::pair<int, int> const here = path.back();
+    while (!trail.empty()) {
+        std::pair<int, int> const here = trail.back();
         std::vector<std::pair<int, int>> fresh;
         for (auto const& step : steps) {
             int const row = here.first + step[0];
@@ -1834,14 +1834,14 @@ inline void room_for_grid(int rows, int columns, char const* what) {
             if (seen[room(row, column)] == 0) fresh.push_back({row, column});
         }
         if (fresh.empty()) {
-            path.pop_back();
+            trail.pop_back();
             continue;
         }
         std::pair<int, int> const next = draw.pick(fresh);
         seen[room(next.first, next.second)] = 1;
         open(here.first + next.first, here.second + next.second);
         open(2 * next.first, 2 * next.second);
-        path.push_back(next);
+        trail.push_back(next);
     }
     return grid;
 }
@@ -1937,7 +1937,7 @@ namespace eo {
 namespace shapes {
 namespace detail {
 
-#if defined(__SIZEOF_INT128__)
+#if defined(__SIZEOF_INT128__) && !defined(_MSC_VER)
 inline std::uint64_t mul_mod(std::uint64_t left, std::uint64_t right, std::uint64_t modulus) {
     __extension__ typedef unsigned __int128 wide;
     return static_cast<std::uint64_t>(static_cast<wide>(left) * right % modulus);
@@ -2446,8 +2446,8 @@ inline std::vector<int> cancelling_signs(std::vector<wide> const& values, wide m
         while (word.size() < static_cast<std::size_t>(order)) word.push_back(word[word.size() - length]);
         while (!word.empty() && word.back() == kinds - 1) word.pop_back();
     }
-    std::size_t const cycle = out.size();
-    for (std::size_t at = 0; at + 1 < static_cast<std::size_t>(order); at++) out.push_back(out[at % cycle]);
+    std::size_t const period = out.size();
+    for (std::size_t at = 0; at + 1 < static_cast<std::size_t>(order); at++) out.push_back(out[at % period]);
     return out;
 }
 
