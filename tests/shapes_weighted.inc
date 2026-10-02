@@ -176,3 +176,32 @@ EO_TEST(anti_spfa_makes_a_queue_of_relaxations_crawl_where_dijkstra_does_not) {
     EO_CHECK_IN(refusal([&] { (void)eo::shapes::anti_spfa(draw, 0, 10); }),
                 "anti_spfa needs at least 1 vertices, not 0");
 }
+
+EO_TEST(anti_dijkstra_makes_a_heap_without_the_stale_check_rescan_the_hub) {
+    eo::weighted_graph const trap = eo::shapes::anti_dijkstra(4000);
+    EO_CHECK_EQ(trap.n, 4000);
+    EO_CHECK(static_cast<bool>(eo::is_simple_graph(4000, eo::detail::endpoints(trap.edges))));
+    EO_CHECK(static_cast<bool>(eo::is_connected(4000, eo::detail::endpoints(trap.edges))));
+    long long heaviest = 0;
+    for (eo::weighted_edge const& one : trap.edges) heaviest = std::max(heaviest, one.w);
+    EO_CHECK(heaviest <= 4000);
+    EO_CHECK(trap.edges.size() <= 6000);
+    eo::rng draw(604);
+    std::vector<eo::weighted_edge> const shown = eo::shapes::presented(draw, trap, {1});
+    relaxing careful(4000, shown, false);
+    relaxing careless(4000, shown, false);
+    EO_CHECK(careful.heaped(1, true) == careless.heaped(1, false));
+    EO_CHECK_EQ(careful.scans, 2 * static_cast<long long>(shown.size()));
+    EO_CHECK(careless.scans > 4000LL * 4000 / 8);
+    relaxing both_ways(4000, trap.edges, false);
+    relaxing away(4000, trap.edges, true);
+    EO_CHECK(both_ways.heaped(1, true) == away.heaped(1, true));
+    for (int const n : {1, 2, 3, 4, 5}) {
+        eo::weighted_graph const small = eo::shapes::anti_dijkstra(n);
+        EO_CHECK_EQ(small.n, n);
+        EO_CHECK(static_cast<bool>(eo::is_connected(n, eo::detail::endpoints(small.edges))));
+    }
+    EO_CHECK_EQ(weighted_of(eo::shapes::anti_dijkstra(8).edges),
+                std::string("1 2 1;2 5 5;1 3 2;3 5 3;1 4 3;4 5 1;5 6 1;5 7 1;5 8 1;"));
+    EO_CHECK_IN(refusal([] { (void)eo::shapes::anti_dijkstra(0); }), "anti_dijkstra needs at least 1 vertices, not 0");
+}
