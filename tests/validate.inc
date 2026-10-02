@@ -799,6 +799,34 @@ EO_TEST(a_named_value_read_once_is_a_stat_of_its_own) {
     EO_CHECK(!eot::contains(odd.printed, "eo-describe stat"));
 }
 
+EO_TEST(the_total_of_a_sum_limit_is_a_stat_of_its_own) {
+    eot::outcome const result = validate("2\n2\n1 2\n3\n1 2 3\n", [](eo::validator& v) {
+        int const t = v.read_int(1, 9, "t");
+        v.read_eoln();
+        eo::sum_limit total(100, "the sum of n");
+        eo::sum_limit values(1000, "sum(a)");
+        v.cases(t, [&] {
+            int const n = v.read_int(1, 9, "n");
+            v.read_eoln();
+            total += n;
+            for (int const one : v.read_ints(n, 1, 9, "a")) values += one;
+            v.read_eoln();
+        });
+    }, {"--eo-describe"});
+    EO_CHECK(!result.stopped);
+    EO_CHECK_IN(result.printed, "eo-describe stat t 2\neo-describe stat sum_a_ 9\neo-describe stat the_sum_of_n 5\n");
+    eot::outcome const early = validate("4\n", [](eo::validator& v) {
+        eo::sum_limit first(100, "first");
+        v.read_int(1, 9, "t");
+        v.read_eoln();
+        first += 4;
+        v.complete();
+        first += 1;
+    }, {"--eo-describe"});
+    EO_CHECK(!early.stopped);
+    EO_CHECK_IN(early.printed, "eo-describe stat first 4\n");
+}
+
 EO_TEST(describe_prints_the_table_the_bounds_and_the_features) {
     eot::outcome const result = validate("5\n2 1 9\n1.000 abc\nhello\n", [](eo::validator& v) {
         v.feature("small");

@@ -4148,6 +4148,16 @@ inline long long& sums_ever_made() {
     return count;
 }
 
+inline void a_sum_was_checked(std::string const& name, long long total);
+
+inline std::string one_word(std::string text) {
+    for (char& one : text)
+        if (!((one >= 'a' && one <= 'z') || (one >= 'A' && one <= 'Z') || (one >= '0' && one <= '9') || one == '_' ||
+              one == '.' || one == '-'))
+            one = '_';
+    return text;
+}
+
 template <class T, class = void>
 struct comparable : std::false_type {};
 
@@ -4195,6 +4205,7 @@ public:
         if (checked_) return;
         checked_ = true;
         if (total_ > limit_) detail::finish(3, fmt("{} is {}, above {}", name_, total_, limit_));
+        detail::a_sum_was_checked(name_, total_);
     }
 
 private:
@@ -4579,6 +4590,7 @@ private:
     template <class Limits>
     friend class subtask_table;
 
+    friend void detail::a_sum_was_checked(std::string const& name, long long total);
 
     [[noreturn]] EOLYMP_COLD static void not_a_stat_name(std::string const& name, detail::site where) {
         detail::library_error(fmt("{}: stat(\"{}\") is not a stat's name; name it with one word of letters, digits, "
@@ -4592,13 +4604,11 @@ private:
                                   detail::where_of(where), name, declared.empty() ? "none" : declared));
     }
 
-    static bool stat_name(std::string const& name) {
-        bool plain = !name.empty();
-        for (char const one : name)
-            plain = plain && ((one >= 'a' && one <= 'z') || (one >= 'A' && one <= 'Z') || (one >= '0' && one <= '9') ||
-                              one == '_' || one == '.' || one == '-');
-        return plain;
+    EOLYMP_COLD void a_sum_was_checked(std::string const& name, long long total) {
+        if (!name.empty()) keep_the_larger(stats_, detail::one_word(name), total);
     }
+
+    static bool stat_name(std::string const& name) { return !name.empty() && detail::one_word(name) == name; }
 
     static void keep_the_larger(std::vector<std::pair<std::string, long long>>& into, std::string const& name,
                                 long long value) {
@@ -4799,6 +4809,14 @@ private:
     bool used_cases_ = false;
     detail::site where_of_run_{"validator", 0};
 };
+
+namespace detail {
+
+inline void a_sum_was_checked(std::string const& name, long long total) {
+    if (live_validator() != nullptr) live_validator()->a_sum_was_checked(name, total);
+}
+
+}  // namespace detail
 
 template <class Limits>
 inline subtask_table<Limits>::subtask_table(validator& owner, std::vector<subtask_row<Limits>> rows,

@@ -542,6 +542,11 @@ one of them keeps the larger of the two. A value read in every case of a multi-t
 loop, is read more than once and is left out: its most is no size, and its total is what a
 `sum_limit` bounds. A name that is not one word, `"the count"`, is left out too.
 
+**The total of every `sum_limit`** is a stat as well, recorded when the sum is checked, with
+each character of its name that a stat's name cannot hold written as `_`:
+`eo::sum_limit total(200000, "the sum of n")` gives `the_sum_of_n`, which for a multi-test
+input is usually the size that matters.
+
 `./validator input.txt --group 1 --eo-describe` validates as usual and also prints what it
 recorded **for that one test**, one line each:
 
