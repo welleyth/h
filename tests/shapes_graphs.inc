@@ -221,3 +221,43 @@ EO_TEST(a_graph_has_exactly_the_cut_vertices_asked_for) {
     EO_CHECK_IN(refusal([&] { (void)eo::shapes::with_cut_vertices(draw, 1, 1); }),
                 "a connected graph on 1 vertices has 0..0 cut vertices, not 1");
 }
+
+EO_TEST(an_euler_circuit_and_an_euler_path_have_the_degrees_they_need) {
+    eo::rng draw(506);
+    struct asked {
+        int n;
+        long long m;
+    };
+    for (asked const one : {asked{3, 3}, asked{4, 4}, asked{6, 7}, asked{10, 22}, asked{100, 2475}, asked{1000, 1000},
+                            asked{100000, 300000}}) {
+        eo::graph const made = eo::shapes::euler_circuit(draw, one.n, one.m);
+        EO_CHECK_EQ(static_cast<long long>(made.edges.size()), one.m);
+        EO_CHECK(static_cast<bool>(eo::is_simple_graph(made.n, made.edges)));
+        EO_CHECK(static_cast<bool>(eo::is_connected(made.n, made.edges)));
+        std::vector<int> const degree = degrees_of(made);
+        EO_CHECK(std::all_of(degree.begin() + 1, degree.end(), [](int d) { return d > 0 && d % 2 == 0; }));
+    }
+    for (asked const one : {asked{2, 1}, asked{3, 2}, asked{5, 5}, asked{10, 22}, asked{100, 2475}, asked{1000, 999},
+                            asked{100000, 300000}}) {
+        eo::graph const made = eo::shapes::euler_path(draw, one.n, one.m);
+        EO_CHECK_EQ(static_cast<long long>(made.edges.size()), one.m);
+        EO_CHECK(static_cast<bool>(eo::is_simple_graph(made.n, made.edges)));
+        EO_CHECK(static_cast<bool>(eo::is_connected(made.n, made.edges)));
+        std::vector<int> const degree = degrees_of(made);
+        EO_CHECK_EQ(std::count_if(degree.begin() + 1, degree.end(), [](int d) { return d % 2 == 1; }), 2);
+        EO_CHECK(std::all_of(degree.begin() + 1, degree.end(), [](int d) { return d > 0; }));
+    }
+    std::string drawn = edges_of(eo::shapes::euler_circuit(draw, 12, 20).edges);
+    drawn += edges_of(eo::shapes::euler_path(draw, 12, 20).edges);
+    pin_bytes(drawn, 176, 0x1715560db62476d8ull, __FILE__, __LINE__);
+    EO_CHECK_IN(refusal([&] { (void)eo::shapes::euler_circuit(draw, 10, 9); }),
+                "an Euler circuit through all 10 vertices of a simple graph has 10..22 edges, not 9");
+    EO_CHECK_IN(refusal([&] { (void)eo::shapes::euler_circuit(draw, 10, 23); }),
+                "has 10..22 edges, not 23; above half of the 45 pairs, a random walk stalls");
+    EO_CHECK_IN(refusal([&] { (void)eo::shapes::euler_path(draw, 10, 8); }),
+                "an Euler path through all 10 vertices of a simple graph has 9..22 edges, not 8");
+    EO_CHECK_IN(refusal([&] { (void)eo::shapes::euler_circuit(draw, 2, 2); }),
+                "an Euler circuit needs at least 3 vertices, not 2");
+    EO_CHECK_IN(refusal([&] { (void)eo::shapes::euler_path(draw, 1, 0); }),
+                "an Euler path needs at least 2 vertices, not 1");
+}

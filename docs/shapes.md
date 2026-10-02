@@ -138,6 +138,7 @@ for ordering. Every graph goes through `presented` before it is printed.
 | `cactus(draw, n, longest)` | connected, every edge on at most one cycle: blocks of 2..`longest` vertices, each a bridge or a cycle, glued at random vertices | a cactus solution that handles a cycle hanging from a vertex but not two cycles through the same vertex; tree DP pushed onto cycles |
 | `with_bridges(draw, n, bridges)` | connected, exactly `bridges` bridges: that many single edges and some cycles, glued at random vertices | `low[v] >= tin[u]` written where `>` belongs, and the reverse; a bridge search that skips the parent vertex instead of the parent edge |
 | `with_cut_vertices(draw, n, cuts)` | connected, exactly `cuts` articulation points: blocks glued so that each new block either creates one or reuses one | the root rule of the articulation-point DFS, which needs two children; `low[v] >= tin[u]` against `>` |
+| `euler_circuit(draw, n, m)`, `euler_path(draw, n, m)` | connected and simple, `m` edges, every degree even; or exactly two odd, the path's ends. A random walk that first visits every vertex, so `m` is at most half the pairs | Hierholzer written recursively, `m` deep; an Euler path started at vertex 1 instead of at an odd vertex; a connectivity check forgotten in the other tests |
 | `functional(draw, n, name)` | `f(i)` for each `i`: `cycle`, `rho`, `self` or `random` | a cycle finder that assumes one cycle, or no tails |
 
 **The edge count is exact or it is a jury error.** `connected_graph(draw, 10, 8)` says
@@ -321,7 +322,7 @@ exist under 10^9 — r = 48,612,265 carries 2,916 — but they are not worth the
 | --- | --- |
 | presentation | `presented`, `parent_array` |
 | trees | `tree`, `random_tree`, `uniform_tree`, `deep_tree`, `path`, `star`, `caterpillar`, `broom`, `binary_tree`, `kary_tree`, `dumbbell`, `spider`, `tree_from_pruefer`, `tree_from_degrees`, `tree_with_leaves`, `tree_with_diameter`, `tree_with_height`, `bounded_degree_tree`, `comb`, `staircase` |
-| graphs | `connected_graph`, `sparse_graph`, `complete_graph`, `cycle`, `cycle_with_chords`, `grid`, `bipartite_graph`, `complete_bipartite`, `many_components`, `dag`, `functional`, `regular_graph`, `cactus`, `with_bridges`, `with_cut_vertices` |
+| graphs | `connected_graph`, `sparse_graph`, `complete_graph`, `cycle`, `cycle_with_chords`, `grid`, `bipartite_graph`, `complete_bipartite`, `many_components`, `dag`, `functional`, `regular_graph`, `cactus`, `with_bridges`, `with_cut_vertices`, `euler_circuit`, `euler_path` |
 | sequences | `equal_values`, `few_distinct`, `plateaus`, `nearly_sorted`, `alternating`, `hash_collisions`, `log_uniform`, `near_bounds`, `spikes`, `split_sum`, `distinct_gapped`, `mountain`, `valley` |
 | permutations | `permutation`, `permutation_cycles`, `derangement`, `involution`, `with_inversions`, `with_lis` |
 | intervals | `intervals` |

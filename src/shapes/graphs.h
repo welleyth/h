@@ -131,6 +131,55 @@ inline int block_at(std::vector<edge>& edges, int shared, int made, int size) {
     return made + size - 1;
 }
 
+inline graph walked(rng& draw, int n, long long m, bool closed, char const* what) {
+    at_least(n, closed ? 3 : 2, what);
+    long long const least = closed ? n : n - 1;
+    long long const most = (std::max)(least, pairs_of(n) / 2);
+    if (m < least || m > most)
+        eo::detail::library_error(fmt("{} through all {} vertices of a simple graph has {}..{} edges, not {}{}", what,
+                                      n, least, most, m,
+                                      m > most ? fmt("; above half of the {} pairs, a random walk stalls", pairs_of(n))
+                                               : ""));
+    for (;;) {
+        std::vector<int> const order = draw.perm(n, 1);
+        pair_set seen(static_cast<std::size_t>(m));
+        std::vector<int> degree(static_cast<std::size_t>(n) + 1, 0);
+        std::vector<edge> edges;
+        auto const join = [&](int u, int v) {
+            seen.insert((std::min)(u, v), (std::max)(u, v));
+            degree[static_cast<std::size_t>(u)]++;
+            degree[static_cast<std::size_t>(v)]++;
+            edges.push_back(edge{u, v});
+        };
+        for (std::size_t at = 1; at < order.size(); at++) join(order[at - 1], order[at]);
+        int here = order.back();
+        bool fine = true;
+        while (fine && static_cast<long long>(edges.size()) < (closed ? m - 1 : m)) {
+            int next = 0;
+            if (2 * degree[static_cast<std::size_t>(here)] < n - 1) {
+                do next = static_cast<int>(draw.uniform(1, n));
+                while (next == here || seen.contains((std::min)(here, next), (std::max)(here, next)));
+            } else {
+                std::vector<int> open;
+                for (int other = 1; other <= n; other++)
+                    if (other != here && !seen.contains((std::min)(here, other), (std::max)(here, other)))
+                        open.push_back(other);
+                next = open.empty() ? 0 : draw.pick(open);
+            }
+            fine = next != 0;
+            if (fine) {
+                join(here, next);
+                here = next;
+            }
+        }
+        fine = fine && here != order.front();
+        if (closed) fine = fine && !seen.contains((std::min)(here, order.front()), (std::max)(here, order.front()));
+        if (!fine) continue;
+        if (closed) join(here, order.front());
+        return undirected(n, std::move(edges));
+    }
+}
+
 }  // namespace detail
 
 [[nodiscard]] inline graph connected_graph(rng& draw, int n, long long m) {
@@ -387,6 +436,14 @@ inline int block_at(std::vector<edge>& edges, int shared, int made, int size) {
         for (int vertex = before + 1; vertex <= made; vertex++) plain.push_back(vertex);
     }
     return detail::undirected(n, std::move(edges));
+}
+
+[[nodiscard]] inline graph euler_circuit(rng& draw, int n, long long m) {
+    return detail::walked(draw, n, m, true, "an Euler circuit");
+}
+
+[[nodiscard]] inline graph euler_path(rng& draw, int n, long long m) {
+    return detail::walked(draw, n, m, false, "an Euler path");
 }
 
 [[nodiscard]] inline std::vector<int> functional(rng& draw, int n, std::string const& shape) {
