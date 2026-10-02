@@ -113,3 +113,71 @@ EO_TEST(permutations_by_cycles_are_the_same_bytes_for_the_same_seed) {
         drawn += ints_of(eo::shapes::permutation(draw, 20, name));
     pin_bytes(drawn, 447, 0xcd87eb060fabc061ull, __FILE__, __LINE__);
 }
+
+namespace {
+
+long long inversions_by_merging(std::vector<int> values) {
+    long long found = 0;
+    std::vector<int> spare(values.size());
+    for (std::size_t width = 1; width < values.size(); width *= 2)
+        for (std::size_t from = 0; from + width < values.size(); from += 2 * width) {
+            std::size_t const middle = from + width;
+            std::size_t const to = std::min(values.size(), from + 2 * width);
+            std::size_t left = from;
+            std::size_t right = middle;
+            std::size_t put = from;
+            while (left < middle || right < to) {
+                if (right == to || (left < middle && values[left] <= values[right])) {
+                    spare[put++] = values[left++];
+                } else {
+                    found += static_cast<long long>(middle - left);
+                    spare[put++] = values[right++];
+                }
+            }
+            std::copy(spare.begin() + static_cast<long>(from), spare.begin() + static_cast<long>(to),
+                      values.begin() + static_cast<long>(from));
+        }
+    return found;
+}
+
+}  // namespace
+
+EO_TEST(a_permutation_has_exactly_the_inversions_asked_for) {
+    eo::rng draw(106);
+    for (int n = 1; n <= 7; n++)
+        for (long long k = 0; k <= n * (n - 1) / 2; k++) {
+            std::vector<int> const p = eo::shapes::with_inversions(draw, n, k);
+            EO_CHECK(static_cast<bool>(eo::is_permutation(p)));
+            long long counted = 0;
+            for (std::size_t i = 0; i < p.size(); i++)
+                for (std::size_t j = i + 1; j < p.size(); j++)
+                    if (p[i] > p[j]) counted++;
+            EO_CHECK_EQ(counted, k);
+        }
+    for (long long const k : {0LL, 1LL, 1000000LL, 1999000LL, 1998999LL}) {
+        std::vector<int> const p = eo::shapes::with_inversions(draw, 2000, k);
+        EO_CHECK_EQ(inversions_by_merging(p), k);
+    }
+    std::vector<std::string> seen;
+    for (int round = 0; round < 300; round++) seen.push_back(ints_of(eo::shapes::with_inversions(draw, 5, 4)));
+    std::sort(seen.begin(), seen.end());
+    seen.erase(std::unique(seen.begin(), seen.end()), seen.end());
+    EO_CHECK_EQ(seen.size(), static_cast<std::size_t>(20));
+    EO_CHECK_IN(refusal([&] { (void)eo::shapes::with_inversions(draw, 5, 11); }),
+                "a permutation of 5 elements has 0..10 inversions, not 11");
+    EO_CHECK_IN(refusal([&] { (void)eo::shapes::with_inversions(draw, 5, -1); }), "has 0..10 inversions, not -1");
+    EO_CHECK_IN(refusal([&] { (void)eo::shapes::with_inversions(draw, 0, 0); }),
+                "a permutation with inversions needs at least 1 elements, not 0");
+}
+
+EO_TEST(inversions_reach_beyond_an_int_and_are_the_same_bytes_for_the_same_seed) {
+    eo::rng draw(107);
+    std::vector<int> const most = eo::shapes::with_inversions(draw, 100000, 4999950000LL);
+    EO_CHECK_EQ(most.front(), 100000);
+    EO_CHECK_EQ(most.back(), 1);
+    std::vector<int> const beyond = eo::shapes::with_inversions(draw, 100000, 3000000000LL);
+    EO_CHECK_EQ(inversions_by_merging(beyond), 3000000000LL);
+    std::string drawn = ints_of(eo::shapes::with_inversions(draw, 40, 300));
+    drawn += ints_of(eo::shapes::with_inversions(draw, 40, 7));
+    pin_bytes(drawn, 222, 0x4c109276fec3ad51ull, __FILE__, __LINE__);
+}

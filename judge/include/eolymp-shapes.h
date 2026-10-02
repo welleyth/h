@@ -626,6 +626,43 @@ inline std::vector<int> joined_in_cycles(std::vector<int> const& order, std::vec
     return images;
 }
 
+class ranked_values {
+public:
+    explicit ranked_values(int n) : counts_(static_cast<std::size_t>(n) + 1, 0) {
+        while ((std::size_t{1} << (high_bit_ + 1)) <= static_cast<std::size_t>(n)) high_bit_++;
+        for (std::size_t at = 1; at < counts_.size(); at++) {
+            counts_[at]++;
+            std::size_t const up = at + (at & (~at + 1));
+            if (up < counts_.size()) counts_[up] += counts_[at];
+        }
+    }
+
+    int take(long long rank) {
+        std::size_t at = 0;
+        for (int bit = high_bit_; bit >= 0; bit--) {
+            std::size_t const next = at + (std::size_t{1} << bit);
+            if (next < counts_.size() && counts_[next] <= rank) {
+                at = next;
+                rank -= counts_[next];
+            }
+        }
+        for (std::size_t down = at + 1; down < counts_.size(); down += down & (~down + 1)) counts_[down]--;
+        return static_cast<int>(at) + 1;
+    }
+
+private:
+    std::vector<long long> counts_;
+    int high_bit_ = 0;
+};
+
+inline std::vector<int> from_lehmer(std::vector<long long> const& code) {
+    ranked_values left(static_cast<int>(code.size()));
+    std::vector<int> values;
+    values.reserve(code.size());
+    for (long long const smaller_after : code) values.push_back(left.take(smaller_after));
+    return values;
+}
+
 }  // namespace detail
 
 [[nodiscard]] inline std::vector<int> permutation_cycles(rng& draw, int n, int k) {
@@ -665,6 +702,22 @@ inline std::vector<int> joined_in_cycles(std::vector<int> const& order, std::vec
         images[static_cast<std::size_t>(order[at + 1]) - 1] = order[at];
     }
     return images;
+}
+
+[[nodiscard]] inline std::vector<int> with_inversions(rng& draw, int n, long long k) {
+    detail::room_for_elements(n, 1, "a permutation with inversions");
+    long long room = static_cast<long long>(n) * (n - 1) / 2;
+    if (k < 0 || k > room)
+        eo::detail::library_error(fmt("a permutation of {} elements has 0..{} inversions, not {}", n, room, k));
+    std::vector<long long> code(static_cast<std::size_t>(n), 0);
+    for (int const at : draw.perm(n)) {
+        long long const most = n - 1 - at;
+        room -= most;
+        long long const given = draw.uniform((std::max)(0LL, k - room), (std::min)(most, k));
+        code[static_cast<std::size_t>(at)] = given;
+        k -= given;
+    }
+    return detail::from_lehmer(code);
 }
 
 [[nodiscard]] inline std::vector<int> permutation(rng& draw, int n, std::string const& shape) {
