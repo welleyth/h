@@ -191,3 +191,77 @@ EO_TEST(a_tree_with_bounded_degree_never_exceeds_it_and_reaches_it) {
     EO_CHECK_IN(refusal([&] { (void)eo::shapes::bounded_degree_tree(draw, 0, 3); }),
                 "a tree with bounded degree needs at least 1 vertices, not 0");
 }
+
+namespace {
+
+int most_light_edges(eo::graph const& made, bool by_height) {
+    std::vector<std::vector<int>> near(static_cast<std::size_t>(made.n) + 1);
+    for (eo::edge const& one : made.edges) {
+        near[static_cast<std::size_t>(one.u)].push_back(one.v);
+        near[static_cast<std::size_t>(one.v)].push_back(one.u);
+    }
+    std::vector<int> parent(static_cast<std::size_t>(made.n) + 1, 0);
+    std::vector<int> order{1};
+    for (std::size_t at = 0; at < order.size(); at++)
+        for (int const other : near[static_cast<std::size_t>(order[at])])
+            if (other != parent[static_cast<std::size_t>(order[at])]) {
+                parent[static_cast<std::size_t>(other)] = order[at];
+                order.push_back(other);
+            }
+    std::vector<int> key(static_cast<std::size_t>(made.n) + 1, by_height ? 0 : 1);
+    for (std::size_t at = order.size(); at-- > 1;) {
+        std::size_t const child = static_cast<std::size_t>(order[at]);
+        std::size_t const up = static_cast<std::size_t>(parent[child]);
+        key[up] = by_height ? std::max(key[up], key[child] + 1) : key[up] + key[child];
+    }
+    std::vector<int> heavy(static_cast<std::size_t>(made.n) + 1, 0);
+    for (std::size_t at = 1; at < order.size(); at++) {
+        std::size_t const child = static_cast<std::size_t>(order[at]);
+        std::size_t const up = static_cast<std::size_t>(parent[child]);
+        if (heavy[up] == 0 || key[child] > key[static_cast<std::size_t>(heavy[up])]) heavy[up] = order[at];
+    }
+    std::vector<int> light(static_cast<std::size_t>(made.n) + 1, 0);
+    for (std::size_t at = 1; at < order.size(); at++) {
+        std::size_t const child = static_cast<std::size_t>(order[at]);
+        std::size_t const up = static_cast<std::size_t>(parent[child]);
+        light[child] = light[up] + (heavy[up] == order[at] ? 0 : 1);
+    }
+    return *std::max_element(light.begin(), light.end());
+}
+
+}  // namespace
+
+EO_TEST(a_comb_has_a_tooth_on_every_spine_vertex) {
+    for (int const n : {1, 2, 3, 10, 11, 1000}) {
+        eo::graph const made = eo::shapes::comb(n);
+        EO_CHECK(holds_a_tree(made));
+        EO_CHECK_EQ(made.n, n);
+        EO_CHECK_EQ(leaves_of(made), n <= 2 ? n - 1 + (n == 2 ? 1 : 0) : n / 2 + (n % 2 == 1 ? 1 : 0));
+        if (n >= 5) EO_CHECK_EQ(highest_degree(made), 3);
+        EO_CHECK_EQ(tree_diameter(made), n <= 2 ? n - 1 : (n + 1) / 2 + (n % 2 == 0 ? 1 : 0));
+    }
+    EO_CHECK_IN(refusal([] { (void)eo::shapes::comb(0); }), "a comb needs at least 1 vertices, not 0");
+}
+
+EO_TEST(a_staircase_makes_ranking_children_by_height_cross_root_n_light_edges) {
+    EO_CHECK_EQ(edges_of(eo::shapes::staircase(8).edges), std::string("1 2;1 3;3 4;4 5;5 6;2 7;7 8;"));
+    for (int const n : {1, 2, 5, 9, 10, 100, 100000}) {
+        eo::graph const made = eo::shapes::staircase(n);
+        EO_CHECK(holds_a_tree(made));
+        EO_CHECK_EQ(made.n, n);
+    }
+    eo::graph const steps = eo::shapes::staircase(100000);
+    EO_CHECK(most_light_edges(steps, true) >= 300);
+    EO_CHECK(most_light_edges(steps, false) <= 17);
+    eo::graph const bushy = eo::shapes::binary_tree(100000);
+    EO_CHECK(most_light_edges(bushy, true) <= 17);
+    EO_CHECK_IN(refusal([] { (void)eo::shapes::staircase(0); }), "a staircase needs at least 1 vertices, not 0");
+}
+
+EO_TEST(the_tree_dispatcher_knows_the_comb_and_the_staircase) {
+    eo::rng draw(409);
+    EO_CHECK_EQ(edges_of(eo::shapes::tree(draw, 12, "comb").edges), edges_of(eo::shapes::comb(12).edges));
+    EO_CHECK_EQ(edges_of(eo::shapes::tree(draw, 12, "staircase").edges), edges_of(eo::shapes::staircase(12).edges));
+    EO_CHECK_IN(refusal([&] { (void)eo::shapes::tree(draw, 30, "bamboo"); }),
+                "the names are random, uniform, path, star, caterpillar, broom, binary, dumbbell, comb and staircase");
+}

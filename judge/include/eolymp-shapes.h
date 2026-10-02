@@ -363,6 +363,34 @@ inline graph hung_from_path(rng& draw, int n, std::vector<int> const& allowance)
     return detail::undirected(n, std::move(edges));
 }
 
+[[nodiscard]] inline graph comb(int n) {
+    detail::at_least(n, 1, "a comb");
+    int const spine = (n + 1) / 2;
+    std::vector<edge> edges;
+    for (int vertex = 2; vertex <= spine; vertex++) edges.push_back(edge{vertex - 1, vertex});
+    for (int vertex = spine + 1; vertex <= n; vertex++) edges.push_back(edge{vertex - spine, vertex});
+    return detail::undirected(n, std::move(edges));
+}
+
+[[nodiscard]] inline graph staircase(int n) {
+    detail::at_least(n, 1, "a staircase");
+    int steps = 0;
+    while (static_cast<long long>(steps + 1) * (steps + 3) <= n) steps++;
+    if (steps == 0) return path(n);
+    std::vector<edge> edges;
+    for (int vertex = 2; vertex <= steps; vertex++) edges.push_back(edge{vertex - 1, vertex});
+    int next = steps + 1;
+    for (int step = 1; step <= steps; step++) {
+        int const length = 2 * (steps - step + 1) + (step == 1 ? n - steps * (steps + 2) : 0);
+        int attach = step;
+        for (int at = 0; at < length; at++) {
+            edges.push_back(edge{attach, next});
+            attach = next++;
+        }
+    }
+    return detail::undirected(n, std::move(edges));
+}
+
 [[nodiscard]] inline graph tree(rng& draw, int n, std::string const& shape) {
     if (shape == "random") return random_tree(draw, n);
     if (shape == "uniform") return uniform_tree(draw, n);
@@ -372,9 +400,11 @@ inline graph hung_from_path(rng& draw, int n, std::vector<int> const& allowance)
     if (shape == "broom") return broom(n);
     if (shape == "binary") return binary_tree(n);
     if (shape == "dumbbell") return dumbbell(n);
+    if (shape == "comb") return comb(n);
+    if (shape == "staircase") return staircase(n);
     eo::detail::library_error(
         fmt("\"{}\" is not a tree shape; the names are random, uniform, path, star, caterpillar, broom, "
-            "binary and dumbbell",
+            "binary, dumbbell, comb and staircase",
             shape));
 }
 
