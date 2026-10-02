@@ -230,3 +230,31 @@ EO_TEST(a_carmichael_number_passes_every_fermat_test_it_is_coprime_to) {
     EO_CHECK_IN(refusal([&] { (void)eo::shapes::carmichael(draw, 560); }),
                 "no Carmichael number is at most 560; 561 is the smallest");
 }
+
+EO_TEST(a_fibonacci_pair_is_the_largest_and_makes_euclid_take_the_most_steps) {
+    std::pair<long long, long long> const pair = eo::shapes::fibonacci_pair(1000000000000000000LL);
+    EO_CHECK_EQ(pair.first, 420196140727489673LL);
+    EO_CHECK_EQ(pair.second, 679891637638612258LL);
+    long long steps = 0;
+    for (long long a = pair.second, b = pair.first; b != 0; steps++) {
+        long long const rest = a % b;
+        a = b;
+        b = rest;
+    }
+    EO_CHECK_EQ(steps, 85LL);
+    for (long long most = 1; most <= 1000; most++) {
+        std::pair<long long, long long> const small = eo::shapes::fibonacci_pair(most);
+        long long a = 1;
+        long long b = 1;
+        while (a + b <= most) {
+            long long const next = a + b;
+            a = b;
+            b = next;
+        }
+        EO_CHECK(small.first == a && small.second == b);
+    }
+    std::pair<long long, long long> const top = eo::shapes::fibonacci_pair(9223372036854775807LL);
+    EO_CHECK_EQ(top.second, 7540113804746346429LL);
+    EO_CHECK_IN(refusal([] { (void)eo::shapes::fibonacci_pair(0); }),
+                "no pair of consecutive Fibonacci numbers is at most 0; 1 and 1 are the smallest");
+}

@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cstdint>
+#include <utility>
 #include <vector>
 
 #include "../core.h"
@@ -202,6 +203,20 @@ inline void most_divisors_below(long long most, std::size_t prime, long long val
         if (is_prime(first) && is_prime(second) && is_prime(third)) found.push_back(first * second * third);
     }
     return draw.pick(found);
+}
+
+[[nodiscard]] inline std::pair<long long, long long> fibonacci_pair(long long most) {
+    if (most < 1)
+        eo::detail::library_error(fmt(
+            "no pair of consecutive Fibonacci numbers is at most {}; 1 and 1 are the smallest", most));
+    long long smaller = 1;
+    long long larger = 1;
+    while (smaller <= most - larger) {
+        long long const next = smaller + larger;
+        smaller = larger;
+        larger = next;
+    }
+    return {smaller, larger};
 }
 
 }  // namespace shapes
