@@ -165,11 +165,15 @@ swaps, the inversions for sorting, the longest increasing subsequence for patien
 | `derangement(draw, n)` | no fixed point, uniform over all derangements | "some `p(i) = i` exists" |
 | `involution(draw, n, fixed)` | `p(p(i)) = i`, with exactly `fixed` fixed points; uniform over those | a cycle walk that mishandles cycles of length 2. Keep a random case too: here `p` is its own inverse, so a solution that confuses `p` with `p⁻¹` passes |
 | `with_inversions(draw, n, k)` | exactly `k` inversions, from 0 to n(n−1)/2 | insertion sort and bubble counts, O(n + k), at large `k`; an inversion count in `int`, which overflows past n ≈ 65,536 |
+| `with_lis(draw, n, k)` | a longest increasing subsequence of exactly `k` | patience sorting that scans its piles, O(n · k), at large `k`; greedy "extend the last element" answers |
 
 `permutation_cycles` draws the cycle lengths as a random composition of `n`, so they are of
 comparable size; a uniformly random permutation instead has one cycle of about `n/2` and
 about `ln n` cycles in all. `with_inversions` spreads `k` over the Lehmer code in a random
-order, which reaches every permutation with `k` inversions, though not uniformly. Under its
+order, which reaches every permutation with `k` inversions, though not uniformly.
+`with_lis` interleaves `k` decreasing runs at random, so no increasing subsequence is longer
+than `k`, and plants one of length `k` on their last elements; it reaches most permutations
+with that subsequence length, not all of them. Under its
 name, `involution` has as few fixed points as `n` allows, 0 or 1.
 
 ## Strings
@@ -238,7 +242,7 @@ exist under 10^9 — r = 48,612,265 carries 2,916 — but they are not worth the
 | trees | `tree`, `random_tree`, `uniform_tree`, `deep_tree`, `path`, `star`, `caterpillar`, `broom`, `binary_tree`, `kary_tree`, `dumbbell`, `spider` |
 | graphs | `connected_graph`, `sparse_graph`, `complete_graph`, `cycle`, `cycle_with_chords`, `grid`, `bipartite_graph`, `complete_bipartite`, `many_components`, `dag`, `functional` |
 | sequences | `equal_values`, `few_distinct`, `plateaus`, `nearly_sorted`, `alternating`, `hash_collisions` |
-| permutations | `permutation`, `permutation_cycles`, `derangement`, `involution`, `with_inversions` |
+| permutations | `permutation`, `permutation_cycles`, `derangement`, `involution`, `with_inversions`, `with_lis` |
 | strings | `repeated`, `periodic`, `near_periodic`, `fibonacci_word`, `thue_morse`, `palindrome` |
 | geometry | `scattered`, `collinear`, `convex_position`, `cocircular`, `extreme_points` |
 | types | `eo::graph` (`n`, `edges`, `directed`), `eo::edge`, `eo::point` |

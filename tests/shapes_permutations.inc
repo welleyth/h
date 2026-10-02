@@ -181,3 +181,51 @@ EO_TEST(inversions_reach_beyond_an_int_and_are_the_same_bytes_for_the_same_seed)
     drawn += ints_of(eo::shapes::with_inversions(draw, 40, 7));
     pin_bytes(drawn, 222, 0x4c109276fec3ad51ull, __FILE__, __LINE__);
 }
+
+namespace {
+
+int longest_rise(std::vector<int> const& values) {
+    std::vector<int> tops;
+    for (int const one : values) {
+        auto const at = std::lower_bound(tops.begin(), tops.end(), one);
+        if (at == tops.end()) {
+            tops.push_back(one);
+        } else {
+            *at = one;
+        }
+    }
+    return static_cast<int>(tops.size());
+}
+
+}  // namespace
+
+EO_TEST(a_permutation_has_the_longest_increasing_subsequence_asked_for) {
+    eo::rng draw(108);
+    for (int n = 1; n <= 9; n++)
+        for (int k = 1; k <= n; k++)
+            for (int round = 0; round < 5; round++) {
+                std::vector<int> const p = eo::shapes::with_lis(draw, n, k);
+                EO_CHECK(static_cast<bool>(eo::is_permutation(p)));
+                EO_CHECK_EQ(longest_rise(p), k);
+            }
+    for (int const k : {1, 2, 17, 450, 999, 1000}) EO_CHECK_EQ(longest_rise(eo::shapes::with_lis(draw, 1000, k)), k);
+    EO_CHECK_EQ(ints_of(eo::shapes::with_lis(draw, 4, 1)), std::string("4;3;2;1;"));
+    EO_CHECK_EQ(ints_of(eo::shapes::with_lis(draw, 4, 4)), std::string("1;2;3;4;"));
+    std::vector<std::string> seen;
+    for (int round = 0; round < 400; round++) seen.push_back(ints_of(eo::shapes::with_lis(draw, 4, 2)));
+    std::sort(seen.begin(), seen.end());
+    seen.erase(std::unique(seen.begin(), seen.end()), seen.end());
+    EO_CHECK(seen.size() >= 9);
+    EO_CHECK_IN(refusal([&] { (void)eo::shapes::with_lis(draw, 5, 6); }),
+                "the longest increasing subsequence of a permutation of 5 elements is 1..5 long, not 6");
+    EO_CHECK_IN(refusal([&] { (void)eo::shapes::with_lis(draw, 0, 1); }),
+                "a permutation with a longest increasing subsequence needs at least 1 elements, not 0");
+}
+
+EO_TEST(a_long_increasing_subsequence_is_the_same_bytes_for_the_same_seed) {
+    eo::rng draw(109);
+    EO_CHECK_EQ(longest_rise(eo::shapes::with_lis(draw, 200000, 700)), 700);
+    std::string drawn = ints_of(eo::shapes::with_lis(draw, 40, 6));
+    drawn += ints_of(eo::shapes::with_lis(draw, 40, 30));
+    pin_bytes(drawn, 222, 0x74332fe39f80ef63ull, __FILE__, __LINE__);
+}

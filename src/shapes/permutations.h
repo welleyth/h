@@ -125,6 +125,52 @@ inline std::vector<int> from_lehmer(std::vector<long long> const& code) {
     return detail::from_lehmer(code);
 }
 
+[[nodiscard]] inline std::vector<int> with_lis(rng& draw, int n, int k) {
+    detail::room_for_elements(n, 1, "a permutation with a longest increasing subsequence");
+    if (k < 1 || k > n)
+        eo::detail::library_error(fmt(
+            "the longest increasing subsequence of a permutation of {} elements is 1..{} long, not {}", n, n, k));
+    std::vector<long long> const sizes = draw.partition(k, n);
+    std::vector<int> owner;
+    owner.reserve(static_cast<std::size_t>(n));
+    for (int chain = 0; chain < k; chain++)
+        owner.insert(owner.end(), static_cast<std::size_t>(sizes[static_cast<std::size_t>(chain)]), chain);
+    draw.shuffle(owner);
+    std::vector<int> last(static_cast<std::size_t>(k), 0);
+    for (int at = 0; at < n; at++) last[static_cast<std::size_t>(owner[static_cast<std::size_t>(at)])] = at;
+    std::vector<std::vector<int>> values(static_cast<std::size_t>(k));
+    int lowest = 0;
+    for (int at = 0; at < n; at++) {
+        int const chain = owner[static_cast<std::size_t>(at)];
+        if (last[static_cast<std::size_t>(chain)] == at) values[static_cast<std::size_t>(chain)].push_back(++lowest);
+    }
+    std::vector<int> rest;
+    rest.reserve(static_cast<std::size_t>(n - k));
+    for (int chain = 0; chain < k; chain++)
+        rest.insert(rest.end(), static_cast<std::size_t>(sizes[static_cast<std::size_t>(chain)]) - 1, chain);
+    draw.shuffle(rest);
+    for (int const chain : rest) values[static_cast<std::size_t>(chain)].push_back(++lowest);
+    std::vector<int> p;
+    p.reserve(static_cast<std::size_t>(n));
+    for (int const chain : owner) {
+        std::vector<int>& mine = values[static_cast<std::size_t>(chain)];
+        p.push_back(mine.back());
+        mine.pop_back();
+    }
+    if (draw.chance(0.5)) {
+        std::vector<int> turned(p.size(), 0);
+        for (std::size_t at = 0; at < p.size(); at++) turned[p.size() - 1 - at] = n + 1 - p[at];
+        p = std::move(turned);
+    }
+    if (draw.chance(0.5)) {
+        std::vector<int> inverse(p.size(), 0);
+        for (std::size_t at = 0; at < p.size(); at++)
+            inverse[static_cast<std::size_t>(p[at]) - 1] = static_cast<int>(at) + 1;
+        p = std::move(inverse);
+    }
+    return p;
+}
+
 [[nodiscard]] inline std::vector<int> permutation(rng& draw, int n, std::string const& shape) {
     detail::room_for_elements(n, 1, "a permutation");
     if (shape == "random") return draw.perm(n, 1);
