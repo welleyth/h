@@ -532,6 +532,17 @@ inline void room_for_values(long long count, long long low, long long high, char
     if (low > high) eo::detail::library_error(fmt("{} draws from {}..{}, which is empty", what, low, high));
 }
 
+inline long long width_of(long long low, long long high) {
+    unsigned long long const span = static_cast<unsigned long long>(high) - static_cast<unsigned long long>(low);
+    return span > 9223372036854775807ull ? 9223372036854775807LL : static_cast<long long>(span);
+}
+
+inline int decimal_length(long long value) {
+    int length = 1;
+    for (; value >= 10; value /= 10) length++;
+    return length;
+}
+
 }  // namespace detail
 
 [[nodiscard]] inline std::vector<long long> equal_values(long long count, long long value) {
@@ -596,6 +607,52 @@ inline void room_for_values(long long count, long long low, long long high, char
     std::vector<long long> values;
     values.reserve(static_cast<std::size_t>(count));
     for (long long at = 1; at <= count; at++) values.push_back(at * buckets);
+    return values;
+}
+
+[[nodiscard]] inline std::vector<long long> log_uniform(rng& draw, long long count, long long low, long long high) {
+    detail::room_for_values(count, low, high, "a log-uniform sequence");
+    if (low < 0) eo::detail::library_error(fmt("log_uniform draws from 0 up; {}..{} reaches below it", low, high));
+    std::vector<long long> powers{1};
+    while (powers.size() < 19) powers.push_back(powers.back() * 10);
+    std::vector<long long> values;
+    values.reserve(static_cast<std::size_t>(count));
+    for (long long at = 0; at < count; at++) {
+        std::size_t const length = static_cast<std::size_t>(
+            draw.uniform(detail::decimal_length(low), detail::decimal_length(high)));
+        long long const shortest = length == 1 ? 0 : powers[length - 1];
+        long long const longest = length == 19 ? high : powers[length] - 1;
+        values.push_back(draw.uniform((std::max)(low, shortest), (std::min)(high, longest)));
+    }
+    return values;
+}
+
+[[nodiscard]] inline std::vector<long long> near_bounds(rng& draw, long long count, long long low, long long high,
+                                                        long long spread) {
+    detail::room_for_values(count, low, high, "a sequence near its bounds");
+    if (spread < 0)
+        eo::detail::library_error(
+            fmt("near_bounds keeps within a spread of at least 0 of a bound, not {}", spread));
+    long long const reach = (std::min)(spread, detail::width_of(low, high));
+    std::vector<long long> values;
+    values.reserve(static_cast<std::size_t>(count));
+    for (long long at = 0; at < count; at++)
+        values.push_back(draw.chance(0.5) ? draw.uniform(low, low + reach) : draw.uniform(high - reach, high));
+    return values;
+}
+
+[[nodiscard]] inline std::vector<long long> spikes(rng& draw, long long count, long long tall, long long low,
+                                                   long long high) {
+    detail::room_for_values(count, low, high, "a sequence of spikes");
+    if (tall < 0 || tall > count)
+        eo::detail::library_error(fmt("{} elements hold 0..{} spikes, not {}", count, count, tall));
+    long long const band = detail::width_of(low, high) / 16;
+    std::vector<bool> raised(static_cast<std::size_t>(count), false);
+    for (long long const at : draw.distinct(tall, 0, count - 1)) raised[static_cast<std::size_t>(at)] = true;
+    std::vector<long long> values;
+    values.reserve(static_cast<std::size_t>(count));
+    for (std::size_t at = 0; at < raised.size(); at++)
+        values.push_back(raised[at] ? draw.uniform(high - band, high) : draw.uniform(low, low + band));
     return values;
 }
 

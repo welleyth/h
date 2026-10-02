@@ -147,6 +147,9 @@ of each size.
 | `nearly_sorted(draw, count, low, high, swaps)` | sorted with `swaps` random swaps | an "if sorted, done" shortcut; a naive quicksort |
 | `alternating(draw, count, low, high)` | low, high, low, high | "merge adjacent" heuristics |
 | `hash_collisions(count, buckets = 107897)` | multiples of one bucket count | an `unordered_map` with the default hash |
+| `log_uniform(draw, count, low, high)` | every decimal length from `low`'s to `high`'s equally likely, so short numbers are as common as long ones; `low` is at least 0 | a solution only ever run on values near the bound, as uniform values are: digit DP at short lengths, `log` and `sqrt` estimates |
+| `near_bounds(draw, count, low, high, spread)` | each value within `spread` of `low` or of `high`, half and half | off-by-one at either bound; sums and products at the extremes |
+| `spikes(draw, count, tall, low, high)` | `tall` values, at random places, from the top sixteenth of the range; the rest from the bottom sixteenth | cost that grows with the maximum: counting sort, DP over the value or the sum, sqrt decomposition by value |
 
 `draw.partition(t, n)` splits a total across test cases, which is how you build the two tests
 that catch different bugs: `t = 10^5` cases of `n = 1`, and one case of `n = 10^5`.
@@ -241,7 +244,7 @@ exist under 10^9 — r = 48,612,265 carries 2,916 — but they are not worth the
 | presentation | `presented`, `parent_array` |
 | trees | `tree`, `random_tree`, `uniform_tree`, `deep_tree`, `path`, `star`, `caterpillar`, `broom`, `binary_tree`, `kary_tree`, `dumbbell`, `spider` |
 | graphs | `connected_graph`, `sparse_graph`, `complete_graph`, `cycle`, `cycle_with_chords`, `grid`, `bipartite_graph`, `complete_bipartite`, `many_components`, `dag`, `functional` |
-| sequences | `equal_values`, `few_distinct`, `plateaus`, `nearly_sorted`, `alternating`, `hash_collisions` |
+| sequences | `equal_values`, `few_distinct`, `plateaus`, `nearly_sorted`, `alternating`, `hash_collisions`, `log_uniform`, `near_bounds`, `spikes` |
 | permutations | `permutation`, `permutation_cycles`, `derangement`, `involution`, `with_inversions`, `with_lis` |
 | strings | `repeated`, `periodic`, `near_periodic`, `fibonacci_word`, `thue_morse`, `palindrome` |
 | geometry | `scattered`, `collinear`, `convex_position`, `cocircular`, `extreme_points` |
