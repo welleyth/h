@@ -1,0 +1,29 @@
+{
+  "title": "a tree problem whose validator names its shapes",
+  "type": "PROGRAM",
+  "timeLimit": 1000,
+  "memoryLimit": 268435456,
+  "checker": {"source": "checker.cpp", "files": ["../../../eolymp.h"]},
+  "validator": {"source": "validator.cpp", "files": ["../../../eolymp.h"]},
+  "scripts": {
+    "gen": {"source": "generator.cpp", "files": ["../../../eolymp.h"]},
+    "solution": {"source": "solution.cpp"}
+  },
+  "solutions": [{"name": "edges", "source": "solution.cpp", "type": "CORRECT"}],
+  "testsets": [
+    {"index": 0, "scoringMode": "EACH", "feedbackPolicy": "COMPLETE",
+     "tests": [
+       {"index": 1, "example": true, "input": "01.in", "answerGenerator": "solution"}
+     ]},
+    {"index": 1, "scoringMode": "EACH", "feedbackPolicy": "COMPLETE",
+     "tests": [
+       {"index": 1, "score": 25, "generator": {"script": "gen", "arguments": ["-n=5", "-shape=path"]}, "answerGenerator": "solution"},
+       {"index": 2, "score": 25, "generator": {"script": "gen", "arguments": ["-n=6", "-shape=star"]}, "answerGenerator": "solution"}
+     ]},
+    {"index": 2, "scoringMode": "EACH", "feedbackPolicy": "COMPLETE",
+     "tests": [
+       {"index": 1, "score": 25, "generator": {"script": "gen", "arguments": ["-n=1000", "-shape=random"]}, "answerGenerator": "solution"},
+       {"index": 2, "score": 25, "generator": {"script": "gen", "arguments": ["-n=1000", "-shape=path"]}, "answerGenerator": "solution"}
+     ]}
+  ]
+}

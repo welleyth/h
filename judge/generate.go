@@ -66,6 +66,7 @@ type Workspace struct {
 
 	tools          toolchain
 	transcript     bool
+	described      []*described
 	generatorLimit int
 	validatorLimit int
 }

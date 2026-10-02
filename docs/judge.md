@@ -35,7 +35,7 @@ eo-judge version           # the version of eo-judge
 | `--strict` | exit non-zero if anything raised a warning |
 | `--deep` | use the full 100 MB hostile output rather than 2 MB |
 | `--work dir` | keep the workspace instead of a temporary directory; eo-judge clears the directories it makes there, so a directory that is the problem's, holds it or lies inside it is a usage error; one eo-judge uses it at a time, and a second that asks for it while the first runs exits 3 |
-| `-v` | after each testset, list every run: `1:2 WRONG_ANSWER 12ms` and the first line of what the checker or interactor said; for a solution that crashed or ran out of time, its exit code and then the interactor's line |
+| `-v` | with `check`, a table of the features each test has, before the report; see [Reading a check](#reading-a-check). With `run`, after each testset, list every run: `1:2 WRONG_ANSWER 12ms` and the first line of what the checker or interactor said; for a solution that crashed or ran out of time, its exit code and then the interactor's line |
 | `--transcript` | with `run` on an `INTERACTIVE` problem, `-v` and, under each run, the dialogue: every line the interactor and the solution sent each other, in the order they arrived, with `phase 1`, `phase 2`, … above each phase's when `runCount` is above 1; at most 1,000 lines a phase and 200 characters a line. It is meant for writing a statement's examples, and on any other command or type it is a usage error |
 | `--json` | print one JSON object on stdout instead of the text; see [below](#json) |
 | `--expect` | with `run`, exit 1 when a solution breaks its declared type; see [below](#expected-types) |
@@ -423,6 +423,20 @@ note EO821: the problem has 1 correct solution(s)
 `check` also replays the warnings the programs themselves raised while generating and
 validating, so one command covers both halves.
 
+**With `-v`, `check` first shows which test has which feature**, a table per testset of the
+features the validator declares with `v.feature` or `v.features`, `x` where `v.saw` marked one for that
+test:
+
+```
+features of testset 1  caterpillar  path  star
+  1:1                  .            x     .
+  1:2                  .            .     x
+```
+
+A feature no test has is warning EO808 whether or not `-v` is given; the table is for seeing
+where the others are. A validator that declares no feature prints no table, and `check -v`
+then prints what `check` does.
+
 **Each solution runs in a directory of its own**, a fresh temporary directory outside the
 workspace that is removed when the run ends, so no name or relative path from it reaches the
 files the interactor and the checker use: the summary in `output.txt`, a phase's handoff, the
@@ -576,6 +590,7 @@ refuses the flag:
 | Field | Holds |
 | --- | --- |
 | `attempts` | what `run` judged, in the order of `solutions`; empty for `check`, `lint` and `stress` |
+| `coverage` | from `check`, the features the validator declares, as `features`, and for each test its `group`, `test` and the `features` it has, in the order of `testsets`; left out when the validator declares none |
 | `stress` | what `stress` did, and left out for the other commands: `generator`, `arguments` as given, `reference`, the compared `solutions`, `iterations` asked for, how many `passed`, whether the `deadline` ended it, the iterations `--continue` went past as `failed`, and the iteration it `stopped` at, left out when it stopped at none, with its `index`, `verdict`, resolved `arguments`, `why` for `INVALID` and `BROKEN`, the directory it was `kept` in under `--work`, and the `results` of the solutions, each with its `solution`, `type`, `verdict`, `ms`, the checker's `message` and whether it was `unexpected`, the platform's word for breaking its type |
 | `breaks` | under `--expect`, why the solution breaks its type; left out when it holds |
 | `transcript` | under `--transcript`, a run's dialogue as the text shows it, one string a line; left out without the flag and for a run in which nothing was said |

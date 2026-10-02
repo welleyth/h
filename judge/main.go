@@ -264,6 +264,12 @@ func (s *session) run() int {
 		if err != nil {
 			return s.fail(err)
 		}
+		if covered := shop.coverage(); covered != nil {
+			s.result.Coverage = covered
+			if s.verbose {
+				printCoverage(s.out, covered)
+			}
+		}
 		return s.report(append(found, Lint(problem)...))
 	case "stress":
 		return s.stressTest(ctx, shop)

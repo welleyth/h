@@ -358,11 +358,14 @@ func (w *Workspace) coverageChecks(ctx context.Context, found *Findings) error {
 	limits := map[int]map[string][2]string{}
 	features := map[string]bool{}
 
+	w.described = nil
 	for _, made := range w.sorted() {
 		said, err := w.describe(ctx, made)
 		if err != nil {
 			return err
 		}
+		this := &described{group: made.Group, test: made.Test.Index, features: map[string]bool{}}
+		w.described = append(w.described, this)
 		for _, line := range strings.Split(said, "\n") {
 			if parts := describedValue.FindStringSubmatch(line); parts != nil {
 				if bounds[made.Group] == nil {
@@ -384,6 +387,7 @@ func (w *Workspace) coverageChecks(ctx context.Context, found *Findings) error {
 			}
 			if parts := describedFeature.FindStringSubmatch(line); parts != nil {
 				features[parts[1]] = features[parts[1]] || parts[2] == "yes"
+				this.features[parts[1]] = parts[2] == "yes"
 			}
 		}
 	}
