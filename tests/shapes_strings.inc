@@ -164,7 +164,8 @@ EO_TEST(anti_hash_strings_collide_under_every_pair_they_were_built_for) {
           asked{{{1000003, 2305843009213693951LL}}, "ab", 16384}, asked{{{10, 1000}, {7, 1000}}, "0-9", 4096},
           asked{{{131, 1000000007}, {137, 998244353}, {10007, 1000000009}}, "a-z", 1 << 20},
           asked{{{2, 3}}, "xy", 64}, asked{{{256, 2}}, "ab", 64}, asked{{{-5, 1000000007}}, "a-z", 1024}}) {
-        std::pair<std::string, std::string> const twins = eo::shapes::anti_hash(draw, one.hashes, eo::charset(one.letters));
+        std::pair<std::string, std::string> const twins =
+            eo::shapes::anti_hash(draw, one.hashes, eo::charset(one.letters));
         EO_CHECK_EQ(twins.first.size(), twins.second.size());
         EO_CHECK(twins.first != twins.second);
         EO_CHECK(!twins.first.empty() && twins.first.size() <= one.longest);
@@ -186,7 +187,8 @@ EO_TEST(anti_hash_strings_collide_under_every_pair_they_were_built_for) {
     }
     std::pair<std::string, std::string> const twins =
         eo::shapes::anti_hash(draw, {{31, 1000000007}, {129032259, 1000000007}}, eo::charset("a-z"));
-    EO_CHECK_EQ(modular_hash(twins.first, 31, 1000000007, 0, true), modular_hash(twins.second, 31, 1000000007, 0, true));
+    EO_CHECK_EQ(modular_hash(twins.first, 31, 1000000007, 0, true),
+                modular_hash(twins.second, 31, 1000000007, 0, true));
     std::pair<std::string, std::string> const again =
         eo::shapes::anti_hash(draw, {{31, 1000000007}, {37, 998244353}}, eo::charset("a-z"));
     pin_bytes(again.first + "|" + again.second, 8193, 0x3e9257b64a7b62e1ull, __FILE__, __LINE__);
