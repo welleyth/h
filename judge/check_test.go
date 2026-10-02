@@ -6,6 +6,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strings"
 	"testing"
 	"time"
@@ -48,6 +49,82 @@ func TestCheckFindsWhatIsWrongWithABrokenProblem(t *testing.T) {
 		if !fired(found, code) {
 			t.Errorf("%s did not fire on the broken problem", code)
 		}
+	}
+}
+
+func TestCheckWarnsAboutAGeneratorThatDrawsWithNoSalt(t *testing.T) {
+	t.Parallel()
+	needsACompiler(t)
+
+	shop := workshop(t, "testdata/salts")
+	found, err := shop.Check(context.Background(), false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var blamed []string
+	for _, one := range found {
+		if one.Code == "EO825" {
+			blamed = append(blamed, one.Where+": "+one.Message)
+		}
+	}
+	want := []string{
+		"script drawing: it draws randomness with no salt, so the arguments alone rebuild its tests",
+		"script late: it draws randomness with no salt, so the arguments alone rebuild its tests",
+	}
+	sort.Strings(blamed)
+	if strings.Join(blamed, "\n") != strings.Join(want, "\n") {
+		t.Errorf("EO825 fired as\n%s\nnot\n%s", strings.Join(blamed, "\n"), strings.Join(want, "\n"))
+	}
+}
+
+func TestASaltlessGeneratorIsFoundPastAFailedRunAndNotPastAForeignOne(t *testing.T) {
+	t.Parallel()
+	needsACompiler(t)
+
+	shop := workshop(t, "testdata/salts")
+	ctx := context.Background()
+	built, err := shop.Build(ctx, scriptName("odd"), shop.Problem.Scripts["odd"])
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, one := range []struct {
+		used [][]string
+		want bool
+	}{
+		{[][]string{{"-n=99"}, {"-n=2"}}, true},
+		{[][]string{{"-n=1"}, {"-n=2"}}, false},
+		{[][]string{{"-n=2"}, {"-n=2"}}, true},
+	} {
+		got, err := shop.drawsWithNoSalt(ctx, built, one.used)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got != one.want {
+			t.Errorf("with %v it said %v", one.used, got)
+		}
+	}
+}
+
+func TestAGeneratorWithNoSaltStillPassesCheckStrict(t *testing.T) {
+	t.Parallel()
+	needsACompiler(t)
+	dir := filepath.Join(t.TempDir(), "old")
+	if code, _, errs := invoke("init", dir); code != 0 {
+		t.Fatalf("init exited %d, said %q", code, errs)
+	}
+	path := filepath.Join(dir, "generator.cpp")
+	body, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	unsalted := regexp.MustCompile(`, eo::salt\("[0-9a-f]{32}"\)`).ReplaceAll(body, nil)
+	if err := os.WriteFile(path, unsalted, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	code, out, errs := invokeIn(t.TempDir(), "check", "--strict", dir)
+	if code != 0 || !strings.Contains(out, "script gen: note EO825: it draws randomness with no salt") ||
+		!strings.Contains(out, "eo-judge: 0 warning(s)") {
+		t.Errorf("check --strict exited %d, printed %q, said %q", code, out, errs)
 	}
 }
 

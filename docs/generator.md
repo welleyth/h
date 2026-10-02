@@ -366,9 +366,9 @@ generator.
 
 ## Not here yet
 
-Nothing a generator draws is missing. EO812 (the same bytes under two compilers) and EO813
-(the extremes of every option produce a valid test) are run by `eo-judge check`; see
-[judge.md](judge.md).
+Nothing a generator draws is missing. EO812 (the same bytes under two compilers), EO813
+(the extremes of every option produce a valid test) and EO825 (a generator that draws with no
+salt) are run by `eo-judge check`; see [judge.md](judge.md).
 
 ## Reference card
 

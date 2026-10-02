@@ -1,0 +1,27 @@
+{
+  "title": "generators with and without a salt, drawing and not",
+  "type": "PROGRAM",
+  "timeLimit": 1000,
+  "memoryLimit": 268435456,
+  "checker": {"source": "checker.cpp", "files": ["../../../eolymp.h"]},
+  "validator": {"source": "validator.cpp", "files": ["../../../eolymp.h"]},
+  "scripts": {
+    "drawing": {"source": "drawing.cpp", "files": ["../../../eolymp.h"]},
+    "fixed": {"source": "fixed.cpp", "files": ["../../../eolymp.h"]},
+    "late": {"source": "late.cpp", "files": ["../../../eolymp.h"]},
+    "odd": {"source": "odd.cpp", "files": ["../../../eolymp.h"]},
+    "salted": {"source": "salted.cpp", "files": ["../../../eolymp.h"]},
+    "solution": {"source": "solution.cpp"}
+  },
+  "solutions": [{"name": "count", "source": "solution.cpp", "type": "CORRECT"}],
+  "testsets": [
+    {"index": 1, "scoringMode": "EACH", "feedbackPolicy": "COMPLETE",
+     "tests": [
+       {"index": 1, "score": 20, "generator": {"script": "drawing", "arguments": ["-n=5"]}, "answerGenerator": "solution"},
+       {"index": 2, "score": 20, "generator": {"script": "fixed", "arguments": ["-n=6"]}, "answerGenerator": "solution"},
+       {"index": 3, "score": 20, "generator": {"script": "late", "arguments": ["-n=7", "-fill=ones"]}, "answerGenerator": "solution"},
+       {"index": 4, "score": 20, "generator": {"script": "late", "arguments": ["-n=8", "-fill=random"]}, "answerGenerator": "solution"},
+       {"index": 5, "score": 20, "generator": {"script": "salted", "arguments": ["-n=9"]}, "answerGenerator": "solution"}
+     ]}
+  ]
+}

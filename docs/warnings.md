@@ -24,7 +24,7 @@ line on the judge, and the channel each role can afford to write to — is in
 | `eo-judge check` | the emulator, reading the whole problem; **never appears in a judge log** |
 | `eo-judge lint` | a textual scan of the source, for what no run can see |
 
-All 85 designed codes are built.
+All 86 designed codes are built.
 
 ## EO1xx — reading a value
 
@@ -135,6 +135,7 @@ the author writes no test code for any of them.
 | `EO822` | warning | `eo-judge check` | on an `OUTPUT` problem, the checker accepts the jury's answer of the next test, whose input differs, as this test's output; each test is tried with the next one's, and the last with the first's | a contestant may upload any file for any test, so one good file could pass them all; check the output against this test's input, unless that answer really is right for both |
 | `EO823` | warning | `eo-judge check` | on a `FUNCTION` problem, a C++ template's stub, its `source` wrapped in its header and footer, does not compile, or is judged as anything but a wrong answer | a contestant starts from the stub: make the three compile together and return something the checker refuses |
 | `EO824` | warning | `eo-judge check` | on a `FUNCTION` problem, a whole program, `int main() { return 0; }`, compiles inside a C++ template | the template should hold `main()`, in its footer or its header, so a submission that brings its own gets a compilation error, as on the judge |
+| `EO825` | note | `eo-judge check` | a generator draws randomness with no `eo::salt`: each distinct set of stored arguments is run with `--eo-describe` until one draws or the generator turns out to be salted. A draw is a stream whose state moved or that was copied to draw from, so a generator that never draws, or only asks for a stream with `g.rng`, is never named. It is a note, so `--strict` passes a problem made before salts existed | the seed is the arguments alone, so anyone who guesses them can rebuild a test and hard-code its answer. A salt is for a new problem, since adding one regenerates every random test: write `eo::generator g(argc, argv, eo::salt("…"))` with 32 hex digits, as `eo-judge init` does. See [What is secret and what is not](generator.md#what-is-secret-and-what-is-not) |
 
 ## EO9xx — configuration
 
