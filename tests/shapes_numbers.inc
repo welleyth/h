@@ -166,3 +166,67 @@ EO_TEST(the_number_with_the_most_divisors_is_the_smallest_that_has_them) {
     EO_CHECK_EQ(eo::shapes::most_divisors(9223372036854775807LL), 9200527969062830400LL);
     EO_CHECK_IN(refusal([] { (void)eo::shapes::most_divisors(0); }), "most_divisors looks at 1..most, and most is 0");
 }
+
+EO_TEST(a_strong_pseudoprime_fools_miller_rabin_with_the_first_k_prime_bases) {
+    long long const bases[] = {2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31};
+    for (int k = 1; k <= 11; k++) {
+        long long const n = eo::shapes::strong_pseudoprime(k);
+        EO_CHECK(!eo::shapes::is_prime(n));
+        bool fooled = true;
+        for (int at = 0; at < k; at++)
+            fooled = fooled && eo::shapes::detail::strong_probable_prime(static_cast<std::uint64_t>(n),
+                                                                          static_cast<std::uint64_t>(bases[at]));
+        EO_CHECK(fooled);
+    }
+    bool smallest = true;
+    for (std::uint64_t n = 9; n < 2047; n += 2)
+        smallest = smallest && (eo::shapes::is_prime(static_cast<long long>(n)) ||
+                                !eo::shapes::detail::strong_probable_prime(n, 2));
+    EO_CHECK(smallest);
+    EO_CHECK_IN(refusal([] { (void)eo::shapes::strong_pseudoprime(12); }),
+                "the least strong pseudoprime to the first 12 prime bases does not fit in a long long; ask for 1..11");
+    EO_CHECK_IN(refusal([] { (void)eo::shapes::strong_pseudoprime(0); }),
+                "strong_pseudoprime takes 1..11 prime bases, not 0");
+}
+
+EO_TEST(a_carmichael_number_passes_every_fermat_test_it_is_coprime_to) {
+    eo::rng draw(904);
+    std::vector<long long> seen;
+    for (int round = 0; round < 200; round++) {
+        long long const n = eo::shapes::carmichael(draw, 1000000000000LL);
+        seen.push_back(n);
+        EO_CHECK(n <= 1000000000000LL && !eo::shapes::is_prime(n));
+        long long rest = n;
+        bool korselt = true;
+        int factors = 0;
+        for (long long p = 2; p * p <= rest; p++) {
+            if (rest % p != 0) continue;
+            rest /= p;
+            factors++;
+            korselt = korselt && rest % p != 0 && (n - 1) % (p - 1) == 0;
+        }
+        if (rest > 1) {
+            factors++;
+            korselt = korselt && (n - 1) % (rest - 1) == 0;
+        }
+        EO_CHECK(korselt && factors >= 3);
+    }
+    std::sort(seen.begin(), seen.end());
+    seen.erase(std::unique(seen.begin(), seen.end()), seen.end());
+    EO_CHECK(seen.size() >= 10);
+    EO_CHECK_EQ(eo::shapes::carmichael(draw, 561), 561LL);
+    for (int round = 0; round < 20; round++) {
+        long long const n = eo::shapes::carmichael(draw, 9223372036854775807LL);
+        bool fermat = !eo::shapes::is_prime(n);
+        for (std::uint64_t base = 2; base < 60; base++)
+            if (std::gcd(base, static_cast<std::uint64_t>(n)) == 1)
+                fermat = fermat && eo::shapes::detail::pow_mod(base, static_cast<std::uint64_t>(n) - 1,
+                                                              static_cast<std::uint64_t>(n)) == 1;
+        EO_CHECK(fermat);
+    }
+    std::string drawn;
+    for (int round = 0; round < 6; round++) drawn += eo::fmt("{};", eo::shapes::carmichael(draw, 1000000000000000LL));
+    pin_bytes(drawn, 73, 0x1eaaca3d577ea12full, __FILE__, __LINE__);
+    EO_CHECK_IN(refusal([&] { (void)eo::shapes::carmichael(draw, 560); }),
+                "no Carmichael number is at most 560; 561 is the smallest");
+}

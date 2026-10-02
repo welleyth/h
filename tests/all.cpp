@@ -7,6 +7,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <exception>
+#include <numeric>
 #include <queue>
 #include <stdexcept>
 #include <string>

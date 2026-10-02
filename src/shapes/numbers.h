@@ -176,5 +176,33 @@ inline void most_divisors_below(long long most, std::size_t prime, long long val
     return best.value;
 }
 
+[[nodiscard]] inline long long strong_pseudoprime(int bases) {
+    static long long const least[] = {2047LL,           1373653LL,          25326001LL,
+                                      3215031751LL,     2152302898747LL,    3474749660383LL,
+                                      341550071728321LL, 341550071728321LL, 3825123056546413051LL,
+                                      3825123056546413051LL, 3825123056546413051LL};
+    if (bases < 1) eo::detail::library_error(fmt("strong_pseudoprime takes 1..11 prime bases, not {}", bases));
+    if (bases > 11)
+        eo::detail::library_error(fmt(
+            "the least strong pseudoprime to the first {} prime bases does not fit in a long long; ask for 1..11",
+            bases));
+    return least[bases - 1];
+}
+
+[[nodiscard]] inline long long carmichael(rng& draw, long long most) {
+    if (most < 561) eo::detail::library_error(fmt("no Carmichael number is at most {}; 561 is the smallest", most));
+    std::vector<long long> found;
+    for (long long const classic : {561LL, 1105LL, 2465LL, 2821LL, 6601LL, 8911LL})
+        if (classic <= most) found.push_back(classic);
+    for (long long step = 1;; step++) {
+        long long const first = 6 * step + 1;
+        long long const second = 12 * step + 1;
+        long long const third = 18 * step + 1;
+        if (first > most / second || first * second > most / third) break;
+        if (is_prime(first) && is_prime(second) && is_prime(third)) found.push_back(first * second * third);
+    }
+    return draw.pick(found);
+}
+
 }  // namespace shapes
 }  // namespace eo

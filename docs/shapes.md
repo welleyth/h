@@ -348,6 +348,8 @@ Miller–Rabin with the first twelve primes as bases, which is deterministic bel
 | `semiprime(draw, most)` | `p · q ≤ most`, two primes between `√most / 2` and `2√most` | trial division up to `√n` on many queries; a Pollard rho that assumes a small factor |
 | `prime_power(draw, most, k)` | `p^k ≤ most` for a prime `p` from the upper half of the range that allows | `for (i = 2; i * i < n; i++)`, which misses `p²`; divisor counts that forget repeated factors |
 | `most_divisors(most)` | the least number up to `most` with the most divisors: 735,134,400 with 1,344 below 10⁹, 897,612,484,786,617,600 with 103,680 below 10¹⁸ | a divisor enumeration or a per-divisor DP sized for a few hundred divisors |
+| `strong_pseudoprime(k)` | the least odd composite that passes Miller–Rabin with each of the first `k` primes as a base, `k` = 1..11: 2,047, 1,373,653, …, 3,825,123,056,546,413,051 | Miller–Rabin with too few bases: bases 2, 3, 5 and 7 call 3,215,031,751 prime |
+| `carmichael(draw, most)` | a Carmichael number up to `most`, from the six below 10⁴ and every Chernick number (6t+1)(12t+1)(18t+1) whose three factors are prime | the Fermat test, which every base coprime to it passes |
 
 ## Geometry
 
@@ -404,7 +406,7 @@ exist under 10^9 — r = 48,612,265 carries 2,916 — but they are not worth the
 | intervals | `intervals` |
 | queries | `ranges`, `query_order` |
 | strings | `repeated`, `periodic`, `near_periodic`, `fibonacci_word`, `thue_morse`, `palindrome`, `de_bruijn`, `lyndon`, `abacaba`, `thue_morse_twins` |
-| numbers | `is_prime`, `next_prime`, `prev_prime`, `random_prime`, `semiprime`, `prime_power`, `most_divisors` |
+| numbers | `is_prime`, `next_prime`, `prev_prime`, `random_prime`, `semiprime`, `prime_power`, `most_divisors`, `strong_pseudoprime`, `carmichael` |
 | geometry | `scattered`, `collinear`, `convex_position`, `cocircular`, `extreme_points` |
 | types | `eo::graph` (`n`, `edges`, `directed`), `eo::edge`, `eo::weighted_graph` (`n`, `edges`, `directed`), `eo::weighted_edge`, `eo::point`, `eo::interval` (`l`, `r`) |
 
