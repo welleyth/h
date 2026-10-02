@@ -43,6 +43,7 @@
 #include "shapes_permutations.inc"
 #include "shapes_sequences.inc"
 #include "shapes_intervals.inc"
+#include "shapes_queries.inc"
 #include "boundaries.inc"
 #include "pinned.inc"
 

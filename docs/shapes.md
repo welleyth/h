@@ -210,6 +210,34 @@ Every family comes out shuffled. The shapes built from different endpoints, `dis
 `touching`, `nested`, `laminar` and `chain`, refuse a range with too few values for them,
 and say how many they need.
 
+## Queries
+
+A query problem needs ranges that are long, for a solution that is linear per query; short,
+for block-boundary bugs in sqrt and sparse-table structures; prefixes and suffixes for the
+ends; single points; and the order of updates and queries mixed as tightly as it can be.
+
+| Call | Gives | Kills |
+| --- | --- | --- |
+| `ranges(draw, count, n, "random")` | both ends uniform in 1..n, then ordered: a mean length of n/3 | nothing in particular; the typical case |
+| `ranges(draw, count, n, "short")` | lengths 1..16 at random places | sqrt decomposition and sparse tables wrong when a range sits inside one block |
+| `ranges(draw, count, n, "long")` | lengths of at least n − n/16 | O(length) per query |
+| `ranges(draw, count, n, "prefix")`, `ranges(draw, count, n, "suffix")` | every range starts at 1, or ends at n | an off-by-one at either end of a prefix-sum array |
+| `ranges(draw, count, n, "point")` | `l = r` | `l < r` assumed; a segment tree that never reaches a leaf |
+| `ranges(draw, count, n, "full")` | always `[1, n]` | a root-only shortcut answered wrongly |
+| `ranges(draw, count, n, "same")` | one random range `count` times | caching keyed on the wrong thing |
+| `query_order(draw, counts, "random")` | kind `i` exactly `counts[i]` times, shuffled | nothing in particular; the typical case |
+| `query_order(draw, counts, "grouped")` | all of kind 0, then all of kind 1, and so on | a solution only correct when kinds interleave |
+| `query_order(draw, counts, "alternating")` | one of each kind still left, in turn | a structure rebuilt lazily on the first query after an update: every query pays the rebuild |
+
+`ranges` returns `eo::interval`s. `query_order` returns the kinds as numbers from 0, for the
+generator to turn into its own lines, so the ratio of updates to queries is exactly what the
+counts say.
+
+**Queries that must be answered online are not encoded here.** Hiding a query behind the
+previous answer, as `l = (l' xor last) mod n + 1`, needs that answer, which only the reference
+solution has; a generator that encodes them embeds the solution, and the encoding is two lines
+of it.
+
 ## Strings
 
 A string problem needs one letter repeated, which maximises borders and periods, a binary
@@ -278,6 +306,7 @@ exist under 10^9 — r = 48,612,265 carries 2,916 — but they are not worth the
 | sequences | `equal_values`, `few_distinct`, `plateaus`, `nearly_sorted`, `alternating`, `hash_collisions`, `log_uniform`, `near_bounds`, `spikes`, `split_sum`, `distinct_gapped`, `mountain`, `valley` |
 | permutations | `permutation`, `permutation_cycles`, `derangement`, `involution`, `with_inversions`, `with_lis` |
 | intervals | `intervals` |
+| queries | `ranges`, `query_order` |
 | strings | `repeated`, `periodic`, `near_periodic`, `fibonacci_word`, `thue_morse`, `palindrome` |
 | geometry | `scattered`, `collinear`, `convex_position`, `cocircular`, `extreme_points` |
 | types | `eo::graph` (`n`, `edges`, `directed`), `eo::edge`, `eo::point`, `eo::interval` (`l`, `r`) |
