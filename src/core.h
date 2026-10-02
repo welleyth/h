@@ -15,6 +15,12 @@
 #define EOLYMP_H_VERSION_MINOR 3
 #define EOLYMP_H_VERSION_PATCH 0
 
+#if defined(__GNUC__) || defined(__clang__)
+#define EOLYMP_COLD [[gnu::cold]]
+#else
+#define EOLYMP_COLD
+#endif
+
 namespace eo {
 
 inline char const* version() { return EOLYMP_H_VERSION; }

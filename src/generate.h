@@ -407,7 +407,7 @@ private:
         return false;
     }
 
-    void describe() {
+    EOLYMP_COLD void describe() {
         std::string said;
         for (detail::declared_option const& one : shape_)
             said += fmt("eo-describe option {} {} {}{}{}\n", one.name, one.kind, one.range,

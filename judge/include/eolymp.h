@@ -63,6 +63,12 @@
 #define EOLYMP_H_VERSION_MINOR 3
 #define EOLYMP_H_VERSION_PATCH 0
 
+#if defined(__GNUC__) || defined(__clang__)
+#define EOLYMP_COLD [[gnu::cold]]
+#else
+#define EOLYMP_COLD
+#endif
+
 namespace eo {
 
 inline char const* version() { return EOLYMP_H_VERSION; }
@@ -4574,13 +4580,13 @@ private:
     friend class subtask_table;
 
 
-    [[noreturn]] static void not_a_stat_name(std::string const& name, detail::site where) {
+    [[noreturn]] EOLYMP_COLD static void not_a_stat_name(std::string const& name, detail::site where) {
         detail::library_error(fmt("{}: stat(\"{}\") is not a stat's name; name it with one word of letters, digits, "
                                   "_, . or -, as depth or max_degree",
                                   detail::where_of(where), detail::escaped(name)));
     }
 
-    [[noreturn]] void never_declared(std::string const& name, detail::site where) const {
+    [[noreturn]] EOLYMP_COLD void never_declared(std::string const& name, detail::site where) const {
         std::string const declared = detail::joined(features_, [](auto const& one) { return one.first; });
         detail::library_error(fmt("{}: saw(\"{}\") names a feature that was never declared; it declares {}",
                                   detail::where_of(where), name, declared.empty() ? "none" : declared));
@@ -4604,7 +4610,7 @@ private:
         into.push_back({name, value});
     }
 
-    std::vector<std::pair<std::string, long long>> every_stat() const {
+    EOLYMP_COLD std::vector<std::pair<std::string, long long>> every_stat() const {
         std::vector<std::pair<std::string, long long>> all;
         for (auto const& one : from_.bounds()) {
             detail::seen_bounds const& seen = one.second;
@@ -4760,7 +4766,7 @@ private:
                          "most multi-test statements bound the sum of n", where_of_run_);
     }
 
-    void describe() {
+    EOLYMP_COLD void describe() {
         std::string out;
         if (group_.has_value()) out += fmt("eo-describe group {}\n", *group_);
         for (auto const& one : from_.bounds())
@@ -6802,7 +6808,7 @@ private:
         return false;
     }
 
-    void describe() {
+    EOLYMP_COLD void describe() {
         std::string said;
         for (detail::declared_option const& one : shape_)
             said += fmt("eo-describe option {} {} {}{}{}\n", one.name, one.kind, one.range,
