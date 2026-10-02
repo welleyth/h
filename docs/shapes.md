@@ -59,21 +59,41 @@ std::vector<int> parents = eo::shapes::parent_array(draw, made);
 for (int at = 0; at + 1 < n; at++) g.out.line(parents[at]);
 ```
 
+## What is secret
+
+The shapes are public by design, as testlib and jngen are: an author reads exactly what
+`caterpillar` builds, and a contestant can read it too. What makes a test unknowable is the
+seed it is drawn from, never the algorithm, so a generator that anyone could re-run with the
+same arguments gives away its tests whatever shapes it calls. [generator.md](generator.md)
+says what the seed is made of and how to keep it secret.
+
+## How the topics read
+
+Each topic opens with what its tests must cover, then one row per call: what it gives, and
+the wrong solution it is there to kill. A row's call is the whole signature; everything is in
+`eo::shapes::`, and every call that takes `draw` takes it first.
+
 ## Trees
 
-| Call | Gives |
-| --- | --- |
-| `random_tree(draw, n)` | the three-line random *recursive* tree: depth Θ(log n), bushy |
-| `uniform_tree(draw, n)` | uniform over all n^(n-2) labelled trees, through Prüfer: diameter Θ(√n) |
-| `deep_tree(draw, n, lean)` | the parent drawn toward the last vertex; larger `lean` is deeper |
-| `path(n)` | the bamboo: depth n, the worst case for a recursive DFS |
-| `star(n)` | one vertex of degree n−1 |
-| `caterpillar(draw, n, spine = 0)` | a spine with legs: a long path and a high degree at once |
-| `broom(n, handle = 0)` | a path, then a star at its end |
-| `binary_tree(n)`, `kary_tree(n, k)` | perfectly balanced, depth log n |
-| `dumbbell(n)` | two hubs joined by an edge; at even n it has exactly two centroids |
-| `spider(n, legs)` | legs of equal length from one centre |
-| `tree(draw, n, name)` | any of `random`, `uniform`, `path`, `star`, `caterpillar`, `broom`, `binary`, `dumbbell` by name |
+A tree problem needs the two depth extremes, a path for recursion depth and a star for
+degree, then the shapes between them that break a solution tuned to one of the two:
+caterpillars and brooms for "long and wide at once", balanced trees for logarithmic depth,
+and a uniform tree for everything typical. Every tree goes through `presented` or
+`parent_array` before it is printed.
+
+| Call | Gives | Kills |
+| --- | --- | --- |
+| `random_tree(draw, n)` | the three-line random *recursive* tree: depth Θ(log n), bushy | nothing in particular; the typical case |
+| `uniform_tree(draw, n)` | uniform over all n^(n-2) labelled trees, through Prüfer: diameter Θ(√n) | a solution only ever run on recursive trees |
+| `deep_tree(draw, n, lean)` | the parent drawn toward the last vertex; larger `lean` is deeper | depth assumptions between log n and n |
+| `path(n)` | the bamboo: depth n | a recursive DFS on the default stack; O(n · depth) |
+| `star(n)` | one vertex of degree n−1 | O(deg²) per vertex; re-scanning a neighbour list per child |
+| `caterpillar(draw, n, spine = 0)` | a spine with legs: a long path and a high degree at once | a solution fast on the path and on the star but not on both |
+| `broom(n, handle = 0)` | a path, then a star at its end | the same, with the degree at the bottom of the path |
+| `binary_tree(n)`, `kary_tree(n, k)` | perfectly balanced, depth log n | an off-by-one in level arithmetic; binary lifting tables one level short |
+| `dumbbell(n)` | two hubs joined by an edge; at even n it has exactly two centroids | a centroid search that assumes one centroid |
+| `spider(n, legs)` | legs of equal length from one centre | diameter through the centre; ties between equally deep leaves |
+| `tree(draw, n, name)` | any of `random`, `uniform`, `path`, `star`, `caterpillar`, `broom`, `binary`, `dumbbell` by name | — |
 
 **`random_tree` is not "a random tree".** It is a random recursive tree, and its depth is
 Θ(log n) — 13 at n = 1,000, 25 at n = 100,000. It will never stress a recursive DFS and never
@@ -88,17 +108,22 @@ default.
 
 ## Graphs
 
-| Call | Gives |
-| --- | --- |
-| `connected_graph(draw, n, m)` | a connected simple graph with exactly `m` edges |
-| `sparse_graph(draw, n, m)` | a simple graph with exactly `m` edges, connected or not |
-| `complete_graph(n)` | the density ceiling |
-| `cycle(n)`, `cycle_with_chords(draw, n, chords)` | every degree 2, then just enough cycles to break tree algorithms |
-| `grid(rows, columns)` | planar, diameter √n |
-| `bipartite_graph(draw, left, right, m)`, `complete_bipartite(left, right)` | only cross edges; kills odd-cycle assumptions |
-| `many_components(draw, n, pieces)` | disjoint pieces; catches "assume connected" |
-| `dag(draw, n, m)` | a hidden topological order, `directed` set |
-| `functional(draw, n, name)` | `f(i)` for each `i`: `cycle`, `rho`, `self` or `random` |
+A graph problem needs the density extremes, a tree-like sparse graph and a complete one, a
+disconnected case unless the statement forbids it, and the structures its algorithm
+reasons about: cycles for anything that works on trees, bipartite graphs for parity, a DAG
+for ordering. Every graph goes through `presented` before it is printed.
+
+| Call | Gives | Kills |
+| --- | --- | --- |
+| `connected_graph(draw, n, m)` | a connected simple graph with exactly `m` edges | nothing in particular; the typical case |
+| `sparse_graph(draw, n, m)` | a simple graph with exactly `m` edges, connected or not | "the graph is connected" |
+| `complete_graph(n)` | the density ceiling | O(n · m) and adjacency matrices built per query |
+| `cycle(n)`, `cycle_with_chords(draw, n, chords)` | every degree 2, then just enough cycles to break tree algorithms | "m = n − 1, so it is a tree" |
+| `grid(rows, columns)` | planar, diameter √n | an exponential search that only small-width graphs let through |
+| `bipartite_graph(draw, left, right, m)`, `complete_bipartite(left, right)` | only cross edges | odd-cycle assumptions |
+| `many_components(draw, n, pieces)` | disjoint pieces | "assume connected" |
+| `dag(draw, n, m)` | a hidden topological order, `directed` set | a solution that reads the vertices in input order as a topological order |
+| `functional(draw, n, name)` | `f(i)` for each `i`: `cycle`, `rho`, `self` or `random` | a cycle finder that assumes one cycle, or no tails |
 
 **The edge count is exact or it is a jury error.** `connected_graph(draw, 10, 8)` says
 *a connected graph on 10 vertices has 9..45 edges, not 8* rather than looping. Filling is
@@ -110,43 +135,53 @@ every arrow along it, so a solution that ignores the actual sort cannot pass by 
 
 ## Sequences
 
-| Call | Catches |
-| --- | --- |
-| `equal_values(count, value)` | solutions that assume distinct; the overflow bait `n × V` |
-| `few_distinct(draw, count, kinds, low, high)` | ties everywhere |
-| `plateaus(draw, count, runs, low, high)` | long runs of one value |
-| `nearly_sorted(draw, count, low, high, swaps)` | sorted with `swaps` random swaps |
-| `alternating(draw, count, low, high)` | "merge adjacent" heuristics |
-| `hash_collisions(count, buckets = 107897)` | an `unordered_map` with the default hash |
+An array problem needs all values equal, all values at the bound for overflow, few distinct
+values for ties, sorted and reverse-sorted input for anything that pivots, and a random case
+of each size.
+
+| Call | Gives | Kills |
+| --- | --- | --- |
+| `equal_values(count, value)` | one value everywhere | solutions that assume distinct; at `value` = the bound, the overflow bait `n × V` |
+| `few_distinct(draw, count, kinds, low, high)` | ties everywhere | a strict comparison where a non-strict one belongs |
+| `plateaus(draw, count, runs, low, high)` | long runs of one value | run-length bugs at the boundaries of a run |
+| `nearly_sorted(draw, count, low, high, swaps)` | sorted with `swaps` random swaps | an "if sorted, done" shortcut; a naive quicksort |
+| `alternating(draw, count, low, high)` | low, high, low, high | "merge adjacent" heuristics |
+| `hash_collisions(count, buckets = 107897)` | multiples of one bucket count | an `unordered_map` with the default hash |
 
 `draw.partition(t, n)` splits a total across test cases, which is how you build the two tests
 that catch different bugs: `t = 10^5` cases of `n = 1`, and one case of `n = 10^5`.
 
 ## Strings
 
-| Call | Gives |
-| --- | --- |
-| `repeated('a', length)` | maximal borders; worst case for naive matching |
-| `periodic(unit, length)` | long borders; tests period arithmetic |
-| `near_periodic(draw, unit, length, allowed)` | exactly one mismatch from periodic |
-| `fibonacci_word(length)`, `thue_morse(length)` | many distinct factors; worst cases for suffix structures |
-| `palindrome(draw, length, allowed)` | worst case for Manacher and palindromic trees |
+A string problem needs one letter repeated, which maximises borders and periods, a binary
+alphabet for repeats, the words with the most distinct factors for suffix structures, and a
+random string over the full alphabet as the easy case.
+
+| Call | Gives | Kills |
+| --- | --- | --- |
+| `repeated('a', length)` | maximal borders | naive matching, O(n · m) |
+| `periodic(unit, length)` | long borders | period arithmetic off by one |
+| `near_periodic(draw, unit, length, allowed)` | exactly one mismatch from periodic | a period check that stops at the first match |
+| `fibonacci_word(length)`, `thue_morse(length)` | many distinct factors | worst cases for suffix structures |
+| `palindrome(draw, length, allowed)` | a palindrome | Manacher and palindromic trees at their deepest |
 
 A uniform random string over a large alphabet is the easy case; `draw.letters(n,
 eo::charset("ab"))` over an alphabet of two maximises repeats, borders and periods.
 
-## Points
+## Geometry
 
-`eo::point` holds two `long long`s.
+`eo::point` holds two `long long`s. A geometry problem needs collinear points for every sign
+test, points on the bounding box for the largest cross products, and points in convex
+position for anything that builds a hull.
 
-| Call | Gives |
-| --- | --- |
-| `scattered(draw, count, limit)` | random points in a box |
-| `collinear(draw, count, limit)` | exactly collinear; kills cross-product sign assumptions |
-| `convex_position(draw, count, limit)` | points in convex position: the turn never reverses, so none is strictly inside the hull of the others |
-| `cocircular(draw, count)` | exact lattice points on one circle |
-| `cocircular(draw, count, limit)` | the same, on a circle of radius at most `limit`, so inside the box; up to 4 points fit any box, on the circle of radius 1 |
-| `extreme_points(draw, count, limit)` | every point on the edge of the box, so cross products reach 10^18 |
+| Call | Gives | Kills |
+| --- | --- | --- |
+| `scattered(draw, count, limit)` | random points in a box | nothing in particular; the typical case |
+| `collinear(draw, count, limit)` | exactly collinear | cross-product sign assumptions; a hull that drops or keeps collinear points wrongly |
+| `convex_position(draw, count, limit)` | points in convex position: the turn never reverses, so none is strictly inside the hull of the others | a hull that is only correct when most points are inside it |
+| `cocircular(draw, count)` | exact lattice points on one circle | circle and Delaunay predicates computed in doubles |
+| `cocircular(draw, count, limit)` | the same, on a circle of radius at most `limit`, so inside the box; up to 4 points fit any box, on the circle of radius 1 | the same, inside the statement's box |
+| `extreme_points(draw, count, limit)` | every point on the edge of the box, so cross products reach 10^18 | cross products in `int`, or in `double` |
 
 **`convex_position` is convex, not strictly convex.** The steps are integer vectors inside a
 bounded box, so many of them come out parallel and the points they build are collinear in
@@ -183,7 +218,7 @@ exist under 10^9 — r = 48,612,265 carries 2,916 — but they are not worth the
 | graphs | `connected_graph`, `sparse_graph`, `complete_graph`, `cycle`, `cycle_with_chords`, `grid`, `bipartite_graph`, `complete_bipartite`, `many_components`, `dag`, `functional` |
 | sequences | `equal_values`, `few_distinct`, `plateaus`, `nearly_sorted`, `alternating`, `hash_collisions` |
 | strings | `repeated`, `periodic`, `near_periodic`, `fibonacci_word`, `thue_morse`, `palindrome` |
-| points | `scattered`, `collinear`, `convex_position`, `cocircular`, `extreme_points` |
+| geometry | `scattered`, `collinear`, `convex_position`, `cocircular`, `extreme_points` |
 | types | `eo::graph` (`n`, `edges`, `directed`), `eo::edge`, `eo::point` |
 
 Everything lives in `eo::shapes::`, except `eo::graph`, `eo::edge` and `eo::point`.
