@@ -2589,6 +2589,9 @@ struct seen_bounds {
     long long whole_high = 0;
     long long last_whole = 0;
     bool read_whole = false;
+    long long reads = 1;
+    long long last_length = 0;
+    bool element = false;
     double exact_low = 0;
     double exact_high = 0;
     char const* spelled = nullptr;
@@ -2811,6 +2814,7 @@ public:
                                          escaped(std::string(1, one)), allowed->text()));
             remember(name, "length", least, most, length == least, length == most,
                      where);
+            if (name.known()) last_bounds_->last_length = length;
         }
     }
 
@@ -2864,9 +2868,11 @@ public:
                 if (!allowed->has(one))
                     refuse(name, fmt("the line holds \"{}\", which is not in \"{}\"", escaped(std::string(1, one)),
                                      allowed->text()));
-        if (bounds == stated::yes)
+        if (bounds == stated::yes) {
             remember(name, "length", least, most, length == least, length == most,
                      where);
+            if (name.known()) last_bounds_->last_length = length;
+        }
         end_the_line(name);
         return text;
     }
@@ -3188,6 +3194,7 @@ private:
             if (found == bounds_.end()) {
                 seen_bounds fresh{kind, fmt("{}", low), fmt("{}", high), at_low, at_high, where, true};
                 fresh.spelled = kind;
+                fresh.element = name.indexed();
                 note_the_numbers(fresh, low, high);
                 last_bounds_ = &bounds_.emplace(name.key(), std::move(fresh)).first->second;
                 last_key_ = name.key();
@@ -3197,6 +3204,7 @@ private:
             last_key_ = name.key();
         }
         seen_bounds& known = *last_bounds_;
+        known.reads++;
         if ((known.spelled == kind || known.kind == kind) && same_numbers(known, low, high)) {
             if (at_low) known.reached_low = true;
             if (at_high) known.reached_high = true;
@@ -4541,12 +4549,8 @@ public:
                 one.second = (std::max)(one.second, value);
                 return;
             }
-        bool plain = !name.empty();
-        for (char const one : name)
-            plain = plain && ((one >= 'a' && one <= 'z') || (one >= 'A' && one <= 'Z') || (one >= '0' && one <= '9') ||
-                              one == '_' || one == '.' || one == '-');
-        if (!plain) not_a_stat_name(name, where);
-        stats_.emplace_back(name, value);
+        if (!stat_name(name)) not_a_stat_name(name, where);
+        stats_.push_back({name, value});
     }
 
     [[noreturn]] void invalid(detail::value_name const& name, std::string what) {
@@ -4580,6 +4584,37 @@ private:
         std::string const declared = detail::joined(features_, [](auto const& one) { return one.first; });
         detail::library_error(fmt("{}: saw(\"{}\") names a feature that was never declared; it declares {}",
                                   detail::where_of(where), name, declared.empty() ? "none" : declared));
+    }
+
+    static bool stat_name(std::string const& name) {
+        bool plain = !name.empty();
+        for (char const one : name)
+            plain = plain && ((one >= 'a' && one <= 'z') || (one >= 'A' && one <= 'Z') || (one >= '0' && one <= '9') ||
+                              one == '_' || one == '.' || one == '-');
+        return plain;
+    }
+
+    static void keep_the_larger(std::vector<std::pair<std::string, long long>>& into, std::string const& name,
+                                long long value) {
+        for (std::pair<std::string, long long>& one : into)
+            if (one.first == name) {
+                one.second = (std::max)(one.second, value);
+                return;
+            }
+        into.push_back({name, value});
+    }
+
+    std::vector<std::pair<std::string, long long>> every_stat() const {
+        std::vector<std::pair<std::string, long long>> all;
+        for (auto const& one : from_.bounds()) {
+            detail::seen_bounds const& seen = one.second;
+            bool const whole = seen.kind == "int";
+            if (seen.element || seen.reads != 1 || (!whole && seen.kind != "length") || !stat_name(one.first))
+                continue;
+            all.push_back({whole ? one.first : one.first + ".length", whole ? seen.last_whole : seen.last_length});
+        }
+        for (auto const& one : stats_) keep_the_larger(all, one.first, one.second);
+        return all;
     }
 
     static void exited_early() {
@@ -4736,7 +4771,7 @@ private:
                        one.second.reached_high ? "yes" : "no");
         for (auto const& one : features_)
             out += fmt("eo-describe feature {} seen={}\n", one.first, one.second ? "yes" : "no");
-        for (auto const& one : stats_) out += fmt("eo-describe stat {} {}\n", one.first, one.second);
+        for (auto const& one : every_stat()) out += fmt("eo-describe stat {} {}\n", one.first, one.second);
         for (std::size_t at = 0; at < case_marks_.size(); at++)
             out += fmt("eo-describe case {} {} {}\n", at + 1, case_marks_[at].first, case_marks_[at].second);
         detail::report(out.empty() ? std::string() : out.substr(0, out.size() - 1));

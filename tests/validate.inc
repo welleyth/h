@@ -759,6 +759,46 @@ EO_TEST(a_stat_is_a_number_per_test_and_keeps_its_largest_value) {
     }
 }
 
+EO_TEST(a_named_value_read_once_is_a_stat_of_its_own) {
+    eot::outcome const single = validate("3 abcd\n1 2 3\nxy z\n", [](eo::validator& v) {
+        v.stat("depth", 2);
+        int const n = v.read_int(1, 9, "n");
+        v.read_space();
+        v.read_token(1, 9, eo::charset("a-z"), "s");
+        v.read_eoln();
+        v.read_ints(n, 1, 9, "a");
+        v.read_eoln();
+        v.read_line(1, 9, eo::charset("a-z "), "line");
+        v.stat("n", 10);
+    }, {"--eo-describe"});
+    EO_CHECK(!single.stopped);
+    EO_CHECK_IN(single.printed, "eo-describe stat line.length 4\neo-describe stat n 10\neo-describe stat s.length 4\n"
+                                "eo-describe stat depth 2\n");
+    EO_CHECK(!eot::contains(single.printed, "eo-describe stat a "));
+    EO_CHECK(!eot::contains(single.printed, "eo-describe stat a.length"));
+    eot::outcome const multi = validate("2\n2\n1 2\n1\n5\n", [](eo::validator& v) {
+        int const t = v.read_int(1, 9, "t");
+        v.read_eoln();
+        eo::sum_limit total(100, "the sum of n");
+        v.cases(t, [&] {
+            int const n = v.read_int(1, 9, "n");
+            v.read_eoln();
+            total += n;
+            v.read_ints(n, 1, 9, "a");
+            v.read_eoln();
+        });
+    }, {"--eo-describe"});
+    EO_CHECK(!multi.stopped);
+    EO_CHECK_IN(multi.printed, "eo-describe stat t 2\n");
+    EO_CHECK(!eot::contains(multi.printed, "eo-describe stat n "));
+    eot::outcome const odd = validate("4\n", [](eo::validator& v) {
+        v.read_int(1, 9, "the count");
+        v.read_eoln();
+    }, {"--eo-describe"});
+    EO_CHECK(!odd.stopped);
+    EO_CHECK(!eot::contains(odd.printed, "eo-describe stat"));
+}
+
 EO_TEST(describe_prints_the_table_the_bounds_and_the_features) {
     eot::outcome const result = validate("5\n2 1 9\n1.000 abc\nhello\n", [](eo::validator& v) {
         v.feature("small");

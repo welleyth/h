@@ -47,6 +47,9 @@ struct seen_bounds {
     long long whole_high = 0;
     long long last_whole = 0;
     bool read_whole = false;
+    long long reads = 1;
+    long long last_length = 0;
+    bool element = false;
     double exact_low = 0;
     double exact_high = 0;
     char const* spelled = nullptr;
@@ -269,6 +272,7 @@ public:
                                          escaped(std::string(1, one)), allowed->text()));
             remember(name, "length", least, most, length == least, length == most,
                      where);
+            if (name.known()) last_bounds_->last_length = length;
         }
     }
 
@@ -322,9 +326,11 @@ public:
                 if (!allowed->has(one))
                     refuse(name, fmt("the line holds \"{}\", which is not in \"{}\"", escaped(std::string(1, one)),
                                      allowed->text()));
-        if (bounds == stated::yes)
+        if (bounds == stated::yes) {
             remember(name, "length", least, most, length == least, length == most,
                      where);
+            if (name.known()) last_bounds_->last_length = length;
+        }
         end_the_line(name);
         return text;
     }
@@ -646,6 +652,7 @@ private:
             if (found == bounds_.end()) {
                 seen_bounds fresh{kind, fmt("{}", low), fmt("{}", high), at_low, at_high, where, true};
                 fresh.spelled = kind;
+                fresh.element = name.indexed();
                 note_the_numbers(fresh, low, high);
                 last_bounds_ = &bounds_.emplace(name.key(), std::move(fresh)).first->second;
                 last_key_ = name.key();
@@ -655,6 +662,7 @@ private:
             last_key_ = name.key();
         }
         seen_bounds& known = *last_bounds_;
+        known.reads++;
         if ((known.spelled == kind || known.kind == kind) && same_numbers(known, low, high)) {
             if (at_low) known.reached_low = true;
             if (at_high) known.reached_high = true;

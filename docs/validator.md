@@ -533,6 +533,15 @@ in one test keeps the larger value, so in a multi-test input it is the most any 
 Like the marks, stats only leave the program under `--eo-describe`, and on the judge one costs
 a comparison of names.
 
+Some stats come free, from what the reads already know. **A value read exactly once in the
+test**, with a name and bounds and not as an element of a sequence, is the test's size or one
+of its parameters, so it is a stat under its own name: `n`, `m`, `q`, `t`, `k`. A token or a
+line read once that way is one under its name and `.length`, as `s.length`. These come first,
+in the order of their names, and then the validator's own stats; a stat of the same name as
+one of them keeps the larger of the two. A value read in every case of a multi-test, or in a
+loop, is read more than once and is left out: its most is no size, and its total is what a
+`sum_limit` bounds. A name that is not one word, `"the count"`, is left out too.
+
 `./validator input.txt --group 1 --eo-describe` validates as usual and also prints what it
 recorded **for that one test**, one line each:
 
@@ -542,6 +551,7 @@ eo-describe value n int 1 200000 low=no high=yes
 eo-describe value p real 0 1 low=no high=no
 eo-describe value s length 1 8 low=yes high=no
 eo-describe feature path seen=yes
+eo-describe stat n 200000
 eo-describe stat depth 199999
 ```
 
