@@ -261,3 +261,77 @@ EO_TEST(an_euler_circuit_and_an_euler_path_have_the_degrees_they_need) {
     EO_CHECK_IN(refusal([&] { (void)eo::shapes::euler_path(draw, 1, 0); }),
                 "an Euler path needs at least 2 vertices, not 1");
 }
+
+namespace {
+
+struct augmenting {
+    std::vector<std::vector<int>> near;
+    std::vector<int> owner;
+    std::vector<int> seen;
+    int stamp = 0;
+
+    bool reach(int left) {
+        for (int const right : near[static_cast<std::size_t>(left)]) {
+            if (seen[static_cast<std::size_t>(right)] == stamp) continue;
+            seen[static_cast<std::size_t>(right)] = stamp;
+            if (owner[static_cast<std::size_t>(right)] == 0 || reach(owner[static_cast<std::size_t>(right)])) {
+                owner[static_cast<std::size_t>(right)] = left;
+                return true;
+            }
+        }
+        return false;
+    }
+};
+
+int maximum_matching(eo::graph const& made, int side) {
+    augmenting search;
+    search.near.resize(static_cast<std::size_t>(side) + 1);
+    search.owner.assign(static_cast<std::size_t>(side) + 1, 0);
+    search.seen.assign(static_cast<std::size_t>(side) + 1, 0);
+    for (eo::edge const& one : made.edges) {
+        int const left = one.u <= side ? one.u : one.v;
+        int const right = one.u <= side ? one.v : one.u;
+        search.near[static_cast<std::size_t>(left)].push_back(right - side);
+    }
+    int matched = 0;
+    for (int left = 1; left <= side; left++) {
+        search.stamp++;
+        if (search.reach(left)) matched++;
+    }
+    return matched;
+}
+
+}  // namespace
+
+EO_TEST(a_bipartite_graph_with_a_perfect_matching_has_one_and_greedy_misses_it) {
+    eo::rng draw(507);
+    for (int const side : {1, 2, 10, 300}) {
+        for (long long const m : {static_cast<long long>(side), 2LL * side, static_cast<long long>(side) * side}) {
+            if (m > static_cast<long long>(side) * side) continue;
+            eo::graph const made = eo::shapes::perfect_matching(draw, side, m);
+            EO_CHECK_EQ(made.n, 2 * side);
+            EO_CHECK_EQ(static_cast<long long>(made.edges.size()), m);
+            EO_CHECK(static_cast<bool>(eo::is_simple_graph(made.n, made.edges)));
+            bool crosses = true;
+            for (eo::edge const& one : made.edges) crosses = crosses && (one.u <= side) != (one.v <= side);
+            EO_CHECK(crosses);
+            EO_CHECK_EQ(maximum_matching(made, side), side);
+        }
+    }
+    eo::graph const made = eo::shapes::perfect_matching(draw, 1000, 3000);
+    std::vector<eo::edge> const shown = eo::shapes::presented(draw, made);
+    std::vector<bool> taken(2001, false);
+    int greedy = 0;
+    for (eo::edge const& one : shown)
+        if (!taken[static_cast<std::size_t>(one.u)] && !taken[static_cast<std::size_t>(one.v)]) {
+            taken[static_cast<std::size_t>(one.u)] = taken[static_cast<std::size_t>(one.v)] = true;
+            greedy++;
+        }
+    EO_CHECK(greedy < 1000);
+    std::string const drawn = edges_of(eo::shapes::perfect_matching(draw, 8, 20).edges);
+    pin_bytes(drawn, 98, 0x77ecf38d7581c00full, __FILE__, __LINE__);
+    EO_CHECK_IN(refusal([&] { (void)eo::shapes::perfect_matching(draw, 5, 4); }),
+                "a 5 by 5 bipartite graph with a perfect matching has 5..25 edges, not 4");
+    EO_CHECK_IN(refusal([&] { (void)eo::shapes::perfect_matching(draw, 0, 0); }),
+                "a perfect matching needs at least 1 vertices on a side, not 0");
+}

@@ -262,6 +262,38 @@ inline graph walked(rng& draw, int n, long long m, bool closed, char const* what
     return detail::undirected(left + right, std::move(edges));
 }
 
+[[nodiscard]] inline graph perfect_matching(rng& draw, int side, long long m) {
+    if (side < 1)
+        eo::detail::library_error(fmt("a perfect matching needs at least 1 vertices on a side, not {}", side));
+    long long const most = static_cast<long long>(side) * side;
+    if (m < side || m > most)
+        eo::detail::library_error(fmt(
+            "a {} by {} bipartite graph with a perfect matching has {}..{} edges, not {}", side, side, side, most, m));
+    std::vector<int> const partner = draw.perm(side, 1);
+    detail::pair_set seen(static_cast<std::size_t>(m));
+    std::vector<edge> edges;
+    for (int u = 1; u <= side; u++) {
+        seen.insert(u, partner[static_cast<std::size_t>(u) - 1]);
+        edges.push_back(edge{u, side + partner[static_cast<std::size_t>(u) - 1]});
+    }
+    if (m * 4 > most) {
+        std::vector<edge> spare;
+        for (int u = 1; u <= side; u++)
+            for (int v = 1; v <= side; v++)
+                if (!seen.contains(u, v)) spare.push_back(edge{u, side + v});
+        draw.shuffle(spare);
+        spare.resize(static_cast<std::size_t>(m - side));
+        edges.insert(edges.end(), spare.begin(), spare.end());
+    } else {
+        while (static_cast<long long>(edges.size()) < m) {
+            int const u = static_cast<int>(draw.uniform(1, side));
+            int const v = static_cast<int>(draw.uniform(1, side));
+            if (seen.insert(u, v)) edges.push_back(edge{u, side + v});
+        }
+    }
+    return detail::undirected(2 * side, std::move(edges));
+}
+
 [[nodiscard]] inline graph complete_bipartite(int left, int right) {
     if (left < 1 || right < 1)
         eo::detail::library_error(fmt("a bipartite graph has sides of at least 1, not {} and {}", left, right));
