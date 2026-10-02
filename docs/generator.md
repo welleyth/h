@@ -151,7 +151,8 @@ eo-describe randomness drawn=yes salt=yes
 
 Declare every option at the top of `main` so that they are all listed; one declared inside a
 branch is listed only when that branch runs. The last line says whether the run drew from any
-stream, and whether the generator has a salt. A stream drew when its state moved, or when it was
+stream, and whether the generator has a salt: `salt=yes`, `salt=no`, or `salt=public` for one
+that eolymp.h itself publishes, in a page, a template or an example. A stream drew when its state moved, or when it was
 copied, as `eo::rng r = g.rng();` copies it, since the copy is what is drawn from; a stream only
 asked for with `g.rng` did not. The line follows a line break of its own, so that it starts a
 line even after bytes the generator printed itself. Given the arguments of a test as well, `gen -n=10 --eo-describe` runs the
@@ -274,7 +275,8 @@ A salt that cannot be one stops the generator before it writes anything:
 | a letter past `f` | `gen.cpp:4: eo::salt("…") holds "g", which is not a hex digit; give it 32 hex digits; eo-judge init writes one` |
 
 Exactly 32, because a shorter salt would have to be padded, and `…abcdef` and `…abcdef0` would
-then be one key.
+then be one key. The salts this page and the templates show are public: the library knows them,
+says `salt=public` for them, and `eo-judge check` notes a generator that draws with one, EO827.
 
 What a salt does not hide: a test with nothing random in it, such as `n = 200000` equal values,
 which anyone can rebuild from the statement; a test once it is published; and the families of
@@ -367,8 +369,9 @@ generator.
 ## Not here yet
 
 Nothing a generator draws is missing. EO812 (the same bytes under two compilers), EO813
-(the extremes of every option produce a valid test) and EO825 (a generator that draws with no
-salt) are run by `eo-judge check`; see [judge.md](judge.md).
+(the extremes of every option produce a valid test), EO825 (a generator that draws with no
+salt) and EO827 (one whose salt is published) are run by `eo-judge check`; see
+[judge.md](judge.md).
 
 ## Reference card
 

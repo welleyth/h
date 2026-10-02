@@ -472,11 +472,15 @@ func (w *Workspace) generatorChecks(ctx context.Context, found *Findings) error 
 			}
 		}
 
-		unsalted, err := w.drawsWithNoSalt(ctx, built, used)
+		exposed, err := w.exposedSalt(ctx, built, used)
 		if err != nil {
 			return err
 		}
-		if unsalted {
+		if exposed == "public" {
+			found.note("EO827", where, "its salt is one eolymp.h publishes, in a page, a template or an example, "+
+				"so it hides nothing", "give it 32 hex digits of this problem's own; eo-judge init writes one")
+		}
+		if exposed == "no" {
 			found.note("EO825", where, "it draws randomness with no salt, so the arguments alone rebuild its tests",
 				"anyone who guesses them can hard-code the answers; a salt is for a new problem, since adding one "+
 					"regenerates every random test: eo::generator g(argc, argv, eo::salt(\"...\")) with 32 hex "+
@@ -500,9 +504,9 @@ func (w *Workspace) generatorChecks(ctx context.Context, found *Findings) error 
 	return nil
 }
 
-var describedRandomness = regexp.MustCompile(`^eo-describe randomness drawn=(yes|no) salt=(yes|no)$`)
+var describedRandomness = regexp.MustCompile(`^eo-describe randomness drawn=(yes|no) salt=(yes|no|public)$`)
 
-func (w *Workspace) drawsWithNoSalt(ctx context.Context, built *Built, used [][]string) (bool, error) {
+func (w *Workspace) exposedSalt(ctx context.Context, built *Built, used [][]string) (string, error) {
 	tried := map[string]bool{}
 	for _, stored := range used {
 		key := strings.Join(stored, "\x00")
@@ -513,7 +517,7 @@ func (w *Workspace) drawsWithNoSalt(ctx context.Context, built *Built, used [][]
 		args := append(append([]string(nil), stored...), "--eo-describe")
 		status, err := built.jury(ctx, generatorLimit, Invocation{Args: args})
 		if err != nil {
-			return false, err
+			return "", err
 		}
 		if status.ExitCode != 0 {
 			continue
@@ -525,18 +529,18 @@ func (w *Workspace) drawsWithNoSalt(ctx context.Context, built *Built, used [][]
 				continue
 			}
 			if parts[2] == "yes" {
-				return false, nil
+				return "", nil
 			}
 			if parts[1] == "yes" {
-				return true, nil
+				return parts[2], nil
 			}
 			said = true
 		}
 		if !said {
-			return false, nil
+			return "", nil
 		}
 	}
-	return false, nil
+	return "", nil
 }
 
 func (w *Workspace) tryAnExtreme(ctx context.Context, found *Findings, built *Built, where string, used [][]string,

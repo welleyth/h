@@ -413,7 +413,7 @@ EO_TEST(a_generator_describes_whether_it_drew_and_whether_it_is_salted) {
     made const salted = generate({"-n=5", "--eo-describe"}, [](eo::generator& g) {
         int const n = g.option<int>("n", 1, 9);
         g.out.line(g.rng().ints(n, 1, 9));
-    }, a_salt);
+    }, "9d27e0c4b1a85f3e6c0d7b2a4f918e53");
     EO_CHECK_IN(salted.test, "eo-describe randomness drawn=yes salt=yes\n");
     made const still = generate({"-n=5", "--eo-describe"}, [](eo::generator& g) {
         int const n = g.option<int>("n", 1, 9);
@@ -445,6 +445,18 @@ EO_TEST(a_generator_describes_whether_it_drew_and_whether_it_is_salted) {
         g.out.line(g.rng("values").ints(n, 1, 9));
     });
     EO_CHECK(!eot::contains(generating.test, "eo-describe"));
+}
+
+EO_TEST(a_generator_says_when_its_salt_is_one_the_library_publishes) {
+    for (char const* published : {"3f9c0b7e5a1d42c8e6b09f17d3a5c824", "3F9C0B7E5A1D42C8E6B09F17D3A5C824",
+                                  "0123456789abcdef0123456789abcdef"}) {
+        made const shown = generate({"--eo-describe"}, [](eo::generator& g) { g.out.line(g.rng().uniform(1, 9)); },
+                                    published);
+        EO_CHECK_IN(shown.test, "eo-describe randomness drawn=yes salt=public\n");
+    }
+    made const own = generate({"--eo-describe"}, [](eo::generator& g) { g.out.line(g.rng().uniform(1, 9)); },
+                              "9d27e0c4b1a85f3e6c0d7b2a4f918e53");
+    EO_CHECK_IN(own.test, "eo-describe randomness drawn=yes salt=yes\n");
 }
 
 EO_TEST(a_generator_says_when_its_options_do_not_fit_together) {

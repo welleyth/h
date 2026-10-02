@@ -6395,10 +6395,15 @@ public:
                 detail::library_error(fmt("{} holds \"{}\", which is not a hex digit; {}", said,
                                           detail::escaped(std::string(1, one)), fix));
         if (text.size() != 32) detail::library_error(fmt("{} has {} hex digits; {}", said, text.size(), fix));
+        std::string lower;
         for (std::size_t at = 0; at < 32; at++) {
             std::uint64_t& word = at < 16 ? high_ : low_;
             word = word << 4 | static_cast<std::uint64_t>(digit_of(text[at]));
+            lower.push_back("0123456789abcdef"[digit_of(text[at])]);
         }
+        for (char const* one : {"0123456789abcdef0123456789abcdef", "3f9c0b7e5a1d42c8e6b09f17d3a5c824",
+                                "5be1c09a7d3f42e8b6a0c1d29e7f4b35", "c41e8a07d95b3f26a1e0b7c4d8f29365"})
+            published_ = published_ || lower == one;
     }
 
 private:
@@ -6413,6 +6418,7 @@ private:
 
     std::uint64_t high_ = 0;
     std::uint64_t low_ = 0;
+    bool published_ = false;
 };
 
 class generator {
@@ -6586,6 +6592,7 @@ private:
         }
         base_ = secret == nullptr ? detail::seed_of(all) : detail::siphash(secret->high_, secret->low_, all);
         salted_ = secret != nullptr;
+        published_ = secret != nullptr && secret->published_;
         dice_.emplace("", eo::rng(base_));
         std::fflush(stdout);
         detail::keep_binary(1);
@@ -6734,7 +6741,8 @@ private:
         for (detail::declared_option const& one : shape_)
             said += fmt("eo-describe option {} {} {}{}{}\n", one.name, one.kind, one.range,
                         one.fallback.empty() ? "" : " default=" + one.fallback, one.optional ? " optional" : "");
-        said += fmt("\neo-describe randomness drawn={} salt={}\n", drawn() ? "yes" : "no", salted_ ? "yes" : "no");
+        said += fmt("\neo-describe randomness drawn={} salt={}\n", drawn() ? "yes" : "no",
+                    published_ ? "public" : salted_ ? "yes" : "no");
         std::fwrite(said.data(), 1, said.size(), stdout);
         std::fflush(stdout);
     }
@@ -6751,6 +6759,7 @@ private:
     long long written_ = 0;
     bool stress_ = false;
     bool salted_ = false;
+    bool published_ = false;
     bool describing_ = false;
     bool checked_ = false;
     bool declared_ = false;

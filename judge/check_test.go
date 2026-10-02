@@ -77,6 +77,62 @@ func TestCheckWarnsAboutAGeneratorThatDrawsWithNoSalt(t *testing.T) {
 	}
 }
 
+func TestCheckNotesAGeneratorWhoseSaltThePagesPublish(t *testing.T) {
+	t.Parallel()
+	needsACompiler(t)
+
+	shop := workshop(t, "testdata/salts")
+	found, err := shop.Check(context.Background(), false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var said []string
+	for _, one := range found {
+		if one.Code == "EO827" {
+			said = append(said, one.Severity+" "+one.Where+": "+one.Message)
+		}
+	}
+	want := "note script salted: its salt is one eolymp.h publishes, in a page, a template or an example, " +
+		"so it hides nothing"
+	if strings.Join(said, "\n") != want {
+		t.Errorf("EO827 said %q, not %q", said, want)
+	}
+}
+
+func TestEverySaltInTheRepositoryIsKnownToBePublic(t *testing.T) {
+	t.Parallel()
+	header, err := os.ReadFile("include/eolymp.h")
+	if err != nil {
+		t.Fatal(err)
+	}
+	literal := regexp.MustCompile(`"([0-9A-Fa-f]{32})"`)
+	var files []string
+	for _, pattern := range []string{"../docs/*.md", "../README.md", "templates/*/*.cpp", "testdata/*/*.cpp",
+		"../tests/live/*/*.cpp"} {
+		found, err := filepath.Glob(pattern)
+		if err != nil {
+			t.Fatal(err)
+		}
+		files = append(files, found...)
+	}
+	seen := 0
+	for _, path := range files {
+		body, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, one := range literal.FindAllStringSubmatch(string(body), -1) {
+			seen++
+			if !strings.Contains(string(header), `"`+strings.ToLower(one[1])+`"`) {
+				t.Errorf("%s holds the salt %s, which eolymp.h does not list as published", path, one[1])
+			}
+		}
+	}
+	if seen == 0 {
+		t.Error("found no salt in the repository")
+	}
+}
+
 func TestASaltlessGeneratorIsFoundPastAFailedRunAndNotPastAForeignOne(t *testing.T) {
 	t.Parallel()
 	needsACompiler(t)
@@ -89,18 +145,18 @@ func TestASaltlessGeneratorIsFoundPastAFailedRunAndNotPastAForeignOne(t *testing
 	}
 	for _, one := range []struct {
 		used [][]string
-		want bool
+		want string
 	}{
-		{[][]string{{"-n=99"}, {"-n=2"}}, true},
-		{[][]string{{"-n=1"}, {"-n=2"}}, false},
-		{[][]string{{"-n=2"}, {"-n=2"}}, true},
+		{[][]string{{"-n=99"}, {"-n=2"}}, "no"},
+		{[][]string{{"-n=1"}, {"-n=2"}}, ""},
+		{[][]string{{"-n=2"}, {"-n=2"}}, "no"},
 	} {
-		got, err := shop.drawsWithNoSalt(ctx, built, one.used)
+		got, err := shop.exposedSalt(ctx, built, one.used)
 		if err != nil {
 			t.Fatal(err)
 		}
 		if got != one.want {
-			t.Errorf("with %v it said %v", one.used, got)
+			t.Errorf("with %v it said %q", one.used, got)
 		}
 	}
 }
