@@ -543,6 +543,29 @@ inline int decimal_length(long long value) {
     return length;
 }
 
+inline std::vector<long long> unimodal(rng& draw, long long count, long long low, long long high, char const* what,
+                                       char const* motion) {
+    room_for_values(count, low, high, what);
+    if (count == 0) return {};
+    long long const below = width_of(low, high);
+    if (count - 1 - below > below)
+        eo::detail::library_error(
+            fmt("{} of {} values {} through at most {} in {}..{}", what, count, motion, 2 * below + 1, low, high));
+    long long const rising = draw.uniform((std::max)(0LL, count - 1 - below), (std::min)(count - 1, below));
+    std::vector<long long> values;
+    std::vector<long long> falling;
+    if (rising > 0) values = draw.distinct(rising, low, high - 1);
+    if (count - 1 - rising > 0) falling = draw.distinct(count - 1 - rising, low, high - 1);
+    std::sort(values.begin(), values.end());
+    std::sort(falling.begin(), falling.end());
+    long long floor = low;
+    if (!values.empty()) floor = values.back() + 1;
+    if (!falling.empty()) floor = (std::max)(floor, falling.back() + 1);
+    values.push_back(draw.uniform(floor, high));
+    values.insert(values.end(), falling.rbegin(), falling.rend());
+    return values;
+}
+
 }  // namespace detail
 
 [[nodiscard]] inline std::vector<long long> equal_values(long long count, long long value) {
@@ -711,6 +734,18 @@ inline int decimal_length(long long value) {
     std::sort(values.begin(), values.end());
     for (std::size_t at = 0; at < values.size(); at++) values[at] += static_cast<long long>(at) * (gap - 1);
     draw.shuffle(values);
+    return values;
+}
+
+[[nodiscard]] inline std::vector<long long> mountain(rng& draw, long long count, long long low, long long high) {
+    return detail::unimodal(draw, count, low, high, "a mountain", "rises and falls");
+}
+
+[[nodiscard]] inline std::vector<long long> valley(rng& draw, long long count, long long low, long long high) {
+    std::vector<long long> values = detail::unimodal(draw, count, low, high, "a valley", "falls and rises");
+    for (long long& one : values)
+        one = eo::detail::wrapped(static_cast<unsigned long long>(high) -
+                                  (static_cast<unsigned long long>(one) - static_cast<unsigned long long>(low)));
     return values;
 }
 

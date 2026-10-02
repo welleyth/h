@@ -167,3 +167,33 @@ EO_TEST(gapped_values_are_distinct_and_never_closer_than_the_gap) {
     EO_CHECK_IN(refusal([&] { (void)eo::shapes::distinct_gapped(draw, 4611686018427387906LL, 0, 1, 2); }),
                 "4611686018427387906 values at least 2 apart need more range than a long long holds");
 }
+
+EO_TEST(a_mountain_rises_strictly_then_falls_strictly) {
+    eo::rng draw(207);
+    for (long long const count : {1LL, 2LL, 3LL, 10LL, 1000LL}) {
+        std::vector<long long> const hill = eo::shapes::mountain(draw, count, 1, 1000);
+        std::vector<long long> const dip = eo::shapes::valley(draw, count, 1, 1000);
+        EO_CHECK_EQ(static_cast<long long>(hill.size()), count);
+        EO_CHECK_EQ(static_cast<long long>(dip.size()), count);
+        std::size_t top = static_cast<std::size_t>(std::max_element(hill.begin(), hill.end()) - hill.begin());
+        std::size_t bottom = static_cast<std::size_t>(std::min_element(dip.begin(), dip.end()) - dip.begin());
+        bool shaped = true;
+        for (std::size_t at = 1; at < hill.size(); at++) {
+            shaped = shaped && (at <= top ? hill[at - 1] < hill[at] : hill[at - 1] > hill[at]);
+            shaped = shaped && (at <= bottom ? dip[at - 1] > dip[at] : dip[at - 1] < dip[at]);
+        }
+        for (std::size_t at = 0; at < hill.size(); at++) shaped = shaped && hill[at] >= 1 && hill[at] <= 1000;
+        for (std::size_t at = 0; at < dip.size(); at++) shaped = shaped && dip[at] >= 1 && dip[at] <= 1000;
+        EO_CHECK(shaped);
+    }
+    std::vector<long long> const steep = eo::shapes::mountain(draw, 5, 1, 3);
+    EO_CHECK_EQ(steep[2], 3LL);
+    std::string drawn = values_of(eo::shapes::mountain(draw, 15, 1, 100));
+    drawn += values_of(eo::shapes::valley(draw, 15, 1, 100));
+    pin_bytes(drawn, 87, 0x349309aeb0af6b16ull, __FILE__, __LINE__);
+    EO_CHECK_IN(refusal([&] { (void)eo::shapes::mountain(draw, 6, 1, 3); }),
+                "a mountain of 6 values rises and falls through at most 5 in 1..3");
+    EO_CHECK_IN(refusal([&] { (void)eo::shapes::valley(draw, 6, 1, 3); }),
+                "a valley of 6 values falls and rises through at most 5 in 1..3");
+    EO_CHECK(eo::shapes::mountain(draw, 0, 1, 3).empty());
+}

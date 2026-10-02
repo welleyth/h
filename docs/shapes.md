@@ -152,6 +152,7 @@ of each size.
 | `spikes(draw, count, tall, low, high)` | `tall` values, at random places, from the top sixteenth of the range; the rest from the bottom sixteenth | cost that grows with the maximum: counting sort, DP over the value or the sum, sqrt decomposition by value |
 | `split_sum(draw, total, parts, least, most)` | `parts` values in `least..most` adding up to exactly `total` | a multi-test solution that clears its arrays per case in O(limit), not O(n); per-case work that only the sum bounds |
 | `distinct_gapped(draw, count, low, high, gap)` | different values, no two closer than `gap`, in a random order; uniform over such sets | a "closest pair" or "minimum distance" answer that is never exactly `gap` in the other tests; values packed densely enough to index an array by |
+| `mountain(draw, count, low, high)`, `valley(draw, count, low, high)` | strictly up to one peak, then strictly down, the peak anywhere; and the mirror image | a monotonic stack at its deepest, which grows to the peak and then pops everything; "the maximum is at an end" |
 
 `draw.partition(t, n)` splits a total across test cases, which is how you build the two tests
 that catch different bugs: `t = 10^5` cases of `n = 1`, and one case of `n = 10^5`. When each
@@ -250,7 +251,7 @@ exist under 10^9 — r = 48,612,265 carries 2,916 — but they are not worth the
 | presentation | `presented`, `parent_array` |
 | trees | `tree`, `random_tree`, `uniform_tree`, `deep_tree`, `path`, `star`, `caterpillar`, `broom`, `binary_tree`, `kary_tree`, `dumbbell`, `spider` |
 | graphs | `connected_graph`, `sparse_graph`, `complete_graph`, `cycle`, `cycle_with_chords`, `grid`, `bipartite_graph`, `complete_bipartite`, `many_components`, `dag`, `functional` |
-| sequences | `equal_values`, `few_distinct`, `plateaus`, `nearly_sorted`, `alternating`, `hash_collisions`, `log_uniform`, `near_bounds`, `spikes`, `split_sum`, `distinct_gapped` |
+| sequences | `equal_values`, `few_distinct`, `plateaus`, `nearly_sorted`, `alternating`, `hash_collisions`, `log_uniform`, `near_bounds`, `spikes`, `split_sum`, `distinct_gapped`, `mountain`, `valley` |
 | permutations | `permutation`, `permutation_cycles`, `derangement`, `involution`, `with_inversions`, `with_lis` |
 | strings | `repeated`, `periodic`, `near_periodic`, `fibonacci_word`, `thue_morse`, `palindrome` |
 | geometry | `scattered`, `collinear`, `convex_position`, `cocircular`, `extreme_points` |
