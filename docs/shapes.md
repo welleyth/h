@@ -380,6 +380,7 @@ position for anything that builds a hull.
 | `cocircular(draw, count, limit)` | the same, on a circle of radius at most `limit`, so inside the box; up to 4 points fit any box, on the circle of radius 1 | the same, inside the statement's box |
 | `extreme_points(draw, count, limit)` | every point on the edge of the box, so cross products reach 10^18 | cross products in `int`, or in `double` |
 | `general_position(draw, count, limit)` | different points, no three on a line: `(x, a·x² + b·x + c mod p)` for a prime `p ≤ 2·limit + 1` and random `a ≠ 0`, `b`, `c`, then a random mirror and transposition; at most `p` points | nothing in particular; it is the input a statement promising "no three collinear" needs, which `scattered` breaks at small limits and `convex_position` breaks always |
+| `simple_polygon(draw, count, limit)` | a simple polygon, counterclockwise from a random vertex, with no three vertices on a line: points in general position split by the line through the leftmost and the rightmost, each side walked in order of `x`; `limit` at most 10⁹ | a solution that assumes convexity, in area, point-in-polygon or a triangulation that clips the wrong ears |
 
 **`convex_position` is convex, not strictly convex.** The steps are integer vectors inside a
 bounded box, so many of them come out parallel and the points they build are collinear in
@@ -423,7 +424,7 @@ exist under 10^9 — r = 48,612,265 carries 2,916 — but they are not worth the
 | queries | `ranges`, `query_order` |
 | strings | `repeated`, `periodic`, `near_periodic`, `fibonacci_word`, `thue_morse`, `palindrome`, `de_bruijn`, `lyndon`, `abacaba`, `thue_morse_twins`, `anti_hash` |
 | numbers | `is_prime`, `next_prime`, `prev_prime`, `random_prime`, `semiprime`, `prime_power`, `most_divisors`, `strong_pseudoprime`, `carmichael`, `fibonacci_pair` |
-| geometry | `scattered`, `collinear`, `convex_position`, `cocircular`, `extreme_points`, `general_position` |
+| geometry | `scattered`, `collinear`, `convex_position`, `cocircular`, `extreme_points`, `general_position`, `simple_polygon` |
 | types | `eo::graph` (`n`, `edges`, `directed`), `eo::edge`, `eo::weighted_graph` (`n`, `edges`, `directed`), `eo::weighted_edge`, `eo::point`, `eo::interval` (`l`, `r`) |
 
 Everything lives in `eo::shapes::`, except the types: `eo::graph`, `eo::weighted_graph`, `eo::edge`,

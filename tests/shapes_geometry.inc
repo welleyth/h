@@ -43,3 +43,62 @@ EO_TEST(points_in_general_position_have_no_three_on_a_line) {
     EO_CHECK_IN(refusal([&] { (void)eo::shapes::general_position(draw, 3, 0); }),
                 "points in general position needs a coordinate bound of at least 1, not 0");
 }
+
+namespace {
+
+int sign_of(long long value) { return value > 0 ? 1 : (value < 0 ? -1 : 0); }
+
+bool segments_meet(eo::point const& a, eo::point const& b, eo::point const& c, eo::point const& d) {
+    int const d1 = sign_of(cross_of(c, d, a));
+    int const d2 = sign_of(cross_of(c, d, b));
+    int const d3 = sign_of(cross_of(a, b, c));
+    int const d4 = sign_of(cross_of(a, b, d));
+    if (d1 * d2 < 0 && d3 * d4 < 0) return true;
+    auto const on = [](eo::point const& p, eo::point const& q, eo::point const& r) {
+        return cross_of(p, q, r) == 0 && std::min(p.x, q.x) <= r.x && r.x <= std::max(p.x, q.x) &&
+               std::min(p.y, q.y) <= r.y && r.y <= std::max(p.y, q.y);
+    };
+    return on(c, d, a) || on(c, d, b) || on(a, b, c) || on(a, b, d);
+}
+
+bool simple_and_counterclockwise(std::vector<eo::point> const& polygon) {
+    std::size_t const n = polygon.size();
+    long long twice_area = 0;
+    for (std::size_t at = 0; at < n; at++) {
+        eo::point const& one = polygon[at];
+        eo::point const& next = polygon[(at + 1) % n];
+        twice_area += one.x * next.y - one.y * next.x;
+    }
+    if (twice_area <= 0) return false;
+    for (std::size_t i = 0; i < n; i++)
+        for (std::size_t j = i + 1; j < n; j++) {
+            if (j == i + 1 || (i == 0 && j == n - 1)) continue;
+            if (segments_meet(polygon[i], polygon[(i + 1) % n], polygon[j], polygon[(j + 1) % n])) return false;
+        }
+    return true;
+}
+
+}  // namespace
+
+EO_TEST(a_simple_polygon_never_crosses_itself_and_turns_counterclockwise) {
+    eo::rng draw(1002);
+    for (long long const count : {3LL, 4LL, 5LL, 10LL, 60LL, 300LL})
+        for (int round = 0; round < 5; round++) {
+            std::vector<eo::point> const polygon = eo::shapes::simple_polygon(draw, count, 1000);
+            EO_CHECK_EQ(static_cast<long long>(polygon.size()), count);
+            EO_CHECK(inside_box(polygon, 1000));
+            EO_CHECK(simple_and_counterclockwise(polygon));
+            if (count <= 60) EO_CHECK(no_three_collinear(polygon));
+        }
+    bool some_concave = false;
+    std::vector<eo::point> const wide = eo::shapes::simple_polygon(draw, 2000, 1000000000);
+    for (std::size_t at = 0; at < wide.size(); at++)
+        if (cross_of(wide[at], wide[(at + 1) % wide.size()], wide[(at + 2) % wide.size()]) < 0) some_concave = true;
+    EO_CHECK(some_concave);
+    std::string const drawn = points_of(eo::shapes::simple_polygon(draw, 8, 100));
+    pin_bytes(drawn, 55, 0x85dd942354fc3b0aull, __FILE__, __LINE__);
+    EO_CHECK_IN(refusal([&] { (void)eo::shapes::simple_polygon(draw, 2, 100); }),
+                "a simple polygon has at least 3 vertices, not 2");
+    EO_CHECK_IN(refusal([&] { (void)eo::shapes::simple_polygon(draw, 10, 2000000000); }),
+                "a simple polygon inside +-2000000000 would overflow its own cross products; 1000000000 is the most");
+}

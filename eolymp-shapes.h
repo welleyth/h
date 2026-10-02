@@ -2777,6 +2777,34 @@ inline std::vector<long long> chained(rng& draw, long long count, long long limi
     return made;
 }
 
+[[nodiscard]] inline std::vector<point> simple_polygon(rng& draw, long long count, long long limit) {
+    detail::room_for_points(count, limit, "a simple polygon");
+    if (count < 3) eo::detail::library_error(fmt("a simple polygon has at least 3 vertices, not {}", count));
+    if (limit > 1000000000)
+        eo::detail::library_error(
+            fmt("a simple polygon inside +-{} would overflow its own cross products; 1000000000 is the most", limit));
+    std::vector<point> points = general_position(draw, count, limit);
+    std::sort(points.begin(), points.end(),
+              [](point const& left, point const& right) {
+                  return std::tie(left.x, left.y) < std::tie(right.x, right.y);
+              });
+    point const first = points.front();
+    point const last = points.back();
+    std::vector<point> lower;
+    std::vector<point> upper;
+    for (std::size_t at = 1; at + 1 < points.size(); at++) {
+        point const& one = points[at];
+        long long const turn = (last.x - first.x) * (one.y - first.y) - (last.y - first.y) * (one.x - first.x);
+        (turn < 0 ? lower : upper).push_back(one);
+    }
+    std::vector<point> made{first};
+    made.insert(made.end(), lower.begin(), lower.end());
+    made.push_back(last);
+    made.insert(made.end(), upper.rbegin(), upper.rend());
+    std::rotate(made.begin(), made.begin() + static_cast<std::ptrdiff_t>(draw.uniform(0, count - 1)), made.end());
+    return made;
+}
+
 }  // namespace shapes
 }  // namespace eo
 
