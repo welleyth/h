@@ -26,3 +26,37 @@ EO_TEST(a_de_bruijn_sequence_holds_every_word_exactly_once) {
     EO_CHECK_IN(refusal([] { (void)eo::shapes::de_bruijn(eo::charset("ab"), 0); }),
                 "a de Bruijn sequence has an order of at least 1, not 0");
 }
+
+namespace {
+
+bool is_lyndon(std::string const& word) {
+    for (std::size_t shift = 1; shift < word.size(); shift++)
+        if (word.substr(shift) + word.substr(0, shift) <= word) return false;
+    return !word.empty();
+}
+
+}  // namespace
+
+EO_TEST(a_lyndon_word_is_smaller_than_every_rotation_of_itself) {
+    eo::rng draw(801);
+    for (char const* letters : {"ab", "abc", "a-z"})
+        for (long long length = 1; length <= 40; length++) {
+            std::string const word = eo::shapes::lyndon(draw, length, eo::charset(letters));
+            EO_CHECK_EQ(static_cast<long long>(word.size()), length);
+            EO_CHECK(is_lyndon(word));
+        }
+    EO_CHECK_EQ(eo::shapes::lyndon(draw, 1, eo::charset("z")), std::string("z"));
+    std::string const long_one = eo::shapes::lyndon(draw, 2000, eo::charset("ab"));
+    EO_CHECK(is_lyndon(long_one));
+    std::vector<std::string> seen;
+    for (int round = 0; round < 300; round++) seen.push_back(eo::shapes::lyndon(draw, 5, eo::charset("ab")));
+    std::sort(seen.begin(), seen.end());
+    seen.erase(std::unique(seen.begin(), seen.end()), seen.end());
+    EO_CHECK_EQ(seen.size(), static_cast<std::size_t>(6));
+    std::string const drawn = eo::shapes::lyndon(draw, 30, eo::charset("abc"));
+    pin_bytes(drawn, 30, 0x54c9124a13d1fa35ull, __FILE__, __LINE__);
+    EO_CHECK_IN(refusal([&] { (void)eo::shapes::lyndon(draw, 2, eo::charset("a")); }),
+                "a Lyndon word of 2 letters needs two different letters to choose from");
+    EO_CHECK_IN(refusal([&] { (void)eo::shapes::lyndon(draw, 0, eo::charset("ab")); }),
+                "a Lyndon word is at least 1 long, not 0");
+}

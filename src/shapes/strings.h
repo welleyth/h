@@ -1,5 +1,6 @@
 #pragma once
 
+#include <algorithm>
 #include <string>
 #include <utility>
 #include <vector>
@@ -117,6 +118,39 @@ inline std::vector<char> letters_of(charset const& allowed) {
     std::size_t const cycle = out.size();
     for (std::size_t at = 0; at + 1 < static_cast<std::size_t>(order); at++) out.push_back(out[at % cycle]);
     return out;
+}
+
+[[nodiscard]] inline std::string lyndon(rng& draw, long long length, charset const& allowed) {
+    if (length < 1) eo::detail::library_error(fmt("a Lyndon word is at least 1 long, not {}", length));
+    if (length >= 2 && detail::letters_of(allowed).size() < 2)
+        eo::detail::library_error(
+            fmt("a Lyndon word of {} letters needs two different letters to choose from; charset(\"{}\") has fewer",
+                length, allowed.text()));
+    std::size_t const size = static_cast<std::size_t>(length);
+    for (;;) {
+        std::string const word = draw.letters(length, allowed);
+        std::size_t first = 0;
+        std::size_t second = 1;
+        std::size_t matched = 0;
+        while (first < size && second < size && matched < size) {
+            char const one = word[(first + matched) % size];
+            char const other = word[(second + matched) % size];
+            if (one == other) {
+                matched++;
+                continue;
+            }
+            if (one > other) {
+                first += matched + 1;
+            } else {
+                second += matched + 1;
+            }
+            if (first == second) second++;
+            matched = 0;
+        }
+        if (matched == size && size > 1) continue;
+        std::size_t const start = (std::min)(first, second);
+        return word.substr(start) + word.substr(0, start);
+    }
 }
 
 }  // namespace shapes
