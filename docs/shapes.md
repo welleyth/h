@@ -93,6 +93,9 @@ and a uniform tree for everything typical. Every tree goes through `presented` o
 | `binary_tree(n)`, `kary_tree(n, k)` | perfectly balanced, depth log n | an off-by-one in level arithmetic; binary lifting tables one level short |
 | `dumbbell(n)` | two hubs joined by an edge; at even n it has exactly two centroids | a centroid search that assumes one centroid |
 | `spider(n, legs)` | legs of equal length from one centre | diameter through the centre; ties between equally deep leaves |
+| `tree_from_pruefer(code)` | the tree whose Prüfer code is `code`, on `code.size() + 2` vertices | — ; the decoder the next two use, and [`tree_at`](#small-exhaustive-tests) |
+| `tree_from_degrees(draw, degrees)` | vertex `i` has degree `degrees[i − 1]` exactly; uniform over such trees | a solution that only meets the degree sequences random trees have |
+| `tree_with_leaves(draw, n, leaves)` | exactly `leaves` leaves, from 2 (a path) to n − 1 (a star) | leaf-counting off by one; "a leaf is a vertex of degree 1" forgotten at the root |
 | `tree(draw, n, name)` | any of `random`, `uniform`, `path`, `star`, `caterpillar`, `broom`, `binary`, `dumbbell` by name | — |
 
 **`random_tree` is not "a random tree".** It is a random recursive tree, and its depth is
@@ -301,7 +304,7 @@ exist under 10^9 — r = 48,612,265 carries 2,916 — but they are not worth the
 | Group | Names |
 | --- | --- |
 | presentation | `presented`, `parent_array` |
-| trees | `tree`, `random_tree`, `uniform_tree`, `deep_tree`, `path`, `star`, `caterpillar`, `broom`, `binary_tree`, `kary_tree`, `dumbbell`, `spider` |
+| trees | `tree`, `random_tree`, `uniform_tree`, `deep_tree`, `path`, `star`, `caterpillar`, `broom`, `binary_tree`, `kary_tree`, `dumbbell`, `spider`, `tree_from_pruefer`, `tree_from_degrees`, `tree_with_leaves` |
 | graphs | `connected_graph`, `sparse_graph`, `complete_graph`, `cycle`, `cycle_with_chords`, `grid`, `bipartite_graph`, `complete_bipartite`, `many_components`, `dag`, `functional` |
 | sequences | `equal_values`, `few_distinct`, `plateaus`, `nearly_sorted`, `alternating`, `hash_collisions`, `log_uniform`, `near_bounds`, `spikes`, `split_sum`, `distinct_gapped`, `mountain`, `valley` |
 | permutations | `permutation`, `permutation_cycles`, `derangement`, `involution`, `with_inversions`, `with_lis` |

@@ -40,6 +40,7 @@
 #include "generate.inc"
 #include "control.inc"
 #include "shapes.inc"
+#include "shapes_trees.inc"
 #include "shapes_permutations.inc"
 #include "shapes_sequences.inc"
 #include "shapes_intervals.inc"

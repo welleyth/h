@@ -123,6 +123,31 @@ inline void kept_of(long long kept, long long tries, char const* what, eo::detai
 
 namespace eo {
 namespace shapes {
+namespace detail {
+
+inline graph decoded(int n, std::vector<int> const& code) {
+    std::vector<int> degree(static_cast<std::size_t>(n) + 1, 1);
+    for (int const chosen : code) degree[static_cast<std::size_t>(chosen)]++;
+    std::vector<edge> edges;
+    edges.reserve(static_cast<std::size_t>(n) - 1);
+    int lowest = 1;
+    while (degree[static_cast<std::size_t>(lowest)] != 1) lowest++;
+    int leaf = lowest;
+    for (int const chosen : code) {
+        edges.push_back(edge{leaf, chosen});
+        if (--degree[static_cast<std::size_t>(chosen)] == 1 && chosen < lowest) {
+            leaf = chosen;
+        } else {
+            lowest++;
+            while (degree[static_cast<std::size_t>(lowest)] != 1) lowest++;
+            leaf = lowest;
+        }
+    }
+    edges.push_back(edge{leaf, n});
+    return undirected(n, std::move(edges));
+}
+
+}  // namespace detail
 
 [[nodiscard]] inline graph random_tree(rng& draw, int n) {
     detail::at_least(n, 1, "a tree");
@@ -241,6 +266,57 @@ namespace shapes {
         }
     }
     return detail::undirected(n, std::move(edges));
+}
+
+[[nodiscard]] inline graph tree_from_pruefer(std::vector<int> const& code) {
+    int const n = static_cast<int>(code.size()) + 2;
+    for (std::size_t at = 0; at < code.size(); at++)
+        if (code[at] < 1 || code[at] > n)
+            eo::detail::library_error(fmt("a Pruefer code of length {} holds vertices 1..{}; element {} is {}",
+                                          code.size(), n, at + 1, code[at]));
+    return detail::decoded(n, code);
+}
+
+[[nodiscard]] inline graph tree_from_degrees(rng& draw, std::vector<int> const& degrees) {
+    int const n = static_cast<int>(degrees.size());
+    detail::at_least(n, 1, "a tree from degrees");
+    if (n == 1) {
+        if (degrees[0] != 0) eo::detail::library_error(fmt("a tree on 1 vertex has degree 0, not {}", degrees[0]));
+        return detail::undirected(1, {});
+    }
+    long long total = 0;
+    for (std::size_t at = 0; at < degrees.size(); at++) {
+        if (degrees[at] < 1)
+            eo::detail::library_error(fmt(
+                "every vertex of a tree on {} vertices has a degree of at least 1; vertex {} has {}", n, at + 1,
+                degrees[at]));
+        total += degrees[at];
+    }
+    if (total != 2LL * (n - 1))
+        eo::detail::library_error(fmt("the degrees of a tree on {} vertices add up to {}, and these add up to {}", n,
+                                      2LL * (n - 1), total));
+    std::vector<int> code;
+    code.reserve(static_cast<std::size_t>(n) - 2);
+    for (std::size_t at = 0; at < degrees.size(); at++)
+        code.insert(code.end(), static_cast<std::size_t>(degrees[at]) - 1, static_cast<int>(at) + 1);
+    draw.shuffle(code);
+    return detail::decoded(n, code);
+}
+
+[[nodiscard]] inline graph tree_with_leaves(rng& draw, int n, int leaves) {
+    detail::at_least(n, 2, "a tree with leaves");
+    int const most = n == 2 ? 2 : n - 1;
+    if (leaves < 2 || leaves > most)
+        eo::detail::library_error(fmt("a tree on {} vertices has 2..{} leaves, not {}", n, most, leaves));
+    if (n == 2) return path(2);
+    std::vector<int> const inner = draw.perm(n, 1);
+    std::size_t const kinds = static_cast<std::size_t>(n - leaves);
+    std::vector<int> code(static_cast<std::size_t>(n) - 2, 0);
+    std::vector<long long> const places = draw.distinct(static_cast<long long>(kinds), 0, n - 3);
+    for (std::size_t at = 0; at < kinds; at++) code[static_cast<std::size_t>(places[at])] = inner[at];
+    for (int& chosen : code)
+        if (chosen == 0) chosen = inner[static_cast<std::size_t>(draw.uniform(0, static_cast<long long>(kinds) - 1))];
+    return detail::decoded(n, code);
 }
 
 [[nodiscard]] inline graph tree(rng& draw, int n, std::string const& shape) {
