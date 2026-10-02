@@ -332,6 +332,20 @@ random string over the full alphabet as the easy case.
 A uniform random string over a large alphabet is the easy case; `draw.letters(n,
 eo::charset("ab"))` over an alphabet of two maximises repeats, borders and periods.
 
+## Numbers
+
+A number-theory problem needs the largest prime under the bound, for a solution that trial
+divides up to `n`; a semiprime of two large primes, for one that trial divides up to `√n`;
+the number with the most divisors, for one that enumerates them; and the composites that
+pass weak primality tests. Every call here is exact for every `long long`: primality is
+Miller–Rabin with the first twelve primes as bases, which is deterministic below 3·10²³.
+
+| Call | Gives | Kills |
+| --- | --- | --- |
+| `is_prime(n)` | whether `n` is prime, for any `long long` | — ; the test the others use, for a validator or a checker too |
+| `next_prime(n)`, `prev_prime(n)` | the least prime at least `n`, the largest at most `n` | trial division up to `n` at `prev_prime(bound)`, the prime it cannot shortcut |
+| `random_prime(draw, low, high)` | a prime in `low..high`, uniform over the primes there | a solution tuned to one prime, such as a hard-coded modulus |
+
 ## Geometry
 
 `eo::point` holds two `long long`s. A geometry problem needs collinear points for every sign
@@ -387,6 +401,7 @@ exist under 10^9 — r = 48,612,265 carries 2,916 — but they are not worth the
 | intervals | `intervals` |
 | queries | `ranges`, `query_order` |
 | strings | `repeated`, `periodic`, `near_periodic`, `fibonacci_word`, `thue_morse`, `palindrome`, `de_bruijn`, `lyndon`, `abacaba`, `thue_morse_twins` |
+| numbers | `is_prime`, `next_prime`, `prev_prime`, `random_prime` |
 | geometry | `scattered`, `collinear`, `convex_position`, `cocircular`, `extreme_points` |
 | types | `eo::graph` (`n`, `edges`, `directed`), `eo::edge`, `eo::weighted_graph` (`n`, `edges`, `directed`), `eo::weighted_edge`, `eo::point`, `eo::interval` (`l`, `r`) |
 
