@@ -1,6 +1,7 @@
 #pragma once
 
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "../core.h"
@@ -38,6 +39,39 @@ inline void kept_of(long long kept, long long tries, char const* what, eo::detai
                      "most draws were thrown away; ask for fewer, or build it another way", where);
 }
 
+inline std::vector<int> labels_keeping(rng& draw, int n, std::vector<int> const& kept) {
+    std::vector<int> labels(static_cast<std::size_t>(n), 0);
+    for (int const vertex : kept) {
+        if (vertex < 1 || vertex > n)
+            eo::detail::library_error(fmt("a kept vertex is {}, outside 1..{}", vertex, n));
+        if (labels[static_cast<std::size_t>(vertex) - 1] != 0)
+            eo::detail::library_error(fmt("vertex {} is kept twice; keep each vertex once", vertex));
+        labels[static_cast<std::size_t>(vertex) - 1] = vertex;
+    }
+    std::vector<int> moving;
+    for (int vertex = 1; vertex <= n; vertex++)
+        if (labels[static_cast<std::size_t>(vertex) - 1] == 0) moving.push_back(vertex);
+    std::vector<int> shuffled = moving;
+    draw.shuffle(shuffled);
+    for (std::size_t at = 0; at < moving.size(); at++) labels[static_cast<std::size_t>(moving[at]) - 1] = shuffled[at];
+    return labels;
+}
+
+template <class Edge>
+std::vector<Edge> relabelled(rng& draw, std::vector<int> const& labels, std::vector<Edge> const& edges,
+                             bool directed) {
+    std::vector<Edge> shown;
+    shown.reserve(edges.size());
+    for (Edge one : edges) {
+        one.u = labels[static_cast<std::size_t>(one.u) - 1];
+        one.v = labels[static_cast<std::size_t>(one.v) - 1];
+        if (!directed && draw.chance(0.5)) std::swap(one.u, one.v);
+        shown.push_back(one);
+    }
+    draw.shuffle(shown);
+    return shown;
+}
+
 }  // namespace detail
 
 [[nodiscard]] inline std::vector<edge> presented(rng& draw, graph const& made) {
@@ -52,6 +86,11 @@ inline void kept_of(long long kept, long long tries, char const* what, eo::detai
     }
     draw.shuffle(shown);
     return shown;
+}
+
+[[nodiscard]] inline std::vector<edge> presented(rng& draw, graph const& made, std::vector<int> const& kept) {
+    std::vector<int> const labels = detail::labels_keeping(draw, made.n, kept);
+    return detail::relabelled(draw, labels, made.edges, made.directed);
 }
 
 [[nodiscard]] inline std::vector<int> parent_array(rng& draw, graph const& made, int root = 1) {

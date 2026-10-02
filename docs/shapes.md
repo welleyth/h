@@ -50,6 +50,11 @@ It relabels through a random permutation, swaps the endpoints of about half the 
 shuffles the list. A graph built by `dag` carries `directed`, and `presented` then relabels
 and shuffles but leaves each arrow pointing the way it was built.
 
+A source, a sink or a root that the statement fixes keeps its label through
+`presented(draw, made, {1, made.n})`: the vertices listed stay where they are, and every other
+vertex is relabelled among the rest. A weighted graph, `eo::weighted_graph`, is presented the
+same way, each weight travelling with its edge.
+
 If the format is a parent array rather than an edge list, the edges cannot be shuffled, but
 the construction order must still be hidden. `parent_array` relabels within the constraint
 that a parent comes before its child:
@@ -163,6 +168,18 @@ That caps the edges below a complete graph's, and the refusal names the most it 
 
 **A DAG never comes out in topological order.** `dag` draws a random order first and emits
 every arrow along it, so a solution that ignores the actual sort cannot pass by accident.
+
+## Shortest paths and flows
+
+`eo::weighted_graph` holds `n`, `edges` as `eo::weighted_edge`s `{u, v, w}`, and `directed`.
+A shortest-path problem needs weights at the bound, for overflow in the distances; zero
+weights where the statement allows them; and the graphs that make a wrong algorithm slow
+rather than wrong, which random graphs never are. A flow problem needs a network whose
+augmenting paths are many and tangled.
+
+| Call | Gives | Kills |
+| --- | --- | --- |
+| `with_weights(draw, made, low, high)` | `made` with every edge weighted uniformly in `low..high`, `directed` kept | nothing in particular; the typical case |
 
 ## Sequences
 
@@ -332,6 +349,7 @@ exist under 10^9 — r = 48,612,265 carries 2,916 — but they are not worth the
 | Group | Names |
 | --- | --- |
 | presentation | `presented`, `parent_array` |
+| shortest paths and flows | `with_weights` |
 | trees | `tree`, `random_tree`, `uniform_tree`, `deep_tree`, `path`, `star`, `caterpillar`, `broom`, `binary_tree`, `kary_tree`, `dumbbell`, `spider`, `tree_from_pruefer`, `tree_from_degrees`, `tree_with_leaves`, `tree_with_diameter`, `tree_with_height`, `bounded_degree_tree`, `comb`, `staircase` |
 | graphs | `connected_graph`, `sparse_graph`, `complete_graph`, `cycle`, `cycle_with_chords`, `grid`, `bipartite_graph`, `complete_bipartite`, `perfect_matching`, `many_components`, `dag`, `functional`, `regular_graph`, `cactus`, `with_bridges`, `with_cut_vertices`, `euler_circuit`, `euler_path`, `tournament`, `with_sccs`, `graph_with_diameter` |
 | sequences | `equal_values`, `few_distinct`, `plateaus`, `nearly_sorted`, `alternating`, `hash_collisions`, `log_uniform`, `near_bounds`, `spikes`, `split_sum`, `distinct_gapped`, `mountain`, `valley` |
@@ -340,6 +358,7 @@ exist under 10^9 — r = 48,612,265 carries 2,916 — but they are not worth the
 | queries | `ranges`, `query_order` |
 | strings | `repeated`, `periodic`, `near_periodic`, `fibonacci_word`, `thue_morse`, `palindrome` |
 | geometry | `scattered`, `collinear`, `convex_position`, `cocircular`, `extreme_points` |
-| types | `eo::graph` (`n`, `edges`, `directed`), `eo::edge`, `eo::point`, `eo::interval` (`l`, `r`) |
+| types | `eo::graph` (`n`, `edges`, `directed`), `eo::edge`, `eo::weighted_graph` (`n`, `edges`, `directed`), `eo::weighted_edge`, `eo::point`, `eo::interval` (`l`, `r`) |
 
-Everything lives in `eo::shapes::`, except `eo::graph`, `eo::edge`, `eo::point` and `eo::interval`.
+Everything lives in `eo::shapes::`, except the types: `eo::graph`, `eo::weighted_graph`, `eo::edge`,
+`eo::weighted_edge`, `eo::point` and `eo::interval`.
