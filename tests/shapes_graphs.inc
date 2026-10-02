@@ -112,3 +112,112 @@ EO_TEST(a_cactus_puts_every_edge_on_at_most_one_cycle) {
                 "cactus needs a longest cycle of at least 2, where 2 builds bridges alone, not 1");
     EO_CHECK_IN(refusal([&] { (void)eo::shapes::cactus(draw, 0, 3); }), "a cactus needs at least 1 vertices, not 0");
 }
+
+namespace {
+
+struct separators {
+    int bridges = 0;
+    int cuts = 0;
+};
+
+separators separators_of(eo::graph const& made) {
+    std::vector<std::vector<std::pair<int, std::size_t>>> near(static_cast<std::size_t>(made.n) + 1);
+    for (std::size_t at = 0; at < made.edges.size(); at++) {
+        near[static_cast<std::size_t>(made.edges[at].u)].push_back({made.edges[at].v, at});
+        near[static_cast<std::size_t>(made.edges[at].v)].push_back({made.edges[at].u, at});
+    }
+    std::vector<int> entered(static_cast<std::size_t>(made.n) + 1, 0);
+    std::vector<int> low(static_cast<std::size_t>(made.n) + 1, 0);
+    std::vector<bool> cut(static_cast<std::size_t>(made.n) + 1, false);
+    separators found;
+    int clock = 0;
+    for (int root = 1; root <= made.n; root++) {
+        if (entered[static_cast<std::size_t>(root)] != 0) continue;
+        struct frame {
+            int vertex;
+            std::size_t via;
+            std::size_t next;
+        };
+        std::vector<frame> stack{{root, made.edges.size(), 0}};
+        entered[static_cast<std::size_t>(root)] = low[static_cast<std::size_t>(root)] = ++clock;
+        int root_children = 0;
+        while (!stack.empty()) {
+            frame& top = stack.back();
+            std::size_t const here = static_cast<std::size_t>(top.vertex);
+            if (top.next < near[here].size()) {
+                auto const [other, id] = near[here][top.next++];
+                if (id == top.via) continue;
+                std::size_t const there = static_cast<std::size_t>(other);
+                if (entered[there] != 0) {
+                    low[here] = std::min(low[here], entered[there]);
+                } else {
+                    entered[there] = low[there] = ++clock;
+                    if (top.vertex == root) root_children++;
+                    stack.push_back({other, id, 0});
+                }
+                continue;
+            }
+            stack.pop_back();
+            if (stack.empty()) break;
+            std::size_t const up = static_cast<std::size_t>(stack.back().vertex);
+            low[up] = std::min(low[up], low[here]);
+            if (low[here] > entered[up]) found.bridges++;
+            if (stack.back().vertex != root && low[here] >= entered[up]) cut[up] = true;
+        }
+        if (root_children >= 2) cut[static_cast<std::size_t>(root)] = true;
+    }
+    found.cuts = static_cast<int>(std::count(cut.begin(), cut.end(), true));
+    return found;
+}
+
+}  // namespace
+
+EO_TEST(a_graph_has_exactly_the_bridges_asked_for) {
+    eo::rng draw(504);
+    for (int n = 1; n <= 12; n++)
+        for (int bridges = 0; bridges <= n - 1; bridges++) {
+            if (n >= 2 && bridges == n - 2) continue;
+            eo::graph const made = eo::shapes::with_bridges(draw, n, bridges);
+            EO_CHECK(static_cast<bool>(eo::is_simple_graph(made.n, made.edges)));
+            EO_CHECK(static_cast<bool>(eo::is_connected(made.n, made.edges)));
+            EO_CHECK_EQ(separators_of(made).bridges, bridges);
+        }
+    for (int const bridges : {0, 1, 500, 50000, 99997, 99999}) {
+        eo::graph const made = eo::shapes::with_bridges(draw, 100000, bridges);
+        EO_CHECK(static_cast<bool>(eo::is_connected(made.n, made.edges)));
+        EO_CHECK_EQ(separators_of(made).bridges, bridges);
+    }
+    std::string const drawn = edges_of(eo::shapes::with_bridges(draw, 30, 7).edges);
+    pin_bytes(drawn, 192, 0x429d1d2117b951aeull, __FILE__, __LINE__);
+    EO_CHECK_IN(refusal([&] { (void)eo::shapes::with_bridges(draw, 10, 8); }),
+                "a connected graph on 10 vertices never has exactly 8 bridges; ask for 9, or for at most 7");
+    EO_CHECK_IN(refusal([&] { (void)eo::shapes::with_bridges(draw, 2, 0); }),
+                "a connected graph on 2 vertices never has exactly 0 bridges; ask for 1");
+    EO_CHECK_IN(refusal([&] { (void)eo::shapes::with_bridges(draw, 10, 10); }),
+                "a connected graph on 10 vertices has 0..9 bridges, not 10");
+    EO_CHECK_IN(refusal([&] { (void)eo::shapes::with_bridges(draw, 0, 0); }),
+                "a graph with bridges needs at least 1 vertices, not 0");
+}
+
+EO_TEST(a_graph_has_exactly_the_cut_vertices_asked_for) {
+    eo::rng draw(505);
+    for (int n = 1; n <= 12; n++)
+        for (int cuts = 0; cuts <= std::max(0, n - 2); cuts++)
+            for (int round = 0; round < 3; round++) {
+                eo::graph const made = eo::shapes::with_cut_vertices(draw, n, cuts);
+                EO_CHECK(static_cast<bool>(eo::is_simple_graph(made.n, made.edges)));
+                EO_CHECK(static_cast<bool>(eo::is_connected(made.n, made.edges)));
+                EO_CHECK_EQ(separators_of(made).cuts, cuts);
+            }
+    for (int const cuts : {0, 1, 300, 30000, 99998}) {
+        eo::graph const made = eo::shapes::with_cut_vertices(draw, 100000, cuts);
+        EO_CHECK(static_cast<bool>(eo::is_connected(made.n, made.edges)));
+        EO_CHECK_EQ(separators_of(made).cuts, cuts);
+    }
+    std::string const drawn = edges_of(eo::shapes::with_cut_vertices(draw, 30, 6).edges);
+    pin_bytes(drawn, 179, 0xd2372dfc74bc8031ull, __FILE__, __LINE__);
+    EO_CHECK_IN(refusal([&] { (void)eo::shapes::with_cut_vertices(draw, 10, 9); }),
+                "a connected graph on 10 vertices has 0..8 cut vertices, not 9");
+    EO_CHECK_IN(refusal([&] { (void)eo::shapes::with_cut_vertices(draw, 1, 1); }),
+                "a connected graph on 1 vertices has 0..0 cut vertices, not 1");
+}

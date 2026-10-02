@@ -520,6 +520,16 @@ inline std::vector<edge> filled(rng& draw, int n, long long m, std::vector<edge>
     return filled_sparsely(draw, n, m, std::move(have));
 }
 
+inline int block_at(std::vector<edge>& edges, int shared, int made, int size) {
+    int previous = shared;
+    for (int vertex = made + 1; vertex < made + size; vertex++) {
+        edges.push_back(edge{previous, vertex});
+        previous = vertex;
+    }
+    if (size > 2) edges.push_back(edge{previous, shared});
+    return made + size - 1;
+}
+
 }  // namespace detail
 
 [[nodiscard]] inline graph connected_graph(rng& draw, int n, long long m) {
@@ -714,6 +724,66 @@ inline std::vector<edge> filled(rng& draw, int n, long long m, std::vector<edge>
         }
         if (length > 2) edges.push_back(edge{previous, at});
         made += length - 1;
+    }
+    return detail::undirected(n, std::move(edges));
+}
+
+[[nodiscard]] inline graph with_bridges(rng& draw, int n, int bridges) {
+    detail::at_least(n, 1, "a graph with bridges");
+    if (bridges < 0 || bridges > n - 1)
+        eo::detail::library_error(
+            fmt("a connected graph on {} vertices has 0..{} bridges, not {}", n, n - 1, bridges));
+    int const rest = n - 1 - bridges;
+    if (rest == 1)
+        eo::detail::library_error(fmt("a connected graph on {} vertices never has exactly {} bridges; ask for {}{}", n,
+                                      bridges, n - 1, n >= 3 ? fmt(", or for at most {}", n - 3) : ""));
+    std::vector<int> sizes(static_cast<std::size_t>(bridges), 2);
+    if (rest > 0)
+        for (long long const extra : draw.partition(draw.uniform(1, rest / 2), rest, 2))
+            sizes.push_back(static_cast<int>(extra) + 1);
+    draw.shuffle(sizes);
+    std::vector<edge> edges;
+    int made = 1;
+    for (int const size : sizes) made = detail::block_at(edges, static_cast<int>(draw.uniform(1, made)), made, size);
+    return detail::undirected(n, std::move(edges));
+}
+
+[[nodiscard]] inline graph with_cut_vertices(rng& draw, int n, int cuts) {
+    detail::at_least(n, 1, "a graph with cut vertices");
+    int const most = (std::max)(0, n - 2);
+    if (cuts < 0 || cuts > most)
+        eo::detail::library_error(
+            fmt("a connected graph on {} vertices has 0..{} cut vertices, not {}", n, most, cuts));
+    if (n == 1) return detail::undirected(1, {});
+    int const blocks = cuts == 0 ? 1 : static_cast<int>(draw.uniform(cuts + 1, n - 1));
+    std::vector<long long> const sizes = draw.partition(blocks, n - 1);
+    std::vector<char> fresh(static_cast<std::size_t>(blocks), 0);
+    if (cuts > 0) {
+        fresh[1] = 1;
+        for (long long const at : draw.distinct(cuts - 1, 2, blocks - 1)) fresh[static_cast<std::size_t>(at)] = 1;
+    }
+    std::vector<edge> edges;
+    std::vector<int> plain;
+    std::vector<int> shared_ones;
+    int made = 0;
+    for (std::size_t at = 0; at < sizes.size(); at++) {
+        int shared = 1;
+        if (at == 0) {
+            plain.push_back(1);
+            made = 1;
+        } else if (fresh[at] != 0) {
+            std::size_t const which =
+                static_cast<std::size_t>(draw.uniform(0, static_cast<long long>(plain.size()) - 1));
+            shared = plain[which];
+            plain[which] = plain.back();
+            plain.pop_back();
+            shared_ones.push_back(shared);
+        } else {
+            shared = draw.pick(shared_ones);
+        }
+        int const before = made;
+        made = detail::block_at(edges, shared, made, static_cast<int>(sizes[at]) + 1);
+        for (int vertex = before + 1; vertex <= made; vertex++) plain.push_back(vertex);
     }
     return detail::undirected(n, std::move(edges));
 }

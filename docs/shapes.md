@@ -136,12 +136,18 @@ for ordering. Every graph goes through `presented` before it is printed.
 | `dag(draw, n, m)` | a hidden topological order, `directed` set | a solution that reads the vertices in input order as a topological order |
 | `regular_graph(draw, n, k)` | every vertex of degree exactly `k`: a circulant mixed by 10·m random edge swaps, or the complement of one when `k` is above half | a greedy that chooses by degree, which here has nothing to choose by; pruned search that relies on small cuts, since random regular graphs have none |
 | `cactus(draw, n, longest)` | connected, every edge on at most one cycle: blocks of 2..`longest` vertices, each a bridge or a cycle, glued at random vertices | a cactus solution that handles a cycle hanging from a vertex but not two cycles through the same vertex; tree DP pushed onto cycles |
+| `with_bridges(draw, n, bridges)` | connected, exactly `bridges` bridges: that many single edges and some cycles, glued at random vertices | `low[v] >= tin[u]` written where `>` belongs, and the reverse; a bridge search that skips the parent vertex instead of the parent edge |
+| `with_cut_vertices(draw, n, cuts)` | connected, exactly `cuts` articulation points: blocks glued so that each new block either creates one or reuses one | the root rule of the articulation-point DFS, which needs two children; `low[v] >= tin[u]` against `>` |
 | `functional(draw, n, name)` | `f(i)` for each `i`: `cycle`, `rho`, `self` or `random` | a cycle finder that assumes one cycle, or no tails |
 
 **The edge count is exact or it is a jury error.** `connected_graph(draw, 10, 8)` says
 *a connected graph on 10 vertices has 9..45 edges, not 8* rather than looping. Filling is
 rejection sampling while the graph is sparse and switches to enumerate-and-shuffle once `m`
 passes a quarter of `n(n−1)/2`, so a near-complete graph does not stall.
+
+**Exact counts of bridges and of cut vertices are what those shapes are for.** A connected
+graph on `n` vertices never has exactly `n − 2` bridges, so `with_bridges` refuses it; every
+other count from 0 to `n − 1` is built. Their blocks are plain cycles and single edges.
 
 **A DAG never comes out in topological order.** `dag` draws a random order first and emits
 every arrow along it, so a solution that ignores the actual sort cannot pass by accident.
@@ -315,7 +321,7 @@ exist under 10^9 — r = 48,612,265 carries 2,916 — but they are not worth the
 | --- | --- |
 | presentation | `presented`, `parent_array` |
 | trees | `tree`, `random_tree`, `uniform_tree`, `deep_tree`, `path`, `star`, `caterpillar`, `broom`, `binary_tree`, `kary_tree`, `dumbbell`, `spider`, `tree_from_pruefer`, `tree_from_degrees`, `tree_with_leaves`, `tree_with_diameter`, `tree_with_height`, `bounded_degree_tree`, `comb`, `staircase` |
-| graphs | `connected_graph`, `sparse_graph`, `complete_graph`, `cycle`, `cycle_with_chords`, `grid`, `bipartite_graph`, `complete_bipartite`, `many_components`, `dag`, `functional`, `regular_graph`, `cactus` |
+| graphs | `connected_graph`, `sparse_graph`, `complete_graph`, `cycle`, `cycle_with_chords`, `grid`, `bipartite_graph`, `complete_bipartite`, `many_components`, `dag`, `functional`, `regular_graph`, `cactus`, `with_bridges`, `with_cut_vertices` |
 | sequences | `equal_values`, `few_distinct`, `plateaus`, `nearly_sorted`, `alternating`, `hash_collisions`, `log_uniform`, `near_bounds`, `spikes`, `split_sum`, `distinct_gapped`, `mountain`, `valley` |
 | permutations | `permutation`, `permutation_cycles`, `derangement`, `involution`, `with_inversions`, `with_lis` |
 | intervals | `intervals` |
