@@ -37,6 +37,9 @@ build_one relay -O2 $warnings
 build_one relay_solution -O2
 build_one bulk -O2 $warnings
 build_one bulk_solution -O2
+build_one shapes_digest -O2 $warnings
+build_with shapes_digest_narrow ${CXX:-c++} -std=${CXXSTD:-c++17} -O2 -U__SIZEOF_INT128__ \
+    -o "$build/shapes_digest_narrow" "$root/tests/e2e/shapes_digest.cpp"
 fused=
 if grep -qw fma /proc/cpuinfo 2>/dev/null; then
     fused=ok
@@ -393,6 +396,15 @@ if cmp -s "$build/shaped_path_edges.txt" "$build/shaped_star_edges.txt"; then
     fail "two different shapes presented the same edges"
 fi
 pass "presented relabelled the path, turned edges and shuffled them"
+
+"$build/shapes_digest" > "$build/digest_wide.txt"
+"$build/shapes_digest_narrow" > "$build/digest_narrow.txt"
+if cmp -s "$build/digest_wide.txt" "$build/digest_narrow.txt"; then
+    pass "every shape is the same bytes without unsigned __int128, the way MSVC builds them"
+else
+    fail "the shapes differ without unsigned __int128: $(cmp "$build/digest_wide.txt" "$build/digest_narrow.txt" 2>&1 |
+         head -1)"
+fi
 
 if [ -n "$crossed" ]; then
     for compiler in gcc clang; do
