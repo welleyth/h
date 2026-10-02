@@ -1,5 +1,109 @@
 # Changelog
 
+## Unreleased
+
+No verdict changes. Everything below is new API, which a program meets only when it calls it,
+and new eo-judge output: a generator can carry a secret salt, a validator lists its features
+as testlib's does and records numbers per test, and eo-judge shows both, in `check -v`, in a
+new `describe` command, in notes EO825 and EO827 and in warning EO826. A program that calls
+none of it writes and reads byte for byte what 2.3.0 did, and only its `--eo-describe` output
+gains lines; EO501 fires on one more case, below. One new name in `eo`, `salt`, which matters
+only to a program that says `using namespace eo;`, and one macro, `EOLYMP_COLD`. The header's
+own line numbers in warnings move, since it grew; otherwise `run` and `check` print what 2.3.0
+printed on every fixture, apart from the new lines below.
+
+### New for problem authors
+
+- **`eo::salt`, a secret of the problem's own.** The seed of a test is derived from its
+  arguments, and the library is public, so anyone who guesses `-n=200000 -shape=path` can
+  rebuild a stock test byte for byte and hard-code its answer. `eo::generator g(argc, argv,
+  eo::salt("…"))` mixes exactly 32 hex digits from the source into every stream: the seed
+  becomes SipHash-2-4 of the arguments keyed by the salt, so the arguments alone reproduce
+  nothing, and one test's seed says nothing about another's. A stress run's appended seed is
+  folded in after it. A salt that is empty, of another length or not hex is the library's
+  error, with the line: `give it 32 hex digits; eo-judge init writes one`. Without a salt
+  every test is the one 2.3.0 generates. See [What is secret and what is
+  not](docs/generator.md#what-is-secret-and-what-is-not).
+- **`v.features({"path", "star"})`** declares several features at once, exactly as a
+  `v.feature` call for each, so the two mix and a name declared twice is declared once.
+  `v.saw` still marks, and a name never declared now stops it with the line and the names that
+  were declared: `saw("pth") names a feature that was never declared; it declares path, star`.
+  testlib's `addFeature` is `v.feature` and its `feature`, which marks, is `v.saw`.
+- **`v.stat("depth", d)`** records a number for the test, the larger kept when it is recorded
+  twice. Some come free: every named integer read exactly once in the test, outside a
+  sequence, under its name (`n`, `m`, `t`), every token or line read once as `name.length`,
+  the total of every `sum_limit`, and, under `--eo-describe` only, `.max_degree`, `.leaves`,
+  `.depth` and `.diameter` from `read_tree` and `.max_degree` and `.components` from
+  `read_graph`, each under the read's name, as `edge.depth`. On the judge, in `make bench`'s
+  new `validator cases`, a mark costs about 160 instructions and a stat about 25, against
+  about 530 for the case's own reads; the shapes cost one test of a flag. See [Coverage and
+  features](docs/validator.md#coverage-and-features).
+
+### What a message or a log says
+
+- A generator's `--eo-describe` ends, after a line break of its own, with `eo-describe
+  randomness drawn=yes salt=no`: whether that run drew from any stream, a stream that was
+  copied counting and one only asked for not, and whether the generator has a salt, `public`
+  for one the library publishes. Given a test's arguments, `gen <args> --eo-describe` runs on
+  them and writes none of the test.
+- **EO501 counts draws.** A stress run that asks for a stream with `g.rng` and never draws from
+  it now gets the warning, as one that never asks does; one that draws from a copy of a stream
+  does not. A warning, so no verdict changes.
+- A validator's `--eo-describe` prints `eo-describe stat <name> <value>` after its features.
+
+### eo-judge
+
+- **`eo-judge init` writes a fresh salt into every generator**, 32 hex digits from
+  `crypto/rand`, so no two problems it makes share a test.
+- **EO825 is a note**: `check` notes a generator that draws randomness with no salt. A note
+  does not fail `--strict`, nor the Action's `strict: true`, so every problem that passed
+  `check --strict` under 2.3.0 still does; the note's fix says a salt is for a new problem,
+  since adding one regenerates every random test. It runs each distinct set of stored
+  arguments with `--eo-describe` until one draws or the generator is salted; a generator that
+  never draws is never named.
+- **EO827**, a note: a generator that draws with a salt eolymp.h publishes, the templates'
+  placeholder or one of the pages' or the fixtures'. A test holds every salt in the
+  repository's pages and examples to the header's list.
+- **`check -v` shows which test has which feature**, a table per testset, and `check --json`
+  carries it as `coverage`. A validator that declares no feature prints exactly what 2.3.0
+  printed.
+- **`requires`** on a testset in `problem.json`, `"requires": ["star"]`, names features some
+  test of it must have; **EO826** reports one that none has, one the validator does not
+  declare, listing the names it does, and `requires` on a problem with no validator. It is
+  read as strictly as the rest of the file.
+- **`eo-judge describe <problem>`** prints one line per test, its size, the features marked
+  and its stats, `1:2  22 B  star  n=6 edge.max_degree=5 edge.leaves=5 edge.depth=1
+  edge.diameter=2`, and with `--json` the same as `tests`, with `declared`, the validator's
+  features. It generates the inputs only and runs no solution. A test that could not be
+  generated, or that the validator broke on, is shown as such, the others are described all
+  the same, and it exits 3. See [docs/judge.md](docs/judge.md#describe).
+
+### Speed and size
+
+- `make bench` against 2.3.0: every path within 2%, the most `read_token` at +1.2%, `read_tree`
+  at +1.1% and `read_line` at +0.9%; `generator fixed` takes 5.9% fewer instructions.
+- `make budget`: the validator's -O2 object is 204 KB here, from 198 KB, and 5.6 times the
+  standard headers' compile time, as before; on CI's musl leg it is 209 KB. The checker's is
+  unchanged at 183 KB.
+
+### For maintainers
+
+- **`EOLYMP_COLD`**, `[[gnu::cold]]` under GCC and clang, marks the code that only
+  `--eo-describe` runs and the errors of `saw` and `stat`. 2.3.0 sits close to GCC's
+  `--param inline-unit-growth` at -O2: a few more lines in the validator's `describe()` made
+  GCC stop inlining `diagnostics::shared()` into the readers, and `read_line` paid 4.8% for
+  code it never ran.
+- **`make cliff`**, run by `make check`, counts the inlining GCC refuses for that limit in
+  every bench program that 2.3.0 kept under it, and fails when one refuses any. It holds for
+  GCC 14.2.0 on musl, CI's musl job, and skips elsewhere; the three programs 2.3.0 already
+  pushed past the limit are left out, since their counts vary between builds of one GCC.
+- **`make bench`** gains `validator cases`, a million cases each marked with `v.saw` and
+  measured with `v.stat`; a program a base revision cannot build is listed as not there.
+- 25 new mutants, for the salt, SipHash, the drawn-stream check, `v.features` and the stats;
+  `make mutants` kills 63 of 63.
+- Fixtures `judge/testdata/salts`, a generator of each kind for EO825, and
+  `judge/testdata/features`, a tree problem whose validator lists its shapes.
+
 ## 2.3.0
 
 Two behaviours of the header change, both listed first: a jury program that sets a numeric
