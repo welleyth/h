@@ -40,6 +40,7 @@
 #include "generate.inc"
 #include "control.inc"
 #include "shapes.inc"
+#include "shapes_permutations.inc"
 #include "boundaries.inc"
 #include "pinned.inc"
 

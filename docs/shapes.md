@@ -151,6 +151,25 @@ of each size.
 `draw.partition(t, n)` splits a total across test cases, which is how you build the two tests
 that catch different bugs: `t = 10^5` cases of `n = 1`, and one case of `n = 10^5`.
 
+## Permutations
+
+A permutation is returned as `p[0..n−1]` holding `p(1)..p(n)`, the values 1..n. A
+permutation problem needs the identity and the reversal, one long cycle and many short ones,
+no fixed point and every fixed point, and the structure its answer counts: the cycles for
+swaps, the inversions for sorting, the longest increasing subsequence for patience.
+
+| Call | Gives | Kills |
+| --- | --- | --- |
+| `permutation(draw, n, name)` | any of `random`, `identity`, `reversed`, `cycle`, `derangement`, `involution` by name | — |
+| `permutation_cycles(draw, n, k)` | exactly `k` cycles, of random lengths adding up to `n` | an off-by-one in "n − cycles swaps" at `k = 1` and `k = n`; following a cycle recursively, at `k = 1` |
+| `derangement(draw, n)` | no fixed point, uniform over all derangements | "some `p(i) = i` exists" |
+| `involution(draw, n, fixed)` | `p(p(i)) = i`, with exactly `fixed` fixed points; uniform over those | a cycle walk that mishandles cycles of length 2. Keep a random case too: here `p` is its own inverse, so a solution that confuses `p` with `p⁻¹` passes |
+
+`permutation_cycles` draws the cycle lengths as a random composition of `n`, so they are of
+comparable size; a uniformly random permutation instead has one cycle of about `n/2` and
+about `ln n` cycles in all. `involution` under the name `involution` has as few fixed
+points as `n` allows, 0 or 1.
+
 ## Strings
 
 A string problem needs one letter repeated, which maximises borders and periods, a binary
@@ -217,6 +236,7 @@ exist under 10^9 — r = 48,612,265 carries 2,916 — but they are not worth the
 | trees | `tree`, `random_tree`, `uniform_tree`, `deep_tree`, `path`, `star`, `caterpillar`, `broom`, `binary_tree`, `kary_tree`, `dumbbell`, `spider` |
 | graphs | `connected_graph`, `sparse_graph`, `complete_graph`, `cycle`, `cycle_with_chords`, `grid`, `bipartite_graph`, `complete_bipartite`, `many_components`, `dag`, `functional` |
 | sequences | `equal_values`, `few_distinct`, `plateaus`, `nearly_sorted`, `alternating`, `hash_collisions` |
+| permutations | `permutation`, `permutation_cycles`, `derangement`, `involution` |
 | strings | `repeated`, `periodic`, `near_periodic`, `fibonacci_word`, `thue_morse`, `palindrome` |
 | geometry | `scattered`, `collinear`, `convex_position`, `cocircular`, `extreme_points` |
 | types | `eo::graph` (`n`, `edges`, `directed`), `eo::edge`, `eo::point` |

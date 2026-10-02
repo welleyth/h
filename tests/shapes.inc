@@ -584,6 +584,14 @@ EO_TEST(a_shape_that_throws_most_draws_away_is_reported) {
 
 namespace {
 
+void pin_bytes(std::string const& drawn, std::size_t size, unsigned long long digest, char const* file,
+               int line) {
+    unsigned long long const found = eo::detail::seed_of(drawn);
+    char said[160];
+    std::snprintf(said, sizeof(said), "the pinned bytes moved: %zu bytes with digest 0x%016llx", drawn.size(), found);
+    eot::record(drawn.size() == size && found == digest, said, file, line);
+}
+
 std::string edges_of(std::vector<eo::edge> const& edges) {
     std::string out;
     for (eo::edge const& one : edges) out += eo::fmt("{} {};", one.u, one.v);
@@ -648,7 +656,5 @@ std::string every_existing_shape() {
 }  // namespace
 
 EO_TEST(every_shape_of_2_3_0_draws_the_bytes_it_drew_then) {
-    std::string const drawn = every_existing_shape();
-    EO_CHECK_EQ(drawn.size(), static_cast<std::size_t>(6770));
-    EO_CHECK_EQ(eo::detail::seed_of(drawn), 0xa28c85369db98243ull);
+    pin_bytes(every_existing_shape(), 6770, 0xa28c85369db98243ull, __FILE__, __LINE__);
 }
