@@ -4226,13 +4226,21 @@ inline long long& sums_ever_made() {
     return count;
 }
 
-inline void a_sum_was_checked(std::string const& name, long long total);
+EOLYMP_COLD inline void a_sum_was_checked(std::string const& name, long long total);
+
+struct stat_entry {
+    std::string name;
+    long long value;
+};
+
+inline bool in_a_word(char one) {
+    return (one >= 'a' && one <= 'z') || (one >= 'A' && one <= 'Z') || (one >= '0' && one <= '9') || one == '_' ||
+           one == '.' || one == '-';
+}
 
 inline std::string one_word(std::string text) {
     for (char& one : text)
-        if (!((one >= 'a' && one <= 'z') || (one >= 'A' && one <= 'Z') || (one >= '0' && one <= '9') || one == '_' ||
-              one == '.' || one == '-'))
-            one = '_';
+        if (!in_a_word(one)) one = '_';
     return text;
 }
 
@@ -4645,9 +4653,9 @@ public:
     }
 
     void stat(std::string const& name, long long value, detail::site where = detail::site::here()) {
-        for (std::pair<std::string, long long>& one : stats_)
-            if (one.first == name) {
-                one.second = (std::max)(one.second, value);
+        for (detail::stat_entry& one : stats_)
+            if (one.name == name) {
+                one.value = (std::max)(one.value, value);
                 return;
             }
         if (!stat_name(name)) not_a_stat_name(name, where);
@@ -4708,24 +4716,24 @@ private:
         keep_the_larger(stats_, prefix + "components", measured.second);
     }
 
-    EOLYMP_COLD void a_sum_was_checked(std::string const& name, long long total) {
-        if (!name.empty()) keep_the_larger(stats_, detail::one_word(name), total);
+    static bool stat_name(std::string const& name) {
+        for (char const one : name)
+            if (!detail::in_a_word(one)) return false;
+        return !name.empty();
     }
 
-    static bool stat_name(std::string const& name) { return !name.empty() && detail::one_word(name) == name; }
-
-    static void keep_the_larger(std::vector<std::pair<std::string, long long>>& into, std::string const& name,
+    EOLYMP_COLD static void keep_the_larger(std::vector<detail::stat_entry>& into, std::string const& name,
                                 long long value) {
-        for (std::pair<std::string, long long>& one : into)
-            if (one.first == name) {
-                one.second = (std::max)(one.second, value);
+        for (detail::stat_entry& one : into)
+            if (one.name == name) {
+                one.value = (std::max)(one.value, value);
                 return;
             }
         into.push_back({name, value});
     }
 
-    EOLYMP_COLD std::vector<std::pair<std::string, long long>> every_stat() const {
-        std::vector<std::pair<std::string, long long>> all;
+    EOLYMP_COLD std::vector<detail::stat_entry> every_stat() const {
+        std::vector<detail::stat_entry> all;
         for (auto const& one : from_.bounds()) {
             detail::seen_bounds const& seen = one.second;
             bool const whole = seen.kind == "int";
@@ -4733,7 +4741,7 @@ private:
                 continue;
             all.push_back({whole ? one.first : one.first + ".length", whole ? seen.last_whole : seen.last_length});
         }
-        for (auto const& one : stats_) keep_the_larger(all, one.first, one.second);
+        for (auto const& one : stats_) keep_the_larger(all, one.name, one.value);
         return all;
     }
 
@@ -4891,7 +4899,7 @@ private:
                        one.second.reached_high ? "yes" : "no");
         for (auto const& one : features_)
             out += fmt("eo-describe feature {} seen={}\n", one.first, one.second ? "yes" : "no");
-        for (auto const& one : every_stat()) out += fmt("eo-describe stat {} {}\n", one.first, one.second);
+        for (auto const& one : every_stat()) out += fmt("eo-describe stat {} {}\n", one.name, one.value);
         for (std::size_t at = 0; at < case_marks_.size(); at++)
             out += fmt("eo-describe case {} {} {}\n", at + 1, case_marks_[at].first, case_marks_[at].second);
         detail::report(out.empty() ? std::string() : out.substr(0, out.size() - 1));
@@ -4905,7 +4913,7 @@ private:
     std::vector<std::pair<long long, long long>> case_marks_;
     std::optional<int> group_;
     std::map<std::string, bool> features_;
-    std::vector<std::pair<std::string, long long>> stats_;
+    std::vector<detail::stat_entry> stats_;
     bool completed_ = false;
     bool ended_ = false;
     bool describing_ = false;
@@ -4916,8 +4924,9 @@ private:
 
 namespace detail {
 
-inline void a_sum_was_checked(std::string const& name, long long total) {
-    if (live_validator() != nullptr) live_validator()->a_sum_was_checked(name, total);
+EOLYMP_COLD inline void a_sum_was_checked(std::string const& name, long long total) {
+    validator* const live = live_validator();
+    if (live != nullptr && !name.empty()) validator::keep_the_larger(live->stats_, one_word(name), total);
 }
 
 }  // namespace detail
