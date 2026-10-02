@@ -1,7 +1,7 @@
 #include <eolymp.h>
 
 int main(int argc, char** argv) {
-    eo::generator g(argc, argv);
+    eo::generator g(argc, argv, eo::salt("0123456789abcdef0123456789abcdef"));
     int const n = g.option<int>("n", 1, 100000);
     int const most = g.option<int>("max", 1, 1000000000, 1000000000);
     std::string const fill = g.option<std::string>("fill", {"random", "max"}, "random");

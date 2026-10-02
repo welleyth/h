@@ -1,7 +1,9 @@
 package main
 
 import (
+	"crypto/rand"
 	"embed"
+	"encoding/hex"
 	"flag"
 	"fmt"
 	"io"
@@ -9,6 +11,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"regexp"
 	"slices"
 	"strings"
 )
@@ -63,12 +66,29 @@ func writeTemplate(kind, dir string) ([]string, error) {
 		if err != nil {
 			return nil, err
 		}
+		if body, err = salted(body); err != nil {
+			return nil, err
+		}
 		if err := os.WriteFile(filepath.Join(dir, entry.Name()), body, 0o644); err != nil {
 			return nil, err
 		}
 		written = append(written, entry.Name())
 	}
 	return written, nil
+}
+
+var saltLiteral = regexp.MustCompile(`eo::salt\("[0-9A-Fa-f]*"\)`)
+
+func salted(body []byte) ([]byte, error) {
+	var failed error
+	out := saltLiteral.ReplaceAllFunc(body, func([]byte) []byte {
+		fresh := make([]byte, 16)
+		if _, err := rand.Read(fresh); err != nil {
+			failed = fmt.Errorf("a fresh salt could not be drawn: %w", err)
+		}
+		return []byte(`eo::salt("` + hex.EncodeToString(fresh) + `")`)
+	})
+	return out, failed
 }
 
 func article(word string) string {

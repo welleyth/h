@@ -58,7 +58,10 @@ not compile, a generator that fails, a missing file.
 
 Each carries one [test for its validator and one for its
 checker](#tests-for-the-validator-and-the-checker), an input the validator refuses and an
-output with its verdict, to copy for more. Each passes `run --expect --strict` and
+output with its verdict, to copy for more. Every generator it writes carries a salt of its
+own, 32 hex digits from the operating system's secure random source, written in place of the
+template's, so no two problems made by `init` share a test; see [What is secret and what is
+not](generator.md#what-is-secret-and-what-is-not). Each passes `run --expect --strict` and
 `check --strict` as written, with only note EO821 left, so everything the report says after
 an edit is about the edit. The programs include
 `eolymp.h` and attach nothing, as on the judge.

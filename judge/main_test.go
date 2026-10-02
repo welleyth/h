@@ -372,6 +372,52 @@ func TestInitWritesAProblemThatPassesRunAndCheck(t *testing.T) {
 	}
 }
 
+func TestInitSaltsEveryGeneratorAfresh(t *testing.T) {
+	t.Parallel()
+	salted := regexp.MustCompile(`eo::generator g\(argc, argv, eo::salt\("([0-9a-f]{32})"\)\);`)
+	seen := map[string]string{}
+	for _, kind := range kinds {
+		for _, round := range []string{"first", "second"} {
+			dir := filepath.Join(t.TempDir(), "new")
+			if code, _, errs := invoke("init", dir, "--type", kind); code != 0 {
+				t.Fatalf("exit %d, said %q", code, errs)
+			}
+			entries, err := os.ReadDir(dir)
+			if err != nil {
+				t.Fatal(err)
+			}
+			for _, entry := range entries {
+				body, err := os.ReadFile(filepath.Join(dir, entry.Name()))
+				if err != nil {
+					t.Fatal(err)
+				}
+				if !strings.Contains(string(body), "eo::generator") {
+					continue
+				}
+				found := salted.FindStringSubmatch(string(body))
+				if found == nil {
+					t.Errorf("the %s %s %s has no salt of 32 hex digits:\n%s", round, kind, entry.Name(), body)
+					continue
+				}
+				if earlier, known := seen[found[1]]; known {
+					t.Errorf("the %s %s %s has the salt %s of %s", round, kind, entry.Name(), found[1], earlier)
+				}
+				seen[found[1]] = round + " " + kind + " " + entry.Name()
+				template, err := templates.ReadFile("templates/" + kind + "/" + entry.Name())
+				if err != nil {
+					t.Fatal(err)
+				}
+				if strings.Contains(string(template), found[1]) {
+					t.Errorf("the %s %s %s keeps the template's own salt %s", round, kind, entry.Name(), found[1])
+				}
+			}
+		}
+	}
+	if len(seen) != 2*len(kinds) {
+		t.Errorf("found %d salted generators in %d problems: %v", len(seen), 2*len(kinds), seen)
+	}
+}
+
 func TestInitWritesOnlyIntoANewOrEmptyDirectory(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
