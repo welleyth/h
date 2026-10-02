@@ -1983,6 +1983,30 @@ inline std::vector<std::uint64_t> const& first_primes() {
     return primes;
 }
 
+inline bool power_at_most(long long base, int exponent, long long most) {
+    long long power = 1;
+    for (int at = 0; at < exponent; at++) {
+        if (power > most / base) return false;
+        power *= base;
+    }
+    return true;
+}
+
+inline long long whole_root(long long most, int exponent) {
+    if (exponent == 1) return most;
+    long long low = 1;
+    long long high = 3037000500;
+    while (low < high) {
+        long long const middle = low + (high - low + 1) / 2;
+        if (power_at_most(middle, exponent, most)) {
+            low = middle;
+        } else {
+            high = middle - 1;
+        }
+    }
+    return low;
+}
+
 }  // namespace detail
 
 [[nodiscard]] inline bool is_prime(long long n) {
@@ -2026,6 +2050,29 @@ inline std::vector<std::uint64_t> const& first_primes() {
         if (is_prime(candidate)) found.push_back(candidate);
     if (found.empty()) eo::detail::library_error(fmt("no prime lies in {}..{}", low, high));
     return draw.pick(found);
+}
+
+[[nodiscard]] inline long long semiprime(rng& draw, long long most) {
+    if (most < 4) eo::detail::library_error(fmt("no semiprime is at most {}; 4 is the smallest", most));
+    long long const root = detail::whole_root(most, 2);
+    long long const smaller = random_prime(draw, (std::max)(2LL, root / 2), root);
+    long long const reach = most / smaller;
+    return smaller * random_prime(draw, (std::max)(smaller, reach / 2), reach);
+}
+
+[[nodiscard]] inline long long prime_power(rng& draw, long long most, int exponent) {
+    if (exponent < 1)
+        eo::detail::library_error(fmt("a prime power has an exponent of at least 1, not {}", exponent));
+    if (!detail::power_at_most(2, exponent, 9223372036854775807LL))
+        eo::detail::library_error(fmt("no prime power p^{} fits in a long long", exponent));
+    if (!detail::power_at_most(2, exponent, most))
+        eo::detail::library_error(fmt("no prime power p^{} is at most {}; {} is the smallest", exponent, most,
+                                      1LL << exponent));
+    long long const root = detail::whole_root(most, exponent);
+    long long const base = random_prime(draw, (std::max)(2LL, root / 2), root);
+    long long power = 1;
+    for (int at = 0; at < exponent; at++) power *= base;
+    return power;
 }
 
 }  // namespace shapes

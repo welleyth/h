@@ -89,3 +89,62 @@ EO_TEST(a_random_prime_is_prime_inside_its_range_and_reaches_every_one) {
     EO_CHECK_IN(refusal([&] { (void)eo::shapes::random_prime(draw, 30, 20); }),
                 "random_prime draws from 30..20, which is empty");
 }
+
+EO_TEST(a_semiprime_has_two_prime_factors_both_near_the_square_root) {
+    eo::rng draw(902);
+    for (long long const most : {4LL, 10LL, 1000LL, 1000000000LL, 1000000000000LL}) {
+        for (int round = 0; round < 20; round++) {
+            long long const n = eo::shapes::semiprime(draw, most);
+            long long const p = smallest_factor(n);
+            long long const q = n / p;
+            EO_CHECK(n <= most && eo::shapes::is_prime(p) && eo::shapes::is_prime(q) && p * q == n);
+            long long root = 1;
+            while ((root + 1) * (root + 1) <= most) root++;
+            EO_CHECK(p * 2 >= root);
+        }
+    }
+    for (int round = 0; round < 20; round++) {
+        long long const n = eo::shapes::semiprime(draw, 1000000000000000000LL);
+        EO_CHECK(n <= 1000000000000000000LL && n > 100000000000000000LL && !eo::shapes::is_prime(n));
+        bool rough = true;
+        for (long long divisor = 2; divisor < 100000; divisor++) rough = rough && n % divisor != 0;
+        EO_CHECK(rough);
+    }
+    EO_CHECK_IN(refusal([&] { (void)eo::shapes::semiprime(draw, 3); }), "no semiprime is at most 3; 4 is the smallest");
+}
+
+EO_TEST(a_prime_power_is_a_large_prime_raised_to_the_power_asked_for) {
+    eo::rng draw(903);
+    for (int const k : {1, 2, 3, 5, 62}) {
+        long long const most = k == 62 ? 9223372036854775807LL : 1000000000000000000LL;
+        long long const n = eo::shapes::prime_power(draw, most, k);
+        EO_CHECK(n <= most);
+        long long root =
+            k == 1 ? n : std::max(2LL, static_cast<long long>(std::pow(static_cast<double>(n), 1.0 / k)) - 2);
+        auto const fits = [&](long long base) {
+            long long power = 1;
+            for (int at = 0; at < k; at++) {
+                if (power > n / base) return false;
+                power *= base;
+            }
+            return true;
+        };
+        while (k > 1 && fits(root + 1)) root++;
+        long long check = 1;
+        for (int at = 0; at < k; at++) check *= root;
+        EO_CHECK_EQ(check, n);
+        EO_CHECK(eo::shapes::is_prime(root));
+        if (k == 1) EO_CHECK(n > most / 2);
+    }
+    EO_CHECK_EQ(eo::shapes::prime_power(draw, 4, 2), 4LL);
+    std::string drawn;
+    for (int round = 0; round < 5; round++) drawn += eo::fmt("{};", eo::shapes::semiprime(draw, 1000000000000LL));
+    drawn += eo::fmt("{};", eo::shapes::prime_power(draw, 1000000000000LL, 2));
+    pin_bytes(drawn, 78, 0xfd3ea7c0d6e1faa8ull, __FILE__, __LINE__);
+    EO_CHECK_IN(refusal([&] { (void)eo::shapes::prime_power(draw, 7, 3); }),
+                "no prime power p^3 is at most 7; 8 is the smallest");
+    EO_CHECK_IN(refusal([&] { (void)eo::shapes::prime_power(draw, 9223372036854775807LL, 63); }),
+                "no prime power p^63 fits in a long long");
+    EO_CHECK_IN(refusal([&] { (void)eo::shapes::prime_power(draw, 100, 0); }),
+                "a prime power has an exponent of at least 1, not 0");
+}
