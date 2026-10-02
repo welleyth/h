@@ -50,6 +50,7 @@
 #include "shapes_strings.inc"
 #include "shapes_geometry.inc"
 #include "shapes_enumerate.inc"
+#include "shapes_scale.inc"
 #include "shapes_permutations.inc"
 #include "shapes_sequences.inc"
 #include "shapes_intervals.inc"
