@@ -46,6 +46,21 @@ public:
         return true;
     }
 
+    void erase(int u, int v) {
+        std::uint64_t const key = pack(u, v);
+        std::size_t hole = home(key);
+        while (slots_[hole] != key) hole = (hole + 1) & (slots_.size() - 1);
+        for (std::size_t probe = (hole + 1) & (slots_.size() - 1); slots_[probe] != empty;
+             probe = (probe + 1) & (slots_.size() - 1)) {
+            std::size_t const wanted = home(slots_[probe]);
+            bool const stays = hole < probe ? hole < wanted && wanted <= probe : hole < wanted || wanted <= probe;
+            if (stays) continue;
+            slots_[hole] = slots_[probe];
+            hole = probe;
+        }
+        slots_[hole] = empty;
+    }
+
     bool contains(int u, int v) const {
         std::uint64_t const key = pack(u, v);
         for (std::size_t at = home(key); slots_[at] != empty; at = (at + 1) & (slots_.size() - 1))
@@ -238,6 +253,49 @@ inline std::vector<edge> filled(rng& draw, int n, long long m, std::vector<edge>
         detail::kept_of(m, tries, "a dag with that many edges", eo::detail::site::here());
     }
     return graph{n, std::move(edges), true};
+}
+
+[[nodiscard]] inline graph regular_graph(rng& draw, int n, int k) {
+    detail::at_least(n, 1, "a regular graph");
+    if (k < 0 || k > n - 1)
+        eo::detail::library_error(fmt("a regular graph on {} vertices has degree 0..{}, not {}", n, n - 1, k));
+    if (static_cast<long long>(n) * k % 2 != 0)
+        eo::detail::library_error(
+            fmt("a {}-regular graph on {} vertices has {}/2 edges; n times k must be even", k, n,
+                static_cast<long long>(n) * k));
+    bool const flipped = 2 * k > n - 1;
+    int const degree = flipped ? n - 1 - k : k;
+    std::vector<edge> edges;
+    for (int u = 0; u < n; u++)
+        for (int step = 1; step <= degree / 2; step++) edges.push_back(edge{u + 1, (u + step) % n + 1});
+    if (degree % 2 == 1)
+        for (int u = 0; u < n / 2; u++) edges.push_back(edge{u + 1, u + n / 2 + 1});
+    detail::pair_set seen(edges.size());
+    for (edge const& one : edges) seen.insert((std::min)(one.u, one.v), (std::max)(one.u, one.v));
+    long long const swaps = 10 * static_cast<long long>(edges.size());
+    for (long long attempt = 0; attempt < swaps; attempt++) {
+        std::size_t const i = static_cast<std::size_t>(draw.uniform(0, static_cast<long long>(edges.size()) - 1));
+        std::size_t const j = static_cast<std::size_t>(draw.uniform(0, static_cast<long long>(edges.size()) - 1));
+        edge const first = edges[i];
+        edge second = edges[j];
+        if (draw.chance(0.5)) std::swap(second.u, second.v);
+        if (first.u == second.u || first.u == second.v || first.v == second.u || first.v == second.v) continue;
+        if (seen.contains((std::min)(first.u, second.v), (std::max)(first.u, second.v)) ||
+            seen.contains((std::min)(second.u, first.v), (std::max)(second.u, first.v)))
+            continue;
+        seen.erase((std::min)(first.u, first.v), (std::max)(first.u, first.v));
+        seen.erase((std::min)(second.u, second.v), (std::max)(second.u, second.v));
+        edges[i] = edge{first.u, second.v};
+        edges[j] = edge{second.u, first.v};
+        seen.insert((std::min)(first.u, second.v), (std::max)(first.u, second.v));
+        seen.insert((std::min)(second.u, first.v), (std::max)(second.u, first.v));
+    }
+    if (!flipped) return detail::undirected(n, std::move(edges));
+    std::vector<edge> missing;
+    for (int u = 1; u <= n; u++)
+        for (int v = u + 1; v <= n; v++)
+            if (!seen.contains(u, v)) missing.push_back(edge{u, v});
+    return detail::undirected(n, std::move(missing));
 }
 
 [[nodiscard]] inline std::vector<int> functional(rng& draw, int n, std::string const& shape) {
