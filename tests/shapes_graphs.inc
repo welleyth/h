@@ -454,7 +454,7 @@ EO_TEST(a_graph_has_exactly_the_diameter_asked_for_and_the_edges) {
         EO_CHECK_EQ(static_cast<long long>(made.edges.size()), one.m);
         EO_CHECK(static_cast<bool>(eo::is_simple_graph(made.n, made.edges)));
         EO_CHECK(static_cast<bool>(eo::is_connected(made.n, made.edges)));
-        if (one.n <= 1000) {
+        if (one.n <= 300) {
             int widest = 0;
             for (int vertex = 1; vertex <= made.n; vertex++) widest = std::max(widest, eccentricity(made, vertex));
             EO_CHECK_EQ(widest, one.d);

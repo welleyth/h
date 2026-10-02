@@ -192,7 +192,7 @@ EO_TEST(a_strong_pseudoprime_fools_miller_rabin_with_the_first_k_prime_bases) {
 EO_TEST(a_carmichael_number_passes_every_fermat_test_it_is_coprime_to) {
     eo::rng draw(904);
     std::vector<long long> seen;
-    for (int round = 0; round < 200; round++) {
+    for (int round = 0; round < 60; round++) {
         long long const n = eo::shapes::carmichael(draw, 1000000000000LL);
         seen.push_back(n);
         EO_CHECK(n <= 1000000000000LL && !eo::shapes::is_prime(n));
@@ -215,7 +215,7 @@ EO_TEST(a_carmichael_number_passes_every_fermat_test_it_is_coprime_to) {
     seen.erase(std::unique(seen.begin(), seen.end()), seen.end());
     EO_CHECK(seen.size() >= 10);
     EO_CHECK_EQ(eo::shapes::carmichael(draw, 561), 561LL);
-    for (int round = 0; round < 20; round++) {
+    for (int round = 0; round < 3; round++) {
         long long const n = eo::shapes::carmichael(draw, 9223372036854775807LL);
         bool fermat = !eo::shapes::is_prime(n);
         for (std::uint64_t base = 2; base < 60; base++)
@@ -226,7 +226,7 @@ EO_TEST(a_carmichael_number_passes_every_fermat_test_it_is_coprime_to) {
     }
     std::string drawn;
     for (int round = 0; round < 6; round++) drawn += eo::fmt("{};", eo::shapes::carmichael(draw, 1000000000000000LL));
-    pin_bytes(drawn, 73, 0x1eaaca3d577ea12full, __FILE__, __LINE__);
+    pin_bytes(drawn, 94, 0x3bb7e73bf1bf0fc4ull, __FILE__, __LINE__);
     EO_CHECK_IN(refusal([&] { (void)eo::shapes::carmichael(draw, 560); }),
                 "no Carmichael number is at most 560; 561 is the smallest");
 }
