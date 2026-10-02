@@ -581,3 +581,74 @@ EO_TEST(a_shape_that_throws_most_draws_away_is_reported) {
     EO_CHECK(!eot::contains(eo::detail::diagnostics::shared().local_block(), "EO505"));
     eo::detail::diagnostics::shared().forget_everything();
 }
+
+namespace {
+
+std::string edges_of(std::vector<eo::edge> const& edges) {
+    std::string out;
+    for (eo::edge const& one : edges) out += eo::fmt("{} {};", one.u, one.v);
+    return out;
+}
+
+std::string values_of(std::vector<long long> const& values) {
+    std::string out;
+    for (long long const one : values) out += eo::fmt("{};", one);
+    return out;
+}
+
+std::string points_of(std::vector<eo::point> const& points) {
+    std::string out;
+    for (eo::point const& one : points) out += eo::fmt("{} {};", one.x, one.y);
+    return out;
+}
+
+std::string every_existing_shape() {
+    eo::rng draw(20261002);
+    std::string out;
+    for (char const* name : {"random", "uniform", "path", "star", "caterpillar", "broom", "binary", "dumbbell"})
+        out += edges_of(eo::shapes::presented(draw, eo::shapes::tree(draw, 50, name))) + "|";
+    out += edges_of(eo::shapes::deep_tree(draw, 60, 3).edges) + "|";
+    out += edges_of(eo::shapes::caterpillar(draw, 40, 7).edges) + "|";
+    out += edges_of(eo::shapes::broom(30, 4).edges) + edges_of(eo::shapes::kary_tree(30, 3).edges) + "|";
+    out += edges_of(eo::shapes::spider(30, 4).edges) + "|";
+    out += edges_of(eo::shapes::connected_graph(draw, 40, 70).edges) + "|";
+    out += edges_of(eo::shapes::connected_graph(draw, 12, 50).edges) + "|";
+    out += edges_of(eo::shapes::sparse_graph(draw, 40, 30).edges) + "|";
+    out += edges_of(eo::shapes::complete_graph(6).edges) + edges_of(eo::shapes::cycle(7).edges) + "|";
+    out += edges_of(eo::shapes::cycle_with_chords(draw, 20, 9).edges) + "|";
+    out += edges_of(eo::shapes::grid(3, 4).edges) + "|";
+    out += edges_of(eo::shapes::bipartite_graph(draw, 10, 12, 30).edges) + "|";
+    out += edges_of(eo::shapes::bipartite_graph(draw, 5, 6, 25).edges) + "|";
+    out += edges_of(eo::shapes::complete_bipartite(3, 4).edges) + "|";
+    out += edges_of(eo::shapes::many_components(draw, 30, 4).edges) + "|";
+    out += edges_of(eo::shapes::dag(draw, 30, 40).edges);
+    out += edges_of(eo::shapes::dag(draw, 10, 30).edges) + "|";
+    for (char const* name : {"cycle", "rho", "self", "random"})
+        for (int const one : eo::shapes::functional(draw, 20, name)) out += eo::fmt("{};", one);
+    for (int const one : eo::shapes::parent_array(draw, eo::shapes::uniform_tree(draw, 40))) out += eo::fmt("{};", one);
+    out += "|" + values_of(eo::shapes::equal_values(5, 9));
+    out += values_of(eo::shapes::few_distinct(draw, 30, 4, 1, 1000));
+    out += values_of(eo::shapes::plateaus(draw, 30, 5, 1, 1000));
+    out += values_of(eo::shapes::nearly_sorted(draw, 30, 1, 1000, 4));
+    out += values_of(eo::shapes::alternating(draw, 30, 1, 1000));
+    out += values_of(eo::shapes::hash_collisions(5, 11)) + "|";
+    out += eo::shapes::repeated('x', 5) + eo::shapes::periodic("abc", 10);
+    out += eo::shapes::near_periodic(draw, "ab", 15, eo::charset("abc"));
+    out += eo::shapes::fibonacci_word(20) + eo::shapes::thue_morse(20);
+    out += eo::shapes::palindrome(draw, 15, eo::charset("a-z")) + "|";
+    out += points_of(eo::shapes::scattered(draw, 20, 1000));
+    out += points_of(eo::shapes::collinear(draw, 20, 1000));
+    out += points_of(eo::shapes::convex_position(draw, 20, 1000));
+    out += points_of(eo::shapes::cocircular(draw, 12));
+    out += points_of(eo::shapes::cocircular(draw, 12, 100));
+    out += points_of(eo::shapes::extreme_points(draw, 20, 1000));
+    return out;
+}
+
+}  // namespace
+
+EO_TEST(every_shape_of_2_3_0_draws_the_bytes_it_drew_then) {
+    std::string const drawn = every_existing_shape();
+    EO_CHECK_EQ(drawn.size(), static_cast<std::size_t>(6770));
+    EO_CHECK_EQ(eo::detail::seed_of(drawn), 0xa28c85369db98243ull);
+}
