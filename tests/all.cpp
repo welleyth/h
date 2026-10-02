@@ -48,6 +48,7 @@
 #include "shapes_grids.inc"
 #include "shapes_numbers.inc"
 #include "shapes_strings.inc"
+#include "shapes_geometry.inc"
 #include "shapes_permutations.inc"
 #include "shapes_sequences.inc"
 #include "shapes_intervals.inc"

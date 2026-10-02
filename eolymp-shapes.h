@@ -2750,6 +2750,33 @@ inline std::vector<long long> chained(rng& draw, long long count, long long limi
     return made;
 }
 
+[[nodiscard]] inline std::vector<point> general_position(rng& draw, long long count, long long limit) {
+    detail::room_for_points(count, limit, "points in general position");
+    long long const side = limit > 4611686018427387903LL ? 9223372036854775783LL : prev_prime(2 * limit + 1);
+    if (count > side)
+        eo::detail::library_error(
+            fmt("general_position fits at most {} points inside +-{}, not {}", side, limit, count));
+    std::uint64_t const modulus = static_cast<std::uint64_t>(side);
+    std::uint64_t const square = static_cast<std::uint64_t>(draw.uniform(1, side - 1));
+    std::uint64_t const linear = static_cast<std::uint64_t>(draw.uniform(0, side - 1));
+    std::uint64_t const constant = static_cast<std::uint64_t>(draw.uniform(0, side - 1));
+    bool const turned = draw.chance(0.5);
+    bool const mirrored = draw.chance(0.5);
+    std::vector<point> made;
+    made.reserve(static_cast<std::size_t>(count));
+    for (long long const x : draw.distinct(count, 0, side - 1)) {
+        std::uint64_t const at = static_cast<std::uint64_t>(x);
+        std::uint64_t const y =
+            (detail::mul_mod(detail::mul_mod(at, at, modulus), square, modulus) + detail::mul_mod(at, linear, modulus) +
+             constant) % modulus;
+        point one{x - limit, static_cast<long long>(y) - limit};
+        if (mirrored) one.x = -one.x;
+        if (turned) std::swap(one.x, one.y);
+        made.push_back(one);
+    }
+    return made;
+}
+
 }  // namespace shapes
 }  // namespace eo
 

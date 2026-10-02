@@ -379,13 +379,15 @@ position for anything that builds a hull.
 | `cocircular(draw, count)` | exact lattice points on one circle | circle and Delaunay predicates computed in doubles |
 | `cocircular(draw, count, limit)` | the same, on a circle of radius at most `limit`, so inside the box; up to 4 points fit any box, on the circle of radius 1 | the same, inside the statement's box |
 | `extreme_points(draw, count, limit)` | every point on the edge of the box, so cross products reach 10^18 | cross products in `int`, or in `double` |
+| `general_position(draw, count, limit)` | different points, no three on a line: `(x, a·x² + b·x + c mod p)` for a prime `p ≤ 2·limit + 1` and random `a ≠ 0`, `b`, `c`, then a random mirror and transposition; at most `p` points | nothing in particular; it is the input a statement promising "no three collinear" needs, which `scattered` breaks at small limits and `convex_position` breaks always |
 
 **`convex_position` is convex, not strictly convex.** The steps are integer vectors inside a
 bounded box, so many of them come out parallel and the points they build are collinear in
 threes: measured at 1,000 points in ±1,000 there are 760 collinear triples, and at 100,000 in
 ±10^6 there are 74,726 — and never a reversed turn. Every point is on the hull's *boundary*,
 but the hull has far fewer *vertices* than you asked for. If the statement promises that no
-three points are collinear, this is not the generator for it.
+three points are collinear, this is not the generator for it; `general_position` and
+`strictly_convex` are.
 
 **`cocircular` is bounded by arithmetic, not by the library.** Lattice points on a circle are
 scarce: the radii this library ships top out at 972 of them, and finding more costs a scan
@@ -421,7 +423,7 @@ exist under 10^9 — r = 48,612,265 carries 2,916 — but they are not worth the
 | queries | `ranges`, `query_order` |
 | strings | `repeated`, `periodic`, `near_periodic`, `fibonacci_word`, `thue_morse`, `palindrome`, `de_bruijn`, `lyndon`, `abacaba`, `thue_morse_twins`, `anti_hash` |
 | numbers | `is_prime`, `next_prime`, `prev_prime`, `random_prime`, `semiprime`, `prime_power`, `most_divisors`, `strong_pseudoprime`, `carmichael`, `fibonacci_pair` |
-| geometry | `scattered`, `collinear`, `convex_position`, `cocircular`, `extreme_points` |
+| geometry | `scattered`, `collinear`, `convex_position`, `cocircular`, `extreme_points`, `general_position` |
 | types | `eo::graph` (`n`, `edges`, `directed`), `eo::edge`, `eo::weighted_graph` (`n`, `edges`, `directed`), `eo::weighted_edge`, `eo::point`, `eo::interval` (`l`, `r`) |
 
 Everything lives in `eo::shapes::`, except the types: `eo::graph`, `eo::weighted_graph`, `eo::edge`,
