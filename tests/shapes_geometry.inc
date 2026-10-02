@@ -102,3 +102,36 @@ EO_TEST(a_simple_polygon_never_crosses_itself_and_turns_counterclockwise) {
     EO_CHECK_IN(refusal([&] { (void)eo::shapes::simple_polygon(draw, 10, 2000000000); }),
                 "a simple polygon inside +-2000000000 would overflow its own cross products; 1000000000 is the most");
 }
+
+EO_TEST(a_strictly_convex_polygon_turns_left_at_every_vertex) {
+    eo::rng draw(1003);
+    for (long long const limit : {1LL, 3LL, 10LL, 1000LL, 1000000000LL})
+        for (long long const count : {3LL, 4LL, 5LL, 7LL, 8LL, 24LL, 1000LL, 100000LL}) {
+            std::vector<eo::point> polygon;
+            eot::outcome const made = eot::run_until_stop([&] { polygon = eo::shapes::strictly_convex(draw, count, limit); });
+            if (made.stopped) {
+                EO_CHECK_IN(made.text, "vertices of a strictly convex polygon fit inside");
+                continue;
+            }
+            EO_CHECK_EQ(static_cast<long long>(polygon.size()), count);
+            EO_CHECK(inside_box(polygon, limit));
+            bool turns = true;
+            for (std::size_t at = 0; at < polygon.size(); at++)
+                turns = turns && cross_of(polygon[at], polygon[(at + 1) % polygon.size()],
+                                          polygon[(at + 2) % polygon.size()]) > 0;
+            EO_CHECK(turns);
+        }
+    EO_CHECK_EQ(eo::shapes::strictly_convex(draw, 24, 10).size(), static_cast<std::size_t>(24));
+    EO_CHECK_IN(refusal([&] { (void)eo::shapes::strictly_convex(draw, 25, 10); }),
+                "at most 24 vertices of a strictly convex polygon fit inside +-10, not 25");
+    EO_CHECK_IN(refusal([&] { (void)eo::shapes::strictly_convex(draw, 5, 1); }),
+                "at most 4 vertices of a strictly convex polygon fit inside +-1, not 5");
+    EO_CHECK_EQ(eo::shapes::strictly_convex(draw, 1000000, 1000000000).size(), static_cast<std::size_t>(1000000));
+    std::string const drawn = points_of(eo::shapes::strictly_convex(draw, 10, 100));
+    pin_bytes(drawn, 70, 0x759acaffe75d7ce9ull, __FILE__, __LINE__);
+    EO_CHECK_IN(refusal([&] { (void)eo::shapes::strictly_convex(draw, 2, 100); }),
+                "a strictly convex polygon has at least 3 vertices, not 2");
+    EO_CHECK_IN(refusal([&] { (void)eo::shapes::strictly_convex(draw, 10, 2000000000); }),
+                "a strictly convex polygon inside +-2000000000 would overflow its own cross products; 1000000000 is the "
+                "most");
+}

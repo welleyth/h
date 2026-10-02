@@ -284,5 +284,58 @@ inline std::vector<long long> chained(rng& draw, long long count, long long limi
     return made;
 }
 
+[[nodiscard]] inline std::vector<point> strictly_convex(rng& draw, long long count, long long limit) {
+    detail::room_for_points(count, limit, "a strictly convex polygon");
+    if (count < 3) eo::detail::library_error(fmt("a strictly convex polygon has at least 3 vertices, not {}", count));
+    if (limit > 1000000000)
+        eo::detail::library_error(fmt(
+            "a strictly convex polygon inside +-{} would overflow its own cross products; 1000000000 is the most",
+            limit));
+    long long const wanted = (count + 3) / 4;
+    std::vector<point> quarter;
+    long long spent = 0;
+    for (long long sum = 1; static_cast<long long>(quarter.size()) < wanted; sum++)
+        for (long long across = 1; across <= sum && static_cast<long long>(quarter.size()) < wanted; across++) {
+            if (detail::shared_divisor(across, sum - across) != 1) continue;
+            if (spent + sum > 2 * limit)
+                eo::detail::library_error(
+                    fmt("at most {} vertices of a strictly convex polygon fit inside +-{}, not {}", 4 * quarter.size(),
+                        limit, count));
+            spent += sum;
+            quarter.push_back(point{across, sum - across});
+        }
+    std::vector<point> steps;
+    for (point const& one : quarter)
+        for (point const& turned : {one, point{-one.y, one.x}, point{-one.x, -one.y}, point{one.y, -one.x}})
+            steps.push_back(turned);
+    std::sort(steps.begin(), steps.end(), [](point const& left, point const& right) {
+        int const left_half = detail::half_of(left);
+        int const right_half = detail::half_of(right);
+        if (left_half != right_half) return left_half < right_half;
+        return left.x * right.y - left.y * right.x > 0;
+    });
+    while (static_cast<long long>(steps.size()) > count) {
+        std::size_t const at = static_cast<std::size_t>(draw.uniform(0, static_cast<long long>(steps.size()) - 1));
+        std::size_t const next = (at + 1) % steps.size();
+        steps[at] = point{steps[at].x + steps[next].x, steps[at].y + steps[next].y};
+        steps.erase(steps.begin() + static_cast<std::ptrdiff_t>(next));
+    }
+    std::vector<point> made;
+    point here{0, 0};
+    point least{0, 0};
+    point most{0, 0};
+    for (point const& step : steps) {
+        made.push_back(here);
+        here = point{here.x + step.x, here.y + step.y};
+        least = point{(std::min)(least.x, here.x), (std::min)(least.y, here.y)};
+        most = point{(std::max)(most.x, here.x), (std::max)(most.y, here.y)};
+    }
+    long long const shift_x = -limit - least.x + draw.uniform(0, 2 * limit - (most.x - least.x));
+    long long const shift_y = -limit - least.y + draw.uniform(0, 2 * limit - (most.y - least.y));
+    for (point& one : made) one = point{one.x + shift_x, one.y + shift_y};
+    std::rotate(made.begin(), made.begin() + static_cast<std::ptrdiff_t>(draw.uniform(0, count - 1)), made.end());
+    return made;
+}
+
 }  // namespace shapes
 }  // namespace eo
