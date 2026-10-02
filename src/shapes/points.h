@@ -337,5 +337,20 @@ inline std::vector<long long> chained(rng& draw, long long count, long long limi
     return made;
 }
 
+[[nodiscard]] inline std::vector<std::pair<point, point>> crossing_segments(rng& draw, long long count,
+                                                                           long long limit) {
+    if (count < 1) eo::detail::library_error(fmt("crossing_segments makes at least 1 segment, not {}", count));
+    long long const corners = (std::max)(4LL, 2 * count);
+    std::vector<point> const ring = strictly_convex(draw, corners, limit);
+    std::vector<std::pair<point, point>> made;
+    for (std::size_t at = 0; at < static_cast<std::size_t>(count); at++) {
+        point const& one = ring[at];
+        point const& other = ring[at + static_cast<std::size_t>(corners) / 2];
+        made.push_back(draw.chance(0.5) ? std::make_pair(one, other) : std::make_pair(other, one));
+    }
+    draw.shuffle(made);
+    return made;
+}
+
 }  // namespace shapes
 }  // namespace eo

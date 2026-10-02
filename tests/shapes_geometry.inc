@@ -108,7 +108,8 @@ EO_TEST(a_strictly_convex_polygon_turns_left_at_every_vertex) {
     for (long long const limit : {1LL, 3LL, 10LL, 1000LL, 1000000000LL})
         for (long long const count : {3LL, 4LL, 5LL, 7LL, 8LL, 24LL, 1000LL, 100000LL}) {
             std::vector<eo::point> polygon;
-            eot::outcome const made = eot::run_until_stop([&] { polygon = eo::shapes::strictly_convex(draw, count, limit); });
+            eot::outcome const made =
+                eot::run_until_stop([&] { polygon = eo::shapes::strictly_convex(draw, count, limit); });
             if (made.stopped) {
                 EO_CHECK_IN(made.text, "vertices of a strictly convex polygon fit inside");
                 continue;
@@ -132,6 +133,42 @@ EO_TEST(a_strictly_convex_polygon_turns_left_at_every_vertex) {
     EO_CHECK_IN(refusal([&] { (void)eo::shapes::strictly_convex(draw, 2, 100); }),
                 "a strictly convex polygon has at least 3 vertices, not 2");
     EO_CHECK_IN(refusal([&] { (void)eo::shapes::strictly_convex(draw, 10, 2000000000); }),
-                "a strictly convex polygon inside +-2000000000 would overflow its own cross products; 1000000000 is the "
-                "most");
+                "a strictly convex polygon inside +-2000000000 would overflow its own cross products; "
+                "1000000000 is the most");
+}
+
+EO_TEST(crossing_segments_cross_every_other_one_properly) {
+    eo::rng draw(1004);
+    for (long long const count : {1LL, 2LL, 3LL, 50LL, 200LL}) {
+        std::vector<std::pair<eo::point, eo::point>> const segments =
+            eo::shapes::crossing_segments(draw, count, 1000000);
+        EO_CHECK_EQ(static_cast<long long>(segments.size()), count);
+        bool crossing = true;
+        std::vector<eo::point> ends;
+        for (std::size_t i = 0; i < segments.size(); i++) {
+            ends.push_back(segments[i].first);
+            ends.push_back(segments[i].second);
+            for (std::size_t j = i + 1; j < segments.size(); j++) {
+                eo::point const& a = segments[i].first;
+                eo::point const& b = segments[i].second;
+                eo::point const& c = segments[j].first;
+                eo::point const& d = segments[j].second;
+                crossing = crossing && sign_of(cross_of(a, b, c)) * sign_of(cross_of(a, b, d)) < 0 &&
+                           sign_of(cross_of(c, d, a)) * sign_of(cross_of(c, d, b)) < 0;
+            }
+        }
+        EO_CHECK(crossing);
+        EO_CHECK(inside_box(ends, 1000000));
+    }
+    std::vector<std::pair<eo::point, eo::point>> const shown = eo::shapes::crossing_segments(draw, 6, 100);
+    std::vector<eo::point> ends;
+    for (auto const& one : shown) {
+        ends.push_back(one.first);
+        ends.push_back(one.second);
+    }
+    pin_bytes(points_of(ends), 70, 0xabd06ce84cb049e5ull, __FILE__, __LINE__);
+    EO_CHECK_IN(refusal([&] { (void)eo::shapes::crossing_segments(draw, 13, 10); }),
+                "at most 24 vertices of a strictly convex polygon fit inside +-10, not 26");
+    EO_CHECK_IN(refusal([&] { (void)eo::shapes::crossing_segments(draw, 0, 10); }),
+                "crossing_segments makes at least 1 segment, not 0");
 }
