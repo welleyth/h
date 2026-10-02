@@ -1,5 +1,67 @@
 # Changelog
 
+## Unreleased
+
+`eolymp-shapes.h` grows from 42 names in five groups to 114 in twelve topics, each documented
+in `docs/shapes.md` with what it gives and the wrong solution it is there to kill. Nothing
+changes for a program that does not call them: every shape of 2.3.0 draws the bytes it drew,
+a test pins them, and `eolymp.h` is untouched. Two new names in `eo`, `weighted_graph` and
+`interval`, matter only to a program that says `using namespace eo;`.
+
+### New for problem authors
+
+- **Permutations:** `permutation(draw, n, name)`, `permutation_cycles`, `derangement`,
+  `involution` with a given number of fixed points, `with_inversions` with exactly `k`
+  inversions, `with_lis` with a longest increasing subsequence of exactly `k`.
+- **Sequences:** `log_uniform`, every decimal length equally likely; `near_bounds`; `spikes`;
+  `split_sum`, a total split into parts with a floor and a ceiling, for multi-test sizes;
+  `distinct_gapped`; `mountain` and `valley`.
+- **Intervals and queries:** `intervals(draw, count, low, high, name)` as random, disjoint,
+  touching, nested, laminar, chain, through one point, all the same or points; `ranges(draw,
+  count, n, name)` as random, short, long, prefix, suffix, point, full or same; `query_order`,
+  updates and queries random, grouped or alternating.
+- **Trees:** `tree_from_pruefer`, `tree_from_degrees`, `tree_with_leaves`,
+  `tree_with_diameter` and `tree_with_height`, all exact; `bounded_degree_tree`; `comb` and
+  `staircase`, the two heavy-light traps, the second making a decomposition by height cross
+  about √n light edges; `tree(draw, n, name)` knows both.
+- **Graphs:** `regular_graph`, `cactus`, `with_bridges` and `with_cut_vertices` with exact
+  counts, `euler_circuit` and `euler_path`, `perfect_matching`, `tournament`, `with_sccs`
+  with exactly `k` strong components, `graph_with_diameter`.
+- **Shortest paths and flows:** `eo::weighted_graph`, `with_weights`, and `presented` for it;
+  `presented(draw, made, kept)` keeps a source, a sink or a root where it is; `anti_spfa`,
+  on which SPFA scans 16,000 times the edges at n = 100,000; `anti_dijkstra`, which a heap
+  without the stale-entry check rescans n/2 times; `layered_network`, which a Dinic without
+  the current-arc pointer re-explores without end.
+- **Grids:** `maze`, a perfect maze; `scattered_walls` with a kept path; `serpentine` and
+  `spiral`, the longest corridors; `checkerboard`.
+- **Strings:** `de_bruijn`, `lyndon`, `abacaba`; `thue_morse_twins`, which collide modulo 2⁶⁴
+  under every odd base from length 1024; `anti_hash`, two strings that collide under every
+  `(base, mod)` pair given, by the tree attack over moduli joined by the Chinese remainder
+  theorem: 4,096 letters for a double hash modulo two primes near 10⁹.
+- **Numbers:** `is_prime`, deterministic for every `long long`, `next_prime`, `prev_prime`,
+  `random_prime`, `semiprime`, `prime_power`, `most_divisors`, `strong_pseudoprime(k)`, the
+  least composite Miller–Rabin with the first `k` prime bases accepts, `carmichael`,
+  `fibonacci_pair`.
+- **Geometry:** `general_position`, no three points collinear; `simple_polygon`;
+  `strictly_convex`, up to 5,594,328 vertices in ±10⁹ with every turn a left turn;
+  `crossing_segments`, every pair crossing.
+- **Small exhaustive tests:** `count_*` and `*_at` number every array, string, permutation,
+  labelled tree, by Prüfer code, and labelled graph, by edge mask, of one size from 0, so a
+  generator packs all small inputs into multi-test files.
+
+### Tests
+
+- Every new shape is pinned byte for byte, and the pins hold under libstdc++ and libc++; the
+  shapes digest that eo-judge's Windows transcript compares carries every one of them, and
+  e2e builds it a second time without `unsigned __int128`, as MSVC compiles it, and compares.
+- Each shape is checked for the property it promises, against an independent computation:
+  cycles, inversions and increasing subsequences counted, diameters by BFS, bridges and cut
+  vertices by low-link, strong components by Kosaraju, mazes as trees, primes against a sieve,
+  collisions by hashing both strings, and every numbering against a brute-force enumeration.
+  A timing test fails a new shape that grows more than tenfold from 10,000 to 40,000.
+- `tools/mutants.py` has twelve more mutants, one for each shape whose correctness rests on
+  a single comparison or sign.
+
 ## 2.3.0
 
 Two behaviours of the header change, both listed first: a jury program that sets a numeric
