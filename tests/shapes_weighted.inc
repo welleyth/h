@@ -205,3 +205,100 @@ EO_TEST(anti_dijkstra_makes_a_heap_without_the_stale_check_rescan_the_hub) {
                 std::string("1 2 1;2 5 5;1 3 2;3 5 3;1 4 3;4 5 1;5 6 1;5 7 1;5 8 1;"));
     EO_CHECK_IN(refusal([] { (void)eo::shapes::anti_dijkstra(0); }), "anti_dijkstra needs at least 1 vertices, not 0");
 }
+
+namespace {
+
+struct blocking_flow {
+    struct arc {
+        int to;
+        long long room;
+    };
+    std::vector<arc> arcs;
+    std::vector<std::vector<std::size_t>> out;
+    std::vector<int> level;
+    std::vector<std::size_t> next;
+    bool remembers;
+    long long visits = 0;
+    long long budget = 50000000;
+
+    blocking_flow(int n, std::vector<eo::weighted_edge> const& edges, bool remember)
+        : out(static_cast<std::size_t>(n) + 1), level(static_cast<std::size_t>(n) + 1),
+          next(static_cast<std::size_t>(n) + 1), remembers(remember) {
+        for (eo::weighted_edge const& one : edges) {
+            out[static_cast<std::size_t>(one.u)].push_back(arcs.size());
+            arcs.push_back({one.v, one.w});
+            out[static_cast<std::size_t>(one.v)].push_back(arcs.size());
+            arcs.push_back({one.u, 0});
+        }
+    }
+
+    bool layered(int source, int sink) {
+        std::fill(level.begin(), level.end(), -1);
+        std::vector<int> waiting{source};
+        level[static_cast<std::size_t>(source)] = 0;
+        for (std::size_t at = 0; at < waiting.size(); at++)
+            for (std::size_t const id : out[static_cast<std::size_t>(waiting[at])])
+                if (arcs[id].room > 0 && level[static_cast<std::size_t>(arcs[id].to)] < 0) {
+                    level[static_cast<std::size_t>(arcs[id].to)] = level[static_cast<std::size_t>(waiting[at])] + 1;
+                    waiting.push_back(arcs[id].to);
+                }
+        return level[static_cast<std::size_t>(sink)] >= 0;
+    }
+
+    long long push(int here, int sink, long long most) {
+        if (here == sink) return most;
+        std::size_t const at = static_cast<std::size_t>(here);
+        long long sent = 0;
+        std::size_t scan = remembers ? next[at] : 0;
+        for (; scan < out[at].size() && sent < most && visits < budget; scan++) {
+            visits++;
+            arc& one = arcs[out[at][scan]];
+            if (one.room <= 0 || level[static_cast<std::size_t>(one.to)] != level[at] + 1) continue;
+            long long const got = push(one.to, sink, std::min(most - sent, one.room));
+            one.room -= got;
+            arcs[out[at][scan] ^ 1].room += got;
+            sent += got;
+            if (sent == most) break;
+        }
+        if (remembers) next[at] = scan;
+        return sent;
+    }
+
+    long long run(int source, int sink) {
+        long long total = 0;
+        while (visits < budget && layered(source, sink)) {
+            std::fill(next.begin(), next.end(), 0);
+            total += push(source, sink, LLONG_MAX);
+        }
+        return total;
+    }
+};
+
+}  // namespace
+
+EO_TEST(a_layered_network_sends_a_dinic_without_its_arc_pointers_round_and_round) {
+    eo::rng draw(605);
+    eo::weighted_graph const net = eo::shapes::layered_network(draw, 5, 10, 1000);
+    EO_CHECK(net.directed);
+    EO_CHECK_EQ(net.n, 52);
+    EO_CHECK_EQ(net.edges.size(), static_cast<std::size_t>(10 + 4 * 100 + 10));
+    bool positive = true;
+    for (eo::weighted_edge const& one : net.edges) positive = positive && one.w >= 1 && one.w <= 1000;
+    EO_CHECK(positive);
+    std::vector<eo::weighted_edge> const shown = eo::shapes::presented(draw, net, {1, 52});
+    blocking_flow careful(52, shown, true);
+    blocking_flow forgetful(52, shown, false);
+    long long const flow = careful.run(1, 52);
+    EO_CHECK_EQ(forgetful.run(1, 52), flow);
+    EO_CHECK(careful.visits < 10 * static_cast<long long>(shown.size()));
+    EO_CHECK(forgetful.visits > 500 * careful.visits);
+    eo::weighted_graph const single = eo::shapes::layered_network(draw, 1, 1, 5);
+    EO_CHECK_EQ(single.n, 3);
+    EO_CHECK_EQ(single.edges.size(), static_cast<std::size_t>(2));
+    std::string const drawn = weighted_of(eo::shapes::layered_network(draw, 3, 3, 20).edges);
+    pin_bytes(drawn, 163, 0x34d8657c25398189ull, __FILE__, __LINE__);
+    EO_CHECK_IN(refusal([&] { (void)eo::shapes::layered_network(draw, 0, 3, 20); }),
+                "a layered network has at least 1 layer of at least 1 vertex, not 0 of 3");
+    EO_CHECK_IN(refusal([&] { (void)eo::shapes::layered_network(draw, 3, 3, 0); }),
+                "layered_network draws capacities from 1..high, and high is 0");
+}

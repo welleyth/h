@@ -1167,6 +1167,25 @@ namespace shapes {
     return made;
 }
 
+[[nodiscard]] inline weighted_graph layered_network(rng& draw, int layers, int width, long long high) {
+    if (layers < 1 || width < 1)
+        eo::detail::library_error(fmt(
+            "a layered network has at least 1 layer of at least 1 vertex, not {} of {}", layers, width));
+    if (high < 1)
+        eo::detail::library_error(fmt("layered_network draws capacities from 1..high, and high is {}", high));
+    int const sink = layers * width + 2;
+    weighted_graph made{sink, {}, true};
+    auto const at = [width](int layer, int place) { return 2 + layer * width + place; };
+    for (int place = 0; place < width; place++) made.edges.push_back(weighted_edge{1, at(0, place), high});
+    for (int layer = 0; layer + 1 < layers; layer++)
+        for (int from = 0; from < width; from++)
+            for (int to = 0; to < width; to++)
+                made.edges.push_back(weighted_edge{at(layer, from), at(layer + 1, to), draw.uniform(1, high)});
+    for (int place = 0; place < width; place++)
+        made.edges.push_back(weighted_edge{at(layers - 1, place), sink, draw.uniform(1, high)});
+    return made;
+}
+
 }  // namespace shapes
 }  // namespace eo
 
