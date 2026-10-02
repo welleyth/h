@@ -176,6 +176,8 @@ EO_TEST(a_salt_changes_every_stream_and_the_same_salt_gives_the_same_bytes) {
     made const salted = generate({"-n=6"}, streams_of, a_salt);
     made const again = generate({"-n=6"}, streams_of, a_salt);
     made const other = generate({"-n=6"}, streams_of, "3f9c0b7e5a1d42c8e6b09f17d3a5c825");
+    made const first_half = generate({"-n=6"}, streams_of, "4f9c0b7e5a1d42c8e6b09f17d3a5c824");
+    EO_CHECK(first_half.test != salted.test);
     EO_CHECK(!salted.stopped);
     EO_CHECK_EQ(again.test, salted.test);
     std::vector<std::string> const before = lines_of(plain.test);
