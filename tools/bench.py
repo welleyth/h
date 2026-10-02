@@ -69,6 +69,22 @@ int main(int argc, char** argv) {
     v.read_tree(n, "edge");
 }
 """, "tree"),
+    "validator cases": ("""
+int main(int argc, char** argv) {
+    eo::validator v(argc, argv);
+    v.features({"small", "large"});
+    int const t = v.read_int(1, 10000000, "t");
+    v.read_eoln();
+    eo::sum_limit total(1000000000000000000LL, "the sum of x");
+    v.cases(t, [&] {
+        int const x = v.read_int(1, 1000000000, "x");
+        v.read_eoln();
+        total += x;
+        v.saw(x < 500000000 ? "small" : "large");
+        v.stat("largest", x);
+    });
+}
+""", "cases"),
     "checker tokens": ("""
 int main(int argc, char** argv) {
     eo::checker c(argc, argv);
@@ -149,6 +165,8 @@ def inputs(where: pathlib.Path) -> dict:
     count = 500000
     edges = [(dice.randint(1, at - 1), at) for at in range(2, count + 1)]
     keep("tree", f"{count}\n" + "".join(f"{u} {v}\n" for u, v in edges))
+    count = 1000000
+    keep("cases", f"{count}\n" + "".join(f"{dice.randint(1, 10 ** 9)}\n" for _ in range(count)))
     keep("one", "1\n")
     keep("words-out", " ".join(words) + "\n")
     keep("reals-out", " ".join(reals) + "\n")
@@ -183,18 +201,18 @@ def count_instructions(binary: pathlib.Path, argv: list, scratch: pathlib.Path) 
     raise SystemExit("bench: perf printed no instruction count")
 
 
-def build(headers: pathlib.Path, where: pathlib.Path) -> dict:
+def build(headers: pathlib.Path, where: pathlib.Path, every: bool = True) -> dict:
     where.mkdir(parents=True, exist_ok=True)
-    built = {}
-    running = []
+    running = {}
     for at, (name, (body, _)) in enumerate(PROGRAMS.items()):
         source = where / f"program{at}.cpp"
         source.write_text('#include "eolymp.h"\n' + body)
         binary = where / f"program{at}"
-        running.append(subprocess.Popen([*compiler(), f"-std={standard()}", "-O2", f"-I{headers}", "-o",
-                                         str(binary), str(source)]))
-        built[name] = binary
-    if any(one.wait() != 0 for one in running):
+        running[name] = (binary, subprocess.Popen([*compiler(), f"-std={standard()}", "-O2", f"-I{headers}", "-o",
+                                                   str(binary), str(source)], stderr=subprocess.DEVNULL if not every
+                                                  else None))
+    built = {name: binary for name, (binary, job) in running.items() if job.wait() == 0}
+    if every and len(built) != len(PROGRAMS):
         raise SystemExit(f"bench: the programs do not build against {headers}")
     return built
 
@@ -219,16 +237,18 @@ def main() -> int:
     scratch.mkdir(parents=True)
     made = inputs(scratch)
     now = build(ROOT, scratch / "now")
-    before = build(headers_of(base, scratch / "base" / "include"), scratch / "base") if base else None
+    before = build(headers_of(base, scratch / "base" / "include"), scratch / "base", False) if base else None
     title = f"{'':24} {'G instructions':>15}" + (f" {base:>15} {'change':>8}" if base else "")
     print(title)
     for name, (_, kind) in PROGRAMS.items():
         argv = arguments(kind, made)
         counted = count_instructions(now[name], argv, scratch)
         line = f"{name:24} {counted:15.3f}"
-        if before:
+        if before is not None and name in before:
             then = count_instructions(before[name], argv, scratch)
             line += f" {then:15.3f} {100 * (counted - then) / then:+7.1f}%"
+        elif before is not None:
+            line += f" {'not in ' + base:>15}"
         print(line)
     return 0
 

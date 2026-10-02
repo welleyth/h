@@ -523,15 +523,18 @@ calling `v.feature` on each; the two mix, and declaring a name twice is declarin
 `v.saw(name)` marks one for this test, and marking it twice is the same as once. Marking a name
 that was never declared is a mistake in the validator, not in the test, so it stops with the
 library's error, the line, and the names that were declared: `validator.cpp:13: saw("pth")
-names a feature that was never declared; it declares path, star`. Marking costs a lookup on
-the judge and nothing more: the marks only leave the program under `--eo-describe`, below.
+names a feature that was never declared; it declares path, star`. The marks only leave the
+program under `--eo-describe`, below, so on the judge a mark is a lookup among the declared
+names: about 160 instructions in `make bench`'s `validator cases`, against about 530 for the
+`read_int`, `read_eoln` and `sum_limit` of the case around it.
 
 A **stat** is a number the validator measured on this test, which an author wants to see
 without opening the file: `v.stat("depth", depth)`. A name is one word of letters, digits, `_`,
 `.` and `-`; anything else, an empty name too, is the library's error. A stat recorded twice
 in one test keeps the larger value, so in a multi-test input it is the most any case reached.
-Like the marks, stats only leave the program under `--eo-describe`, and on the judge one costs
-a comparison of names.
+Like the marks, stats only leave the program under `--eo-describe`. A stat looks its name up
+first and checks the spelling only of a name it has not seen, so on the judge a stat recorded
+in every case costs about 25 instructions in the same program.
 
 Some stats come free, from what the reads already know. **A value read exactly once in the
 test**, with a name and bounds and not as an element of a sequence, is the test's size or one
