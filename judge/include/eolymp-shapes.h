@@ -1844,6 +1844,32 @@ inline void room_for_grid(int rows, int columns, char const* what) {
     return grid;
 }
 
+[[nodiscard]] inline std::vector<std::string> scattered_walls(rng& draw, int rows, int columns, double density) {
+    detail::room_for_grid(rows, columns, "a grid with walls");
+    if (!(density >= 0 && density <= 1))
+        eo::detail::library_error(fmt("scattered_walls takes a density in 0..1, not {}", density));
+    std::vector<char> downward(static_cast<std::size_t>(rows) + static_cast<std::size_t>(columns) - 2, 0);
+    for (std::size_t at = 0; at + 1 < static_cast<std::size_t>(rows); at++) downward[at] = 1;
+    draw.shuffle(downward);
+    std::vector<std::string> grid(static_cast<std::size_t>(rows), std::string(static_cast<std::size_t>(columns), '#'));
+    std::vector<char> kept(static_cast<std::size_t>(rows) * static_cast<std::size_t>(columns), 0);
+    std::size_t row = 0;
+    std::size_t column = 0;
+    kept[0] = 1;
+    for (char const down : downward) {
+        if (down != 0) {
+            row++;
+        } else {
+            column++;
+        }
+        kept[row * static_cast<std::size_t>(columns) + column] = 1;
+    }
+    for (std::size_t at = 0; at < kept.size(); at++)
+        if (kept[at] != 0 || !draw.chance(density))
+            grid[at / static_cast<std::size_t>(columns)][at % static_cast<std::size_t>(columns)] = '.';
+    return grid;
+}
+
 }  // namespace shapes
 }  // namespace eo
 
