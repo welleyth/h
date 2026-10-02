@@ -15,7 +15,7 @@
      "tests": [
        {"index": 1, "example": true, "input": "01.in", "answerGenerator": "solution"}
      ]},
-    {"index": 1, "scoringMode": "EACH", "feedbackPolicy": "COMPLETE",
+    {"index": 1, "scoringMode": "EACH", "feedbackPolicy": "COMPLETE", "requires": ["path", "star"],
      "tests": [
        {"index": 1, "score": 25, "generator": {"script": "gen", "arguments": ["-n=5", "-shape=path"]}, "answerGenerator": "solution"},
        {"index": 2, "score": 25, "generator": {"script": "gen", "arguments": ["-n=6", "-shape=star"]}, "answerGenerator": "solution"}

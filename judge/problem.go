@@ -49,14 +49,15 @@ type Test struct {
 }
 
 type Testset struct {
-	Index          int     `json:"index"`
-	ScoringMode    string  `json:"scoringMode"`
-	FeedbackPolicy string  `json:"feedbackPolicy"`
-	DependencyMode string  `json:"dependencyMode"`
-	Dependencies   []int   `json:"dependencies"`
-	TimeLimit      int     `json:"timeLimit"`
-	MemoryLimit    int64   `json:"memoryLimit"`
-	Tests          []*Test `json:"tests"`
+	Index          int      `json:"index"`
+	ScoringMode    string   `json:"scoringMode"`
+	FeedbackPolicy string   `json:"feedbackPolicy"`
+	DependencyMode string   `json:"dependencyMode"`
+	Dependencies   []int    `json:"dependencies"`
+	TimeLimit      int      `json:"timeLimit"`
+	MemoryLimit    int64    `json:"memoryLimit"`
+	Tests          []*Test  `json:"tests"`
+	Requires       []string `json:"requires"`
 }
 
 type Solution struct {
@@ -392,6 +393,17 @@ func (p *Problem) checkNames() error {
 		if err := oneOf(where+"dependencyMode", testset.DependencyMode,
 			"UNKNOWN_DEPENDENCY_MODE", "FULLY_ACCEPTED", "FIRST_POINT"); err != nil {
 			return err
+		}
+		required := map[string]bool{}
+		for _, name := range testset.Requires {
+			if name == "" {
+				return fmt.Errorf("%srequires holds an empty name; give each feature the name v.features declares it by",
+					where)
+			}
+			if required[name] {
+				return fmt.Errorf("%srequires lists %q twice; name each feature once", where, name)
+			}
+			required[name] = true
 		}
 	}
 	for name := range p.Scripts {

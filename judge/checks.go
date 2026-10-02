@@ -349,6 +349,13 @@ var describedFeature = regexp.MustCompile(`^eo-describe feature (.+) seen=(yes|n
 
 func (w *Workspace) coverageChecks(ctx context.Context, found *Findings) error {
 	if w.Problem.Validator == nil {
+		for _, testset := range w.Problem.Testsets {
+			if len(testset.Requires) > 0 {
+				found.warn("EO826", fmt.Sprintf("testset %d", testset.Index),
+					"problem.json requires features of this testset, and the problem has no validator to mark them",
+					"add a validator that declares them with v.features, or drop requires")
+			}
+		}
 		return nil
 	}
 
@@ -417,7 +424,39 @@ func (w *Workspace) coverageChecks(ctx context.Context, found *Findings) error {
 				"generate one, or stop declaring it")
 		}
 	}
+	w.requiredFeatures(features, found)
 	return nil
+}
+
+func declaredNames(declared map[string]bool) string {
+	if len(declared) == 0 {
+		return "none"
+	}
+	return strings.Join(sortedKeys(declared), ", ")
+}
+
+func (w *Workspace) requiredFeatures(declared map[string]bool, found *Findings) {
+	for _, testset := range w.Problem.Testsets {
+		where := fmt.Sprintf("testset %d", testset.Index)
+		for _, name := range testset.Requires {
+			if _, known := declared[name]; !known {
+				found.warn("EO826", where,
+					fmt.Sprintf("problem.json requires the feature %q of this testset, and the validator does not "+
+						"declare it; it declares %s", name, declaredNames(declared)),
+					"declare it with v.features, or correct the name in requires")
+				continue
+			}
+			hit := false
+			for _, one := range w.described {
+				hit = hit || (one.group == testset.Index && one.features[name])
+			}
+			if !hit {
+				found.warn("EO826", where,
+					fmt.Sprintf("no test has the feature %q, which problem.json requires of this testset", name),
+					"generate a test that has it, or move one here")
+			}
+		}
+	}
 }
 
 func boundMessage(kind, name, edge, end string) string {

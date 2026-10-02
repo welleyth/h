@@ -73,6 +73,24 @@ func TestAMisspeltFieldOrNameIsRefused(t *testing.T) {
 	}
 }
 
+func TestRequiredFeaturesAreReadStrictly(t *testing.T) {
+	t.Parallel()
+	for body, said := range map[string]string{
+		`{"testsets": [{"index": 2, "requires": ["path", "path"]}]}`: `testset 2's requires lists "path" twice; name each feature once`,
+		`{"testsets": [{"index": 1, "requires": [""]}]}`:             `testset 1's requires holds an empty name; give each feature the name v.features declares it by`,
+		`{"testsets": [{"index": 1, "requires": "path"}]}`:           `cannot unmarshal string`,
+		`{"testsets": [{"index": 1, "Requires": ["path"]}]}`:         `the field "requires" is spelt "Requires"`,
+	} {
+		err := loading(t, body)
+		if err == nil || !strings.Contains(err.Error(), said) {
+			t.Errorf("%s gave %v, want %q", body, err, said)
+		}
+	}
+	if err := loading(t, `{"testsets": [{"index": 1, "requires": ["path", "star"]}]}`); err != nil {
+		t.Error(err)
+	}
+}
+
 func TestARepeatedOrOverlongNameIsRefused(t *testing.T) {
 	t.Parallel()
 	for body, said := range map[string]string{

@@ -221,6 +221,7 @@ matches what a judge log would say.
 | `tests[].generator` | — | `{"script": name, "arguments": [...]}` |
 | `tests[].answerGenerator` | — | a script name; it is given the input on stdin |
 | `tests[].example` | false | a sample |
+| `requires` | — | features, by the names the validator gives them in `v.features`, that some test of this testset must have; one no test has is warning EO826. eo-judge's own, and not sent to Eolymp |
 
 A test with no `answer` and no `answerGenerator` uses its input as the answer, which is what
 an interactive problem wants.

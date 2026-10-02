@@ -24,7 +24,7 @@ line on the judge, and the channel each role can afford to write to — is in
 | `eo-judge check` | the emulator, reading the whole problem; **never appears in a judge log** |
 | `eo-judge lint` | a textual scan of the source, for what no run can see |
 
-All 87 designed codes are built.
+All 88 designed codes are built.
 
 ## EO1xx — reading a value
 
@@ -136,6 +136,7 @@ the author writes no test code for any of them.
 | `EO823` | warning | `eo-judge check` | on a `FUNCTION` problem, a C++ template's stub, its `source` wrapped in its header and footer, does not compile, or is judged as anything but a wrong answer | a contestant starts from the stub: make the three compile together and return something the checker refuses |
 | `EO824` | warning | `eo-judge check` | on a `FUNCTION` problem, a whole program, `int main() { return 0; }`, compiles inside a C++ template | the template should hold `main()`, in its footer or its header, so a submission that brings its own gets a compilation error, as on the judge |
 | `EO825` | note | `eo-judge check` | a generator draws randomness with no `eo::salt`: each distinct set of stored arguments is run with `--eo-describe` until one draws or the generator turns out to be salted. A draw is a stream whose state moved or that was copied to draw from, so a generator that never draws, or only asks for a stream with `g.rng`, is never named. It is a note, so `--strict` passes a problem made before salts existed | the seed is the arguments alone, so anyone who guesses them can rebuild a test and hard-code its answer. A salt is for a new problem, since adding one regenerates every random test: write `eo::generator g(argc, argv, eo::salt("…"))` with 32 hex digits, as `eo-judge init` does. See [What is secret and what is not](generator.md#what-is-secret-and-what-is-not) |
+| `EO826` | warning | `eo-judge check` | a testset's `requires` in `problem.json` names a feature that no test of that testset has, or one the validator does not declare with `v.features`, or the problem has no validator to mark any | generate a test that has it, or move one into the testset; a name the validator does not declare is usually misspelt in one of the two places |
 | `EO827` | note | `eo-judge check` | a generator that draws randomness has a salt eolymp.h publishes: the templates' placeholder, the salt of the pages' examples, or one of the fixtures'. The header lists them, and an eo-judge test holds every salt in the repository to that list | a published salt is no secret; give the generator 32 hex digits of this problem's own, as `eo-judge init` writes |
 
 ## EO9xx — configuration

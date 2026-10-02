@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"reflect"
 	"strings"
 	"testing"
@@ -67,5 +68,53 @@ func TestAProblemWithNoFeaturesPrintsNoCoverage(t *testing.T) {
 	_, out, _ := invokeIn(t.TempDir(), "check", "--json", "testdata/extremes")
 	if strings.Contains(out, "coverage") || decoded(t, out).Coverage != nil {
 		t.Errorf("check --json printed %s", out)
+	}
+}
+
+func TestCheckWarnsWhenATestsetLacksAFeatureProblemJSONRequires(t *testing.T) {
+	t.Parallel()
+	needsACompiler(t)
+	dir := relocated(t, "testdata/features", func(problem *Problem) {
+		problem.Testsets[1].Requires = []string{"path", "star"}
+		problem.Testsets[2].Requires = []string{"star", "spider"}
+	})
+	shop := workshop(t, dir)
+	found, err := shop.Check(context.Background(), false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var said []string
+	for _, one := range found {
+		if one.Code == "EO826" {
+			said = append(said, one.Where+": "+one.Message+"; "+one.Fix)
+		}
+	}
+	want := []string{
+		`testset 2: no test has the feature "star", which problem.json requires of this testset; ` +
+			"generate a test that has it, or move one here",
+		`testset 2: problem.json requires the feature "spider" of this testset, and the validator does not ` +
+			"declare it; it declares caterpillar, path, star; declare it with v.features, or correct the name in " +
+			"requires",
+	}
+	if strings.Join(said, "\n") != strings.Join(want, "\n") {
+		t.Errorf("EO826 said\n%s\nnot\n%s", strings.Join(said, "\n"), strings.Join(want, "\n"))
+	}
+	blind := relocated(t, "testdata/features", func(problem *Problem) {
+		problem.Validator = nil
+		problem.Testsets[1].Requires = []string{"path"}
+	})
+	shop = workshop(t, blind)
+	if found, err = shop.Check(context.Background(), false); err != nil {
+		t.Fatal(err)
+	}
+	said = nil
+	for _, one := range found {
+		if one.Code == "EO826" {
+			said = append(said, one.Where+": "+one.Message)
+		}
+	}
+	if strings.Join(said, "\n") != "testset 1: problem.json requires features of this testset, and the problem has "+
+		"no validator to mark them" {
+		t.Errorf("EO826 without a validator said %q", said)
 	}
 }
