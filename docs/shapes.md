@@ -180,6 +180,7 @@ augmenting paths are many and tangled.
 | Call | Gives | Kills |
 | --- | --- | --- |
 | `with_weights(draw, made, low, high)` | `made` with every edge weighted uniformly in `low..high`, `directed` kept | nothing in particular; the typical case |
+| `anti_spfa(draw, n, high)` | a grid ten rows deep and n/10 long, cheap rungs of 1..10 across and heavy edges of 1..`high` along; the source is vertex 1, at a corner | SPFA, Bellman–Ford with a queue: at n = 100,000 it scans 3.1·10^9 edges, 16,000 per edge, where on a random graph of the same size it scans 4 per edge |
 
 ## Sequences
 
@@ -349,7 +350,7 @@ exist under 10^9 — r = 48,612,265 carries 2,916 — but they are not worth the
 | Group | Names |
 | --- | --- |
 | presentation | `presented`, `parent_array` |
-| shortest paths and flows | `with_weights` |
+| shortest paths and flows | `with_weights`, `anti_spfa` |
 | trees | `tree`, `random_tree`, `uniform_tree`, `deep_tree`, `path`, `star`, `caterpillar`, `broom`, `binary_tree`, `kary_tree`, `dumbbell`, `spider`, `tree_from_pruefer`, `tree_from_degrees`, `tree_with_leaves`, `tree_with_diameter`, `tree_with_height`, `bounded_degree_tree`, `comb`, `staircase` |
 | graphs | `connected_graph`, `sparse_graph`, `complete_graph`, `cycle`, `cycle_with_chords`, `grid`, `bipartite_graph`, `complete_bipartite`, `perfect_matching`, `many_components`, `dag`, `functional`, `regular_graph`, `cactus`, `with_bridges`, `with_cut_vertices`, `euler_circuit`, `euler_path`, `tournament`, `with_sccs`, `graph_with_diameter` |
 | sequences | `equal_values`, `few_distinct`, `plateaus`, `nearly_sorted`, `alternating`, `hash_collisions`, `log_uniform`, `near_bounds`, `spikes`, `split_sum`, `distinct_gapped`, `mountain`, `valley` |

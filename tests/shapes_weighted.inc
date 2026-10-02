@@ -81,3 +81,98 @@ EO_TEST(presenting_with_kept_vertices_leaves_their_labels_alone) {
                 "a kept vertex is 0, outside 1..100");
     EO_CHECK_IN(refusal([&] { (void)eo::shapes::presented(draw, line, {3, 3}); }), "vertex 3 is kept twice");
 }
+
+namespace {
+
+struct relaxing {
+    std::vector<std::vector<std::pair<int, long long>>> out;
+    long long scans = 0;
+
+    explicit relaxing(int n, std::vector<eo::weighted_edge> const& edges, bool directed)
+        : out(static_cast<std::size_t>(n) + 1) {
+        for (eo::weighted_edge const& one : edges) {
+            out[static_cast<std::size_t>(one.u)].push_back({one.v, one.w});
+            if (!directed) out[static_cast<std::size_t>(one.v)].push_back({one.u, one.w});
+        }
+    }
+
+    std::vector<long long> queued(int source) {
+        std::vector<long long> best(out.size(), LLONG_MAX);
+        std::vector<bool> waiting(out.size(), false);
+        std::vector<int> line{source};
+        best[static_cast<std::size_t>(source)] = 0;
+        waiting[static_cast<std::size_t>(source)] = true;
+        for (std::size_t at = 0; at < line.size(); at++) {
+            std::size_t const here = static_cast<std::size_t>(line[at]);
+            waiting[here] = false;
+            for (auto const& [other, w] : out[here]) {
+                scans++;
+                std::size_t const there = static_cast<std::size_t>(other);
+                if (best[here] + w >= best[there]) continue;
+                best[there] = best[here] + w;
+                if (!waiting[there]) {
+                    waiting[there] = true;
+                    line.push_back(other);
+                }
+            }
+        }
+        return best;
+    }
+
+    std::vector<long long> heaped(int source, bool skip_stale) {
+        std::vector<long long> best(out.size(), LLONG_MAX);
+        std::priority_queue<std::pair<long long, int>, std::vector<std::pair<long long, int>>, std::greater<>> heap;
+        best[static_cast<std::size_t>(source)] = 0;
+        heap.push({0, source});
+        while (!heap.empty()) {
+            auto const [distance, vertex] = heap.top();
+            heap.pop();
+            std::size_t const here = static_cast<std::size_t>(vertex);
+            if (skip_stale && distance > best[here]) continue;
+            for (auto const& [other, w] : out[here]) {
+                scans++;
+                std::size_t const there = static_cast<std::size_t>(other);
+                if (best[here] + w >= best[there]) continue;
+                best[there] = best[here] + w;
+                heap.push({best[there], other});
+            }
+        }
+        return best;
+    }
+};
+
+}  // namespace
+
+EO_TEST(anti_spfa_makes_a_queue_of_relaxations_crawl_where_dijkstra_does_not) {
+    eo::rng draw(603);
+    eo::weighted_graph const trap = eo::shapes::anti_spfa(draw, 3000, 1000000000);
+    EO_CHECK_EQ(trap.n, 3000);
+    EO_CHECK(!trap.directed);
+    EO_CHECK(static_cast<bool>(eo::is_simple_graph(3000, eo::detail::endpoints(trap.edges))));
+    EO_CHECK(static_cast<bool>(eo::is_connected(3000, eo::detail::endpoints(trap.edges))));
+    EO_CHECK(trap.edges.size() <= 2 * 3000);
+    std::vector<eo::weighted_edge> const shown = eo::shapes::presented(draw, trap, {1});
+    relaxing slow(3000, shown, false);
+    relaxing fast(3000, shown, false);
+    EO_CHECK(slow.queued(1) == fast.heaped(1, true));
+    EO_CHECK(slow.scans > 200 * static_cast<long long>(shown.size()));
+    EO_CHECK_EQ(fast.scans, 2 * static_cast<long long>(shown.size()));
+    eo::weighted_graph const plain = eo::shapes::with_weights(draw, eo::shapes::connected_graph(draw, 3000, 5690), 1,
+                                                              1000000000);
+    relaxing typical(3000, eo::shapes::presented(draw, plain), false);
+    (void)typical.queued(1);
+    EO_CHECK(slow.scans > 20 * typical.scans);
+    for (int const n : {1, 2, 9, 10, 11, 25}) {
+        eo::weighted_graph const small = eo::shapes::anti_spfa(draw, n, 5);
+        EO_CHECK(static_cast<bool>(eo::is_connected(n, eo::detail::endpoints(small.edges))));
+        bool inside = true;
+        for (eo::weighted_edge const& one : small.edges) inside = inside && one.w >= 1 && one.w <= 5;
+        EO_CHECK(inside);
+    }
+    std::string const drawn = weighted_of(eo::shapes::anti_spfa(draw, 25, 100).edges);
+    pin_bytes(drawn, 287, 0xb32a90a9fd0bbfc9ull, __FILE__, __LINE__);
+    EO_CHECK_IN(refusal([&] { (void)eo::shapes::anti_spfa(draw, 10, 0); }),
+                "anti_spfa draws weights from 1..high, and high is 0");
+    EO_CHECK_IN(refusal([&] { (void)eo::shapes::anti_spfa(draw, 0, 10); }),
+                "anti_spfa needs at least 1 vertices, not 0");
+}

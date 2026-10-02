@@ -1138,6 +1138,20 @@ namespace shapes {
     return detail::relabelled(draw, labels, made.edges, made.directed);
 }
 
+[[nodiscard]] inline weighted_graph anti_spfa(rng& draw, int n, long long high) {
+    detail::at_least(n, 1, "anti_spfa");
+    if (high < 1) eo::detail::library_error(fmt("anti_spfa draws weights from 1..high, and high is {}", high));
+    int const rows = (std::min)(n, 10);
+    long long const rung = (std::min)(high, 10LL);
+    weighted_graph made{n, {}, false};
+    for (int vertex = 1; vertex <= n; vertex++) {
+        if ((vertex - 1) % rows + 1 < rows && vertex < n)
+            made.edges.push_back(weighted_edge{vertex, vertex + 1, draw.uniform(1, rung)});
+        if (vertex + rows <= n) made.edges.push_back(weighted_edge{vertex, vertex + rows, draw.uniform(1, high)});
+    }
+    return made;
+}
+
 }  // namespace shapes
 }  // namespace eo
 
