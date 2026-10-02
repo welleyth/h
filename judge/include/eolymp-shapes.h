@@ -2065,8 +2065,10 @@ inline void most_divisors_below(long long most, std::size_t prime, long long val
             if (is_prime(candidate)) return candidate;
         }
     }
-    for (long long candidate = from; candidate <= high && candidate >= from; candidate++)
+    for (long long candidate = from; candidate <= high; candidate++) {
         if (is_prime(candidate)) found.push_back(candidate);
+        if (candidate == high) break;
+    }
     if (found.empty()) eo::detail::library_error(fmt("no prime lies in {}..{}", low, high));
     return draw.pick(found);
 }
