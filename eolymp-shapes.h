@@ -877,6 +877,15 @@ inline graph walked(rng& draw, int n, long long m, bool closed, char const* what
     return detail::walked(draw, n, m, false, "an Euler path");
 }
 
+[[nodiscard]] inline graph tournament(rng& draw, int n) {
+    detail::at_least(n, 1, "a tournament");
+    std::vector<edge> arrows;
+    arrows.reserve(static_cast<std::size_t>(detail::pairs_of(n)));
+    for (int u = 1; u <= n; u++)
+        for (int v = u + 1; v <= n; v++) arrows.push_back(draw.chance(0.5) ? edge{u, v} : edge{v, u});
+    return graph{n, std::move(arrows), true};
+}
+
 [[nodiscard]] inline std::vector<int> functional(rng& draw, int n, std::string const& shape) {
     detail::at_least(n, 1, "a functional graph");
     std::vector<int> next(static_cast<std::size_t>(n) + 1, 0);

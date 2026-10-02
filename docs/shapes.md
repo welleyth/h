@@ -132,7 +132,7 @@ for ordering. Every graph goes through `presented` before it is printed.
 | `cycle(n)`, `cycle_with_chords(draw, n, chords)` | every degree 2, then just enough cycles to break tree algorithms | "m = n − 1, so it is a tree" |
 | `grid(rows, columns)` | planar, diameter √n | an exponential search that only small-width graphs let through |
 | `bipartite_graph(draw, left, right, m)`, `complete_bipartite(left, right)` | only cross edges | odd-cycle assumptions |
-| `perfect_matching(draw, side, m)` | `side` by `side`, `m` edges, one of them a hidden perfect matching and the rest random cross edges | greedy matching without augmenting paths, which on 1,000 by 1,000 with 3,000 edges falls short |
+| `perfect_matching(draw, side, m)` | `side` by `side`, `m` edges: `side` of them a hidden perfect matching, the rest random cross edges | greedy matching without augmenting paths, which on 1,000 by 1,000 with 3,000 edges falls short |
 | `many_components(draw, n, pieces)` | disjoint pieces | "assume connected" |
 | `dag(draw, n, m)` | a hidden topological order, `directed` set | a solution that reads the vertices in input order as a topological order |
 | `regular_graph(draw, n, k)` | every vertex of degree exactly `k`: a circulant mixed by 10·m random edge swaps, or the complement of one when `k` is above half | a greedy that chooses by degree, which here has nothing to choose by; pruned search that relies on small cuts, since random regular graphs have none |
@@ -140,6 +140,7 @@ for ordering. Every graph goes through `presented` before it is printed.
 | `with_bridges(draw, n, bridges)` | connected, exactly `bridges` bridges: that many single edges and some cycles, glued at random vertices | `low[v] >= tin[u]` written where `>` belongs, and the reverse; a bridge search that skips the parent vertex instead of the parent edge |
 | `with_cut_vertices(draw, n, cuts)` | connected, exactly `cuts` articulation points: blocks glued so that each new block either creates one or reuses one | the root rule of the articulation-point DFS, which needs two children; `low[v] >= tin[u]` against `>` |
 | `euler_circuit(draw, n, m)`, `euler_path(draw, n, m)` | connected and simple, `m` edges, every degree even; or exactly two odd, the path's ends. A random walk that first visits every vertex, so `m` is at most half the pairs | Hierholzer written recursively, `m` deep; an Euler path started at vertex 1 instead of at an odd vertex; a connectivity check forgotten in the other tests |
+| `tournament(draw, n)` | every pair joined by one arc, its direction a coin flip, `directed` set | ranking by the number of wins as if it were transitive; a Hamiltonian path search that assumes no cycle. `dag(draw, n, n(n−1)/2)` is the transitive one |
 | `functional(draw, n, name)` | `f(i)` for each `i`: `cycle`, `rho`, `self` or `random` | a cycle finder that assumes one cycle, or no tails |
 
 **The edge count is exact or it is a jury error.** `connected_graph(draw, 10, 8)` says
@@ -323,7 +324,7 @@ exist under 10^9 — r = 48,612,265 carries 2,916 — but they are not worth the
 | --- | --- |
 | presentation | `presented`, `parent_array` |
 | trees | `tree`, `random_tree`, `uniform_tree`, `deep_tree`, `path`, `star`, `caterpillar`, `broom`, `binary_tree`, `kary_tree`, `dumbbell`, `spider`, `tree_from_pruefer`, `tree_from_degrees`, `tree_with_leaves`, `tree_with_diameter`, `tree_with_height`, `bounded_degree_tree`, `comb`, `staircase` |
-| graphs | `connected_graph`, `sparse_graph`, `complete_graph`, `cycle`, `cycle_with_chords`, `grid`, `bipartite_graph`, `complete_bipartite`, `perfect_matching`, `many_components`, `dag`, `functional`, `regular_graph`, `cactus`, `with_bridges`, `with_cut_vertices`, `euler_circuit`, `euler_path` |
+| graphs | `connected_graph`, `sparse_graph`, `complete_graph`, `cycle`, `cycle_with_chords`, `grid`, `bipartite_graph`, `complete_bipartite`, `perfect_matching`, `many_components`, `dag`, `functional`, `regular_graph`, `cactus`, `with_bridges`, `with_cut_vertices`, `euler_circuit`, `euler_path`, `tournament` |
 | sequences | `equal_values`, `few_distinct`, `plateaus`, `nearly_sorted`, `alternating`, `hash_collisions`, `log_uniform`, `near_bounds`, `spikes`, `split_sum`, `distinct_gapped`, `mountain`, `valley` |
 | permutations | `permutation`, `permutation_cycles`, `derangement`, `involution`, `with_inversions`, `with_lis` |
 | intervals | `intervals` |

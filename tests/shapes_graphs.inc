@@ -335,3 +335,21 @@ EO_TEST(a_bipartite_graph_with_a_perfect_matching_has_one_and_greedy_misses_it) 
     EO_CHECK_IN(refusal([&] { (void)eo::shapes::perfect_matching(draw, 0, 0); }),
                 "a perfect matching needs at least 1 vertices on a side, not 0");
 }
+
+EO_TEST(a_tournament_orients_every_pair_once) {
+    eo::rng draw(508);
+    for (int const n : {1, 2, 3, 50, 400}) {
+        eo::graph const made = eo::shapes::tournament(draw, n);
+        EO_CHECK(made.directed);
+        EO_CHECK_EQ(static_cast<long long>(made.edges.size()), static_cast<long long>(n) * (n - 1) / 2);
+        std::vector<std::pair<int, int>> pairs;
+        for (eo::edge const& one : made.edges) pairs.push_back({std::min(one.u, one.v), std::max(one.u, one.v)});
+        std::sort(pairs.begin(), pairs.end());
+        EO_CHECK(std::adjacent_find(pairs.begin(), pairs.end()) == pairs.end());
+        if (n >= 50) EO_CHECK(!stays_acyclic(n, made.edges));
+    }
+    std::string const drawn = edges_of(eo::shapes::tournament(draw, 8).edges);
+    pin_bytes(drawn, 112, 0x9f1725a9d8b366adull, __FILE__, __LINE__);
+    EO_CHECK_IN(refusal([&] { (void)eo::shapes::tournament(draw, 0); }),
+                "a tournament needs at least 1 vertices, not 0");
+}
