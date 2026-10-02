@@ -148,3 +148,21 @@ EO_TEST(a_prime_power_is_a_large_prime_raised_to_the_power_asked_for) {
     EO_CHECK_IN(refusal([&] { (void)eo::shapes::prime_power(draw, 100, 0); }),
                 "a prime power has an exponent of at least 1, not 0");
 }
+
+EO_TEST(the_number_with_the_most_divisors_is_the_smallest_that_has_them) {
+    std::vector<int> divisors(3001, 0);
+    for (int d = 1; d <= 3000; d++)
+        for (int multiple = d; multiple <= 3000; multiple += d) divisors[static_cast<std::size_t>(multiple)]++;
+    bool agrees = true;
+    long long best = 1;
+    for (int most = 1; most <= 3000; most++) {
+        if (divisors[static_cast<std::size_t>(most)] > divisors[static_cast<std::size_t>(best)]) best = most;
+        agrees = agrees && eo::shapes::most_divisors(most) == best;
+    }
+    EO_CHECK(agrees);
+    EO_CHECK_EQ(eo::shapes::most_divisors(100), 60LL);
+    EO_CHECK_EQ(eo::shapes::most_divisors(1000000000), 735134400LL);
+    EO_CHECK_EQ(eo::shapes::most_divisors(1000000000000000000LL), 897612484786617600LL);
+    EO_CHECK_EQ(eo::shapes::most_divisors(9223372036854775807LL), 9200527969062830400LL);
+    EO_CHECK_IN(refusal([] { (void)eo::shapes::most_divisors(0); }), "most_divisors looks at 1..most, and most is 0");
+}

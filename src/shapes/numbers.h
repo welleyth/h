@@ -84,6 +84,23 @@ inline long long whole_root(long long most, int exponent) {
     return low;
 }
 
+struct divisor_record {
+    long long value = 1;
+    long long count = 1;
+};
+
+inline void most_divisors_below(long long most, std::size_t prime, long long value, long long count, int highest,
+                                divisor_record& best) {
+    if (count > best.count || (count == best.count && value < best.value)) best = divisor_record{value, count};
+    static long long const primes[] = {2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, 53, 59};
+    if (prime >= sizeof(primes) / sizeof(primes[0])) return;
+    long long const factor = primes[prime];
+    for (int exponent = 1; exponent <= highest && value <= most / factor; exponent++) {
+        value *= factor;
+        most_divisors_below(most, prime + 1, value, count * (exponent + 1), exponent, best);
+    }
+}
+
 }  // namespace detail
 
 [[nodiscard]] inline bool is_prime(long long n) {
@@ -150,6 +167,13 @@ inline long long whole_root(long long most, int exponent) {
     long long power = 1;
     for (int at = 0; at < exponent; at++) power *= base;
     return power;
+}
+
+[[nodiscard]] inline long long most_divisors(long long most) {
+    if (most < 1) eo::detail::library_error(fmt("most_divisors looks at 1..most, and most is {}", most));
+    detail::divisor_record best;
+    detail::most_divisors_below(most, 0, 1, 1, 63, best);
+    return best.value;
 }
 
 }  // namespace shapes
