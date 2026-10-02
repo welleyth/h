@@ -24,6 +24,8 @@ const usage = `eo-judge runs an Eolymp problem the way the judge does.
   eo-judge stress <problem> [--args '-n=[1..8]']
                                              compare the solutions with a reference on
                                              generated inputs until one breaks its type
+  eo-judge describe <problem>                one line per test: its size, the features
+                                             the validator marked and its stats
   eo-judge init <dir> [--type program|interactive|phases]
                                              write a new problem that run passes
   eo-judge version                           the version of eo-judge
@@ -76,7 +78,7 @@ func realMain(args []string, temp string, out, errs io.Writer) int {
 	switch args[0] {
 	case "init":
 		return initProblem(args[1:], out, errs)
-	case "run", "check", "lint", "stress":
+	case "run", "check", "lint", "stress", "describe":
 	default:
 		fmt.Fprintf(errs, "eo-judge: there is no command %q\n\n%s", args[0], usage)
 		return 2
@@ -111,7 +113,7 @@ func parse(args []string, out, errs io.Writer) (options, int, bool) {
 	flags := flag.NewFlagSet(opts.command, flag.ContinueOnError)
 	if opts.command == "stress" {
 		opts.stress.register(flags)
-	} else {
+	} else if opts.command != "describe" {
 		flags.BoolVar(&opts.strict, "strict", false, "make every warning fatal")
 		flags.BoolVar(&opts.deep, "deep", false, "run the slow hostile outputs")
 		flags.StringVar(&opts.only, "solution", "", "judge one solution by name")
@@ -119,7 +121,9 @@ func parse(args []string, out, errs io.Writer) (options, int, bool) {
 		flags.BoolVar(&opts.transcript, "transcript", false, "print the dialogue of every interactive run")
 	}
 	flags.StringVar(&opts.work, "work", "", "keep the workspace here")
-	flags.BoolVar(&opts.verbose, "v", false, "print every run")
+	if opts.command != "describe" {
+		flags.BoolVar(&opts.verbose, "v", false, "print every run")
+	}
 	flags.BoolVar(&opts.json, "json", false, "print the result as JSON")
 	dir, code, parsed := onePositional(flags, args[1:], out, errs)
 	opts.dir = dir
@@ -273,6 +277,8 @@ func (s *session) run() int {
 		return s.report(append(found, Lint(problem)...))
 	case "stress":
 		return s.stressTest(ctx, shop)
+	case "describe":
+		return s.describeTests(ctx, shop)
 	default:
 		return s.judge(ctx, shop)
 	}

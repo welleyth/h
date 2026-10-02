@@ -21,10 +21,12 @@ writes `build/eo-judge`, and `make judge` runs gofmt, go vet and the eo-judge te
 
 ```bash
 eo-judge run   <problem>   # build, generate, validate, judge every solution, score it
-eo-judge check <problem>   # EO801-EO821 and EO901-EO912
+eo-judge check <problem>   # EO801-EO827 and EO901-EO913
 eo-judge lint  <problem>   # what is only visible in the source
 eo-judge stress <problem> --args '-n=[1..8]'
                            # generated inputs until a solution breaks its type; see below
+eo-judge describe <problem>
+                           # one line per test: its size, features and stats; see below
 eo-judge init  <dir>       # write a new problem that run and check pass
 eo-judge version           # the version of eo-judge
 ```
@@ -562,9 +564,38 @@ cache](#cache), and the warnings the generator and the checker raise, such as EO
 generator that never draws and EO208 for a partial score on a test worth nothing, are reported
 once each, as `run` reports them.
 
+## Describe
+
+`eo-judge describe` says what the tests are without opening them. It generates every input,
+runs no solution and builds no answer, and asks the validator about each test with
+`--eo-describe`, which prints one line per test:
+
+```
+0:1    10 B  path,star  n=3 edge.max_degree=2 edge.leaves=2 edge.depth=1 edge.diameter=2
+1:1    18 B  path       n=5 edge.max_degree=2 edge.leaves=2 edge.depth=4 edge.diameter=4
+1:2    22 B  star       n=6 edge.max_degree=5 edge.leaves=5 edge.depth=1 edge.diameter=2
+2:1  7.3 KB  -          n=1000 edge.max_degree=11 edge.leaves=508 edge.depth=13 edge.diameter=24
+2:2  7.6 KB  path       n=1000 edge.max_degree=2 edge.leaves=2 edge.depth=999 edge.diameter=999
+```
+
+| Column | Holds |
+| --- | --- |
+| first | the test, as `group:index` |
+| second | the input's size, in bytes up to 1 KB and then in KB and MB of 1,024 |
+| third | the features `v.saw` marked, joined by commas, `-` for none; left out when the validator declares none |
+| the rest | the stats, `name=value`: the values read once, the totals of `sum_limit`s, the shapes of trees and graphs, and the validator's own `v.stat`s, as [validator.md](validator.md#coverage-and-features) lists them |
+
+In place of the features and the stats, a test the validator refuses shows `invalid:` and its
+message; one it broke on, as EO806 tells a break from a refusal, shows `validator broke:`; and
+one that could not be generated shows `-` for its size and `not generated:` with the reason.
+The other tests are described all the same. A problem with no validator shows the sizes only.
+`describe` takes `--work` and `--json`, which puts the same in `tests`, below; it exits 0 when
+it described every test, and 3 when a generator failed on one or the validator broke on one,
+or when a program does not build.
+
 ## JSON
 
-With `--json`, `run`, `check`, `lint` and `stress` print nothing on stdout but one object, and
+With `--json`, `run`, `check`, `lint`, `stress` and `describe` print nothing on stdout but one object, and
 the exit code is the same as without it; `version --json` prints `{"version": "2.3.0"}`, and `init`
 refuses the flag:
 
@@ -591,6 +622,8 @@ refuses the flag:
 | Field | Holds |
 | --- | --- |
 | `attempts` | what `run` judged, in the order of `solutions`; empty for `check`, `lint` and `stress` |
+| `tests` | from `describe`, every test, `[]` when there are none: its `group`, `test`, `bytes`, the `features` it has, `null` when the problem has no validator, its `stats` as an object of names and values, and, when they apply, `invalid`, the validator's refusal, `broken`, what it said when it broke, and `unmade`, why the test could not be generated; left out for the other commands |
+| `declared` | from `describe`, the features the validator declares, `[]` when it declares none; left out when the problem has no validator |
 | `coverage` | from `check`, the features the validator declares, as `features`, and for each test its `group`, `test` and the `features` it has, in the order of `testsets`; left out when the validator declares none |
 | `stress` | what `stress` did, and left out for the other commands: `generator`, `arguments` as given, `reference`, the compared `solutions`, `iterations` asked for, how many `passed`, whether the `deadline` ended it, the iterations `--continue` went past as `failed`, and the iteration it `stopped` at, left out when it stopped at none, with its `index`, `verdict`, resolved `arguments`, `why` for `INVALID` and `BROKEN`, the directory it was `kept` in under `--work`, and the `results` of the solutions, each with its `solution`, `type`, `verdict`, `ms`, the checker's `message` and whether it was `unexpected`, the platform's word for breaking its type |
 | `breaks` | under `--expect`, why the solution breaks its type; left out when it holds |

@@ -573,6 +573,7 @@ eo-describe value p real 0 1 low=no high=no
 eo-describe value s length 1 8 low=yes high=no
 eo-describe feature path seen=yes
 eo-describe stat n 200000
+eo-describe stat s.length 1
 eo-describe stat depth 199999
 ```
 
@@ -580,7 +581,8 @@ eo-describe stat depth 199999
 describes one test rather than a running total, the same records answer both questions an
 author has: whether a bound is reached anywhere — "no test reaches n = 200000 in subtask 2",
 warning EO807 — and whether two bounds are reached *together*, which a running total could
-never show.
+never show. `eo-judge check -v` shows which test has which feature, and `eo-judge describe`
+prints one line per test with its features and its stats; see [judge.md](judge.md#describe).
 
 ## Warnings
 

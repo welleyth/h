@@ -436,7 +436,7 @@ func TestInitWritesOnlyIntoANewOrEmptyDirectory(t *testing.T) {
 		t.Errorf("init with no directory exited %d", code)
 	}
 	code, out, errs = invoke("init", filepath.Join(dir, "other"), "--json")
-	if code != 2 || out != "" || errs != "eo-judge: --json applies to run, check, lint and stress; init prints only the files it wrote\n" {
+	if code != 2 || out != "" || errs != "eo-judge: --json applies to run, check, lint, stress and describe; init prints only the files it wrote\n" {
 		t.Errorf("init --json exited %d, printed %q, said %q", code, out, errs)
 	}
 	if code, out, _ := invoke("init", filepath.Join(dir, "third"), "--type", "interactive"); code != 0 ||

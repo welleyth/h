@@ -67,6 +67,8 @@ type Workspace struct {
 	tools          toolchain
 	transcript     bool
 	described      []*described
+	inputsOnly     bool
+	unmade         map[string]string
 	generatorLimit int
 	validatorLimit int
 }
@@ -206,6 +208,7 @@ func (w *Workspace) Generate(ctx context.Context) error {
 
 	var failed []string
 	stuck := map[string]string{}
+	w.unmade = map[string]string{}
 	for _, testset := range w.Problem.Testsets {
 		for _, test := range testset.Tests {
 			made := &Prepared{Group: testset.Index, Test: test}
@@ -213,9 +216,10 @@ func (w *Workspace) Generate(ctx context.Context) error {
 			made.Input = filepath.Join(tests, name+".in")
 			made.Answer = filepath.Join(tests, name+".ans")
 
+			key := reference(&Planned{Group: testset.Index, Test: test})
 			if script, where := stuckOn(test, stuck); script != "" {
-				failed = append(failed, fmt.Sprintf("test %d:%d: not tried, since %s did not finish on test %s",
-					made.Group, test.Index, script, where))
+				w.unmade[key] = fmt.Sprintf("not tried, since %s did not finish on test %s", script, where)
+				failed = append(failed, fmt.Sprintf("test %d:%d: %s", made.Group, test.Index, w.unmade[key]))
 				continue
 			}
 			if err := w.prepare(ctx, made); err != nil {
@@ -226,10 +230,11 @@ func (w *Workspace) Generate(ctx context.Context) error {
 				if errors.As(err, &late) {
 					stuck[late.script] = fmt.Sprintf("%d:%d", made.Group, test.Index)
 				}
+				w.unmade[key] = err.Error()
 				failed = append(failed, fmt.Sprintf("test %d:%d: %v", made.Group, test.Index, err))
 				continue
 			}
-			w.Tests[reference(&Planned{Group: testset.Index, Test: test})] = made
+			w.Tests[key] = made
 		}
 	}
 	switch len(failed) {
@@ -264,6 +269,9 @@ func stuckOn(test *Test, stuck map[string]string) (string, string) {
 func (w *Workspace) prepare(ctx context.Context, made *Prepared) error {
 	if err := w.makeInput(ctx, made); err != nil {
 		return err
+	}
+	if w.inputsOnly {
+		return nil
 	}
 	if err := w.makeAnswer(ctx, made); err != nil {
 		return err
