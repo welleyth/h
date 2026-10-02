@@ -8,7 +8,7 @@ from version import Refused, current
 
 CORE = ["core.h", "fmt.h", "parse.h", "diag.h", "os.h", "io.h", "read.h", "pattern.h", "stream.h", "structure.h", "random.h", "summary.h", "role.h", "validate.h", "check.h", "interact.h", "phases.h", "control.h", "generate.h"]
 
-SHAPES = ["shapes/present.h", "shapes/trees.h", "shapes/graphs.h", "shapes/weighted.h", "shapes/sequences.h", "shapes/permutations.h", "shapes/intervals.h", "shapes/queries.h", "shapes/grids.h", "shapes/numbers.h", "shapes/strings.h", "shapes/points.h"]
+SHAPES = ["shapes/present.h", "shapes/trees.h", "shapes/graphs.h", "shapes/weighted.h", "shapes/sequences.h", "shapes/permutations.h", "shapes/intervals.h", "shapes/queries.h", "shapes/grids.h", "shapes/numbers.h", "shapes/strings.h", "shapes/points.h", "shapes/enumerate.h"]
 
 CORE_BANNER = """\
 // eolymp.h {version} — a judging library for the Eolymp platform.

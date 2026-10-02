@@ -399,6 +399,20 @@ is the same one `cocircular(draw, count)` picks, and so are the points, as long 
 when it does not, that is a jury error too, rather than points outside the statement's box. Larger co-circular sets do
 exist under 10^9 — r = 48,612,265 carries 2,916 — but they are not worth the scan.
 
+## Small exhaustive tests
+
+A problem with small limits is best tested by every input there is: all arrays of length 4
+over 0..3, all labelled trees on 7 vertices, all graphs on 5. The calls here number the
+objects of one size from 0, so a generator packs them into multi-test files by index and an
+argument says which slice a file holds; the counts say how many files that takes. Each
+`*_at` is a bijection from `0..count − 1` onto its objects, and a count past a `long long` is
+a jury error.
+
+| Call | Gives | Kills |
+| --- | --- | --- |
+| `count_arrays(length, low, high)`, `array_at(length, low, high, index)` | every array of `length` values in `low..high`, in lexicographic order | any bug a small input can show: the random tests reach some of them, these reach all |
+| `count_strings(length, allowed)`, `string_at(length, allowed, index)` | every string of `length` letters from `allowed`, in lexicographic order | the same, for strings |
+
 ## What the shapes do not do
 
 - **They do not check the statement.** A shape that the problem forbids is still generated;
@@ -427,6 +441,7 @@ exist under 10^9 — r = 48,612,265 carries 2,916 — but they are not worth the
 | strings | `repeated`, `periodic`, `near_periodic`, `fibonacci_word`, `thue_morse`, `palindrome`, `de_bruijn`, `lyndon`, `abacaba`, `thue_morse_twins`, `anti_hash` |
 | numbers | `is_prime`, `next_prime`, `prev_prime`, `random_prime`, `semiprime`, `prime_power`, `most_divisors`, `strong_pseudoprime`, `carmichael`, `fibonacci_pair` |
 | geometry | `scattered`, `collinear`, `convex_position`, `cocircular`, `extreme_points`, `general_position`, `simple_polygon`, `strictly_convex`, `crossing_segments` |
+| small exhaustive tests | `count_arrays`, `array_at`, `count_strings`, `string_at` |
 | types | `eo::graph` (`n`, `edges`, `directed`), `eo::edge`, `eo::weighted_graph` (`n`, `edges`, `directed`), `eo::weighted_edge`, `eo::point`, `eo::interval` (`l`, `r`) |
 
 Everything lives in `eo::shapes::`, except the types: `eo::graph`, `eo::weighted_graph`, `eo::edge`,
