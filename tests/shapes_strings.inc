@@ -60,3 +60,17 @@ EO_TEST(a_lyndon_word_is_smaller_than_every_rotation_of_itself) {
     EO_CHECK_IN(refusal([&] { (void)eo::shapes::lyndon(draw, 0, eo::charset("ab")); }),
                 "a Lyndon word is at least 1 long, not 0");
 }
+
+EO_TEST(abacaba_doubles_around_a_new_letter_at_every_power_of_two) {
+    EO_CHECK_EQ(eo::shapes::abacaba(15), std::string("abacabadabacaba"));
+    EO_CHECK_EQ(eo::shapes::abacaba(0), std::string(""));
+    EO_CHECK_EQ(eo::shapes::abacaba(9), std::string("abacabada"));
+    std::string const word = eo::shapes::abacaba((1 << 20) - 1);
+    EO_CHECK_EQ(word, std::string(word.rbegin(), word.rend()));
+    EO_CHECK_EQ(word[(1 << 19) - 1], 't');
+    std::string const capped = eo::shapes::abacaba((1LL << 25) + 5);
+    EO_CHECK_EQ(capped[(1 << 24) - 1], 'y');
+    EO_CHECK_EQ(capped[(1 << 25) - 1], 'z');
+    EO_CHECK_EQ(capped.find_first_not_of("abcdefghijklmnopqrstuvwxyz"), std::string::npos);
+    EO_CHECK_IN(refusal([] { (void)eo::shapes::abacaba(-1); }), "an abacaba word is at least empty, not -1 long");
+}

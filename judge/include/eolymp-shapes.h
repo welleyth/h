@@ -2006,6 +2006,18 @@ inline std::vector<char> letters_of(charset const& allowed) {
     return out;
 }
 
+[[nodiscard]] inline std::string abacaba(long long length) {
+    detail::room_for_letters(length, "an abacaba word");
+    std::string out;
+    out.reserve(static_cast<std::size_t>(length));
+    for (long long at = 1; at <= length; at++) {
+        int zeros = 0;
+        for (long long rest = at; rest % 2 == 0 && zeros < 25; rest /= 2) zeros++;
+        out.push_back(static_cast<char>('a' + zeros));
+    }
+    return out;
+}
+
 [[nodiscard]] inline std::string palindrome(rng& draw, long long length, charset const& allowed) {
     detail::room_for_letters(length, "a palindrome");
     std::string out = draw.letters(length, allowed);
