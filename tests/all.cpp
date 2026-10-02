@@ -44,6 +44,7 @@
 #include "shapes_trees.inc"
 #include "shapes_graphs.inc"
 #include "shapes_weighted.inc"
+#include "shapes_grids.inc"
 #include "shapes_permutations.inc"
 #include "shapes_sequences.inc"
 #include "shapes_intervals.inc"

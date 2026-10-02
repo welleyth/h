@@ -191,6 +191,17 @@ carries it beside random weighted graphs, not instead of them. The traps for Din
 SPFA are as hard as these measurements say for the implementations measured; one that
 detects them is beyond what a fixed shape can promise.
 
+## Grids
+
+A grid is a `std::vector<std::string>` of `rows` strings of `columns` characters, `.` open and
+`#` a wall; `std::replace` turns them into whatever the statement uses. A grid problem needs
+the open grid, the longest path a BFS can be made to walk, a maze in which the walls
+decide everything, and walls at a density with a path kept through them.
+
+| Call | Gives | Kills |
+| --- | --- | --- |
+| `maze(draw, rows, columns)` | a perfect maze: rooms at even coordinates joined by a random depth-first search, so the open cells form a tree; `(0, 0)` is open, and so is the far corner when both sizes are odd | flood fill written recursively, as deep as the maze's longest corridor; a BFS that stops at the first dead end |
+
 ## Sequences
 
 An array problem needs all values equal, all values at the bound for overflow, few distinct
@@ -362,6 +373,7 @@ exist under 10^9 — r = 48,612,265 carries 2,916 — but they are not worth the
 | shortest paths and flows | `with_weights`, `anti_spfa`, `anti_dijkstra`, `layered_network` |
 | trees | `tree`, `random_tree`, `uniform_tree`, `deep_tree`, `path`, `star`, `caterpillar`, `broom`, `binary_tree`, `kary_tree`, `dumbbell`, `spider`, `tree_from_pruefer`, `tree_from_degrees`, `tree_with_leaves`, `tree_with_diameter`, `tree_with_height`, `bounded_degree_tree`, `comb`, `staircase` |
 | graphs | `connected_graph`, `sparse_graph`, `complete_graph`, `cycle`, `cycle_with_chords`, `grid`, `bipartite_graph`, `complete_bipartite`, `perfect_matching`, `many_components`, `dag`, `functional`, `regular_graph`, `cactus`, `with_bridges`, `with_cut_vertices`, `euler_circuit`, `euler_path`, `tournament`, `with_sccs`, `graph_with_diameter` |
+| grids | `maze` |
 | sequences | `equal_values`, `few_distinct`, `plateaus`, `nearly_sorted`, `alternating`, `hash_collisions`, `log_uniform`, `near_bounds`, `spikes`, `split_sum`, `distinct_gapped`, `mountain`, `valley` |
 | permutations | `permutation`, `permutation_cycles`, `derangement`, `involution`, `with_inversions`, `with_lis` |
 | intervals | `intervals` |
