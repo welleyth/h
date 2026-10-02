@@ -497,12 +497,34 @@ bound to reach and is not recorded.
 Because the bounds come from `subtasks<Limits>`, the record is automatically per subtask: in
 subtask 1 the bound on `n` really is `1..10`, and the validator was run with `--group 1`.
 
-For shapes the statement promises, declare the feature once and mark each test that has it:
+A **feature** is a property of a test that the validator recognises, a shape the statement
+promises or a case a wrong solution misses. Declare them at the top, and mark each test that
+has one:
 
 ```cpp
-v.feature("path");
-if (is_path) v.saw("path");
+#include <eolymp.h>
+
+int main(int argc, char** argv) {
+    eo::validator v(argc, argv);
+    v.features({"path", "star"});
+    int n = v.read_int(2, 200000, "n");
+    v.read_eoln();
+    std::vector<eo::edge> edges = v.read_tree(n, "edge");
+    std::vector<int> degree(n + 1);
+    for (eo::edge e : edges) degree[e.u]++, degree[e.v]++;
+    int most = *std::max_element(degree.begin(), degree.end());
+    if (most <= 2) v.saw("path");
+    if (most == n - 1) v.saw("star");
+}
 ```
+
+`v.feature(name)` declares one feature and `v.features({names})` several, which is the same as
+calling `v.feature` on each; the two mix, and declaring a name twice is declaring it once.
+`v.saw(name)` marks one for this test, and marking it twice is the same as once. Marking a name
+that was never declared is a mistake in the validator, not in the test, so it stops with the
+library's error, the line, and the names that were declared: `validator.cpp:13: saw("pth")
+names a feature that was never declared; it declares path, star`. Marking costs a lookup on
+the judge and nothing more: the marks only leave the program under `--eo-describe`, below.
 
 `./validator input.txt --group 1 --eo-describe` validates as usual and also prints what it
 recorded **for that one test**, one line each:
@@ -583,7 +605,7 @@ records.
 | `read_tree(n, name)`, `read_graph(n, m, flags, name)`, `read_permutation(n, name)` | structural readers |
 | `read_edges(m, n, name)` | an edge list with its vertices bounded |
 | `eo::weighted(low, high)` before the name of `read_tree`, `read_graph` or `read_edges` | the same with a weight on every edge |
-| `feature(name)`, `saw(name)` | declared features |
+| `feature(name)`, `features({names})`, `saw(name)` | declare the features this validator recognises; mark one this test has |
 | `invalid(name, text)` | reject this test with your own message |
 
 | Function | Does |

@@ -118,7 +118,7 @@ the author writes no test code for any of them.
 | `EO805` | warning | `eo-judge check` | a hostile output makes the checker crash, hang or report a jury error | a contestant's output must give a wrong answer and nothing else; bound every read |
 | `EO806` | warning | `eo-judge check` | a test is invalid, with its testset's `--group` or with none; the validator is said to have broken rather than refused the test when the first line it prints starts with `eolymp.h: `, the library's own error, or a signal killed it | a stress run passes no group, so this input would be called invalid |
 | `EO807` | warning | `eo-judge check` | a named bound is never reached, at either end, in some subtask | generate a test that reaches it; this is "the maximal tests really are maximal" check |
-| `EO808` | warning | `eo-judge check` | a feature declared with `v.feature` is marked by no test | generate one, or stop declaring it |
+| `EO808` | warning | `eo-judge check` | a feature declared with `v.feature` or `v.features` is marked with `v.saw` by no test | generate one, or stop declaring it |
 | `EO809` | warning | `eo-judge check` | two tests in one testset are byte for byte the same | drop one, or generate a different test |
 | `EO810` | warning | `eo-judge check` | a test is invalid under a testset that depends on its own | the groups do not nest the way the scoring assumes |
 | `EO811` | note | `eo-judge check` | a subtask has fewer than two tests | one input decides the whole subtask |

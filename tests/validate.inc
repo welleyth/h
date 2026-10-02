@@ -685,7 +685,43 @@ EO_TEST(features_are_declared_and_marked) {
         v.read_eoln();
         v.saw("never declared");
     });
-    EO_CHECK_IN(unknown.text, "saw(\"never declared\") names a feature that was never declared");
+    EO_CHECK_IN(unknown.text, "saw(\"never declared\") names a feature that was never declared; it declares none");
+}
+
+EO_TEST(features_declares_a_list_and_saw_names_the_declared_ones_when_it_refuses) {
+    eot::outcome const result = validate("3\n1 2 3\n", [](eo::validator& v) {
+        v.features({"sorted", "pair"});
+        v.feature("big");
+        v.features({"pair", "big"});
+        int const n = v.read_int(1, 9, "n");
+        v.read_eoln();
+        std::vector<int> const a = v.read_ints(n, 1, 9, "a");
+        v.read_eoln();
+        if (std::is_sorted(a.begin(), a.end())) v.saw("sorted");
+        v.saw("sorted");
+        v.saw("big");
+    }, {"--eo-describe"});
+    EO_CHECK(!result.stopped);
+    EO_CHECK_IN(result.printed, "eo-describe feature big seen=yes\n");
+    EO_CHECK_IN(result.printed, "eo-describe feature pair seen=no\n");
+    EO_CHECK_IN(result.printed, "eo-describe feature sorted seen=yes\n");
+    eot::outcome const misspelt = validate("1\n", [](eo::validator& v) {
+        v.features({"sorted", "pair"});
+        v.read_int(1, 9, "n");
+        v.read_eoln();
+        v.saw("sortd");
+    });
+    EO_CHECK_EQ(misspelt.code, 3);
+    EO_CHECK_IN(misspelt.text, "eolymp.h: ");
+    EO_CHECK_IN(misspelt.text, "validate.inc:");
+    EO_CHECK_IN(misspelt.text, ": saw(\"sortd\") names a feature that was never declared; it declares pair, sorted");
+    eot::outcome const none = validate("1\n", [](eo::validator& v) {
+        v.features({});
+        v.read_int(1, 9, "n");
+        v.read_eoln();
+        v.saw("any");
+    });
+    EO_CHECK_IN(none.text, "saw(\"any\") names a feature that was never declared; it declares none");
 }
 
 EO_TEST(describe_prints_the_table_the_bounds_and_the_features) {

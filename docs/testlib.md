@@ -25,7 +25,7 @@ in the right-hand columns is in the header; the programs below are compiled by `
 | `inf.eoln()`, `inf.eof()` | `v.at_eoln()`, `v.at_eof()` |
 | `ensuref(cond, "n is %d", n)` | `v.require(cond, "n is {}", n)` |
 | `inf.readWord()`, `inf.readString()` | `v.read_token(…)`, `v.read_line(…)`, with a length and a charset or a pattern |
-| `addFeature("path")`, `feature("path")` | `v.feature("path")`, `v.saw("path")` |
+| `addFeature("path")`, `feature("path")` | `v.feature("path")` or `v.features({"path", …})` to declare, `v.saw("path")` to mark; testlib's `feature` marks and eolymp.h's declares, so a ported validator says `saw` where testlib said `feature`. A name never declared is the library's error, as testlib's is |
 | `format("a[%d]", i)` as a name | `eo::element("a", i)` |
 | `validator.group()` | `v.group()`, a `std::optional<int>` |
 | `setTestCase(i)` in a loop, `unsetTestCase()` | `v.cases(t, body)` |

@@ -436,10 +436,13 @@ public:
 
     void feature(std::string name) { features_.emplace(std::move(name), false); }
 
-    void saw(std::string const& name) {
+    void features(std::initializer_list<char const*> names) {
+        for (char const* one : names) feature(one);
+    }
+
+    void saw(std::string const& name, detail::site where = detail::site::here()) {
         auto const found = features_.find(name);
-        if (found == features_.end())
-            detail::library_error(fmt("saw(\"{}\") names a feature that was never declared", name));
+        if (found == features_.end()) never_declared(name, where);
         found->second = true;
     }
 
@@ -463,6 +466,12 @@ private:
     template <class Limits>
     friend class subtask_table;
 
+
+    [[noreturn]] void never_declared(std::string const& name, detail::site where) const {
+        std::string const declared = detail::joined(features_, [](auto const& one) { return one.first; });
+        detail::library_error(fmt("{}: saw(\"{}\") names a feature that was never declared; it declares {}",
+                                  detail::where_of(where), name, declared.empty() ? "none" : declared));
+    }
 
     static void exited_early() {
         validator* const one = detail::live_validator();
