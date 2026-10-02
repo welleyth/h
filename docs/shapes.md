@@ -1,8 +1,8 @@
 # Test shapes
 
-`eolymp-shapes.h` is the second header. It holds the shapes a generator draws from — trees,
-graphs, sequences, strings and points — and the relabelling that a hand-written generator
-forgets. It is opt-in: a program that does not include it pays nothing for it.
+`eolymp-shapes.h` is the second header. It holds the shapes a generator draws from, by topic,
+each with the wrong solution it is there to kill, and the relabelling that a hand-written
+generator forgets. It is opt-in: a program that does not include it pays nothing for it.
 
 ```cpp
 #include <eolymp.h>
@@ -76,7 +76,16 @@ says what the seed is made of and how to keep it secret.
 
 Each topic opens with what its tests must cover, then one row per call: what it gives, and
 the wrong solution it is there to kill. A row's call is the whole signature; everything is in
-`eo::shapes::`, and every call that takes `draw` takes it first.
+`eo::shapes::`, and every call that takes `draw` takes it first. A graph, a sequence or a
+string costs time linear or `n log n` in what it builds, apart from the dense graphs, which
+go through all `n(n−1)/2` pairs, and the same `draw` gives the same bytes under every
+compiler and standard library the header supports.
+
+The topics are [trees](#trees), [graphs](#graphs), [shortest paths and
+flows](#shortest-paths-and-flows), [grids](#grids), [sequences](#sequences),
+[permutations](#permutations), [intervals](#intervals), [queries](#queries),
+[strings](#strings), [numbers](#numbers), [geometry](#geometry) and [small exhaustive
+tests](#small-exhaustive-tests).
 
 ## Trees
 
@@ -187,9 +196,10 @@ augmenting paths are many and tangled.
 The traps name their source vertex 1, and `layered_network` its sink `n`; keep them through
 the relabelling with `presented(draw, made, {1})` or `presented(draw, made, {1, made.n})`.
 Each trap is aimed at one algorithm and is an ordinary input to the others, so a test set
-carries it beside random weighted graphs, not instead of them. The traps for Dinic and
-SPFA are as hard as these measurements say for the implementations measured; one that
-detects them is beyond what a fixed shape can promise.
+carries it beside random weighted graphs, not instead of them. The numbers in the rows are
+measurements of the plain algorithm named, after `presented`; a variant with a heuristic of
+its own may escape a trap, which is why the rows say what was measured rather than promise
+more.
 
 ## Grids
 
@@ -449,16 +459,23 @@ every labelling once; `presented` would map two indices to one tree and miss ano
 - **`scattered` may repeat a point.** That is what random means. `draw.distinct` will not
   help — it draws scalars, not points. For points that must differ, draw distinct scalars in
   `0 .. (2·limit+1)² − 1` and split each into a coordinate pair, or use `convex_position`,
-  `collinear` or `extreme_points`, all of which are distinct by construction.
+  `collinear`, `extreme_points`, `general_position` or `strictly_convex`, all of which are
+  distinct by construction.
+- **Some anti-tests are not shapes.** A test against a hand-written quicksort with a fixed
+  pivot is a permutation built against that pivot rule, and `std::sort` is an introsort that
+  no input slows down; centroid decomposition at its deepest is `path`; a long path with
+  random subtrees is `caterpillar` or `deep_tree`; a tree with many distinct palindromes is a
+  string with many, which `repeated` and `fibonacci_word` already are. The birthday attack on
+  a hash is superseded by `anti_hash`, which is shorter and takes a bounded time.
 
 ## Reference card
 
 | Group | Names |
 | --- | --- |
 | presentation | `presented`, `parent_array` |
-| shortest paths and flows | `with_weights`, `anti_spfa`, `anti_dijkstra`, `layered_network` |
 | trees | `tree`, `random_tree`, `uniform_tree`, `deep_tree`, `path`, `star`, `caterpillar`, `broom`, `binary_tree`, `kary_tree`, `dumbbell`, `spider`, `tree_from_pruefer`, `tree_from_degrees`, `tree_with_leaves`, `tree_with_diameter`, `tree_with_height`, `bounded_degree_tree`, `comb`, `staircase` |
 | graphs | `connected_graph`, `sparse_graph`, `complete_graph`, `cycle`, `cycle_with_chords`, `grid`, `bipartite_graph`, `complete_bipartite`, `perfect_matching`, `many_components`, `dag`, `functional`, `regular_graph`, `cactus`, `with_bridges`, `with_cut_vertices`, `euler_circuit`, `euler_path`, `tournament`, `with_sccs`, `graph_with_diameter` |
+| shortest paths and flows | `with_weights`, `anti_spfa`, `anti_dijkstra`, `layered_network` |
 | grids | `maze`, `scattered_walls`, `serpentine`, `spiral`, `checkerboard` |
 | sequences | `equal_values`, `few_distinct`, `plateaus`, `nearly_sorted`, `alternating`, `hash_collisions`, `log_uniform`, `near_bounds`, `spikes`, `split_sum`, `distinct_gapped`, `mountain`, `valley` |
 | permutations | `permutation`, `permutation_cycles`, `derangement`, `involution`, `with_inversions`, `with_lis` |
