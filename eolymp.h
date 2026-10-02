@@ -3483,6 +3483,84 @@ inline check_result shaped(int n, std::vector<edge> const& edges, graph_shape sh
     return {};
 }
 
+struct tree_shape {
+    long long max_degree = 0;
+    long long leaves = 0;
+    long long depth = 0;
+    long long diameter = 0;
+};
+
+class adjacency {
+public:
+    adjacency(int n, std::vector<edge> const& edges)
+        : start_(static_cast<std::size_t>(n) + 2, 0), ends_(2 * edges.size()) {
+        for (edge const& one : edges) {
+            start_[static_cast<std::size_t>(one.u) + 1]++;
+            start_[static_cast<std::size_t>(one.v) + 1]++;
+        }
+        for (std::size_t at = 1; at < start_.size(); at++) start_[at] += start_[at - 1];
+        std::vector<std::size_t> filled(start_.begin(), start_.end() - 1);
+        for (edge const& one : edges) {
+            ends_[filled[static_cast<std::size_t>(one.u)]++] = one.v;
+            ends_[filled[static_cast<std::size_t>(one.v)]++] = one.u;
+        }
+    }
+
+    long long degree(int vertex) const {
+        return static_cast<long long>(start_[static_cast<std::size_t>(vertex) + 1] -
+                                      start_[static_cast<std::size_t>(vertex)]);
+    }
+
+    std::pair<int, long long> farthest_from(int from) const {
+        std::vector<long long> distance(start_.size() - 1, -1);
+        std::vector<int> queue{from};
+        distance[static_cast<std::size_t>(from)] = 0;
+        for (std::size_t at = 0; at < queue.size(); at++) {
+            std::size_t const here = static_cast<std::size_t>(queue[at]);
+            for (std::size_t next = start_[here]; next < start_[here + 1]; next++)
+                if (distance[static_cast<std::size_t>(ends_[next])] < 0) {
+                    distance[static_cast<std::size_t>(ends_[next])] = distance[here] + 1;
+                    queue.push_back(ends_[next]);
+                }
+        }
+        int const last = queue.back();
+        return {last, distance[static_cast<std::size_t>(last)]};
+    }
+
+private:
+    std::vector<std::size_t> start_;
+    std::vector<int> ends_;
+};
+
+inline tree_shape shape_of_tree(int n, std::vector<edge> const& edges) {
+    adjacency const around(n, edges);
+    tree_shape shape;
+    for (int vertex = 1; vertex <= n; vertex++) {
+        shape.max_degree = (std::max)(shape.max_degree, around.degree(vertex));
+        if (around.degree(vertex) == 1) shape.leaves++;
+    }
+    std::pair<int, long long> const deepest = around.farthest_from(1);
+    shape.depth = deepest.second;
+    shape.diameter = around.farthest_from(deepest.first).second;
+    return shape;
+}
+
+inline std::pair<long long, long long> degree_and_components(int n, std::vector<edge> const& edges) {
+    std::vector<long long> degree(static_cast<std::size_t>(n) + 1, 0);
+    std::vector<int> parent(static_cast<std::size_t>(n) + 1);
+    for (int vertex = 1; vertex <= n; vertex++) parent[static_cast<std::size_t>(vertex)] = vertex;
+    long long components = n;
+    for (edge const& one : edges) {
+        degree[static_cast<std::size_t>(one.u)]++;
+        degree[static_cast<std::size_t>(one.v)]++;
+        int const left = root_of(parent, one.u);
+        int const right = root_of(parent, one.v);
+        if (left != right) components--;
+        parent[static_cast<std::size_t>(left)] = right;
+    }
+    return {*std::max_element(degree.begin(), degree.end()), components};
+}
+
 }  // namespace detail
 
 }  // namespace eo
@@ -4470,6 +4548,7 @@ public:
                                 detail::site where = detail::site::here()) {
         std::vector<edge> edges = edge_lines<edge>(n - 1, detail::stated::deliberate, n, {0, 0}, name, where);
         require(is_tree(n, edges), name);
+        if (describing_) measure_the_tree(n, edges, name);
         return edges;
     }
 
@@ -4477,7 +4556,9 @@ public:
                                          detail::site where = detail::site::here()) {
         std::vector<weighted_edge> edges =
             edge_lines<weighted_edge>(n - 1, detail::stated::deliberate, n, weights, name, where);
-        require(is_tree(n, detail::endpoints(edges)), name);
+        std::vector<edge> const ends = detail::endpoints(edges);
+        require(is_tree(n, ends), name);
+        if (describing_) measure_the_tree(n, ends, name);
         return edges;
     }
 
@@ -4485,6 +4566,7 @@ public:
                                  detail::site where = detail::site::here()) {
         std::vector<edge> edges = edge_lines<edge>(m, detail::stated::deliberate, n, {0, 0}, name, where);
         require(detail::shaped(n, edges, shape), name);
+        if (describing_) measure_the_graph(n, edges, name);
         return edges;
     }
 
@@ -4492,7 +4574,9 @@ public:
                                           detail::value_name name, detail::site where = detail::site::here()) {
         std::vector<weighted_edge> edges =
             edge_lines<weighted_edge>(m, detail::stated::deliberate, n, weights, name, where);
-        require(detail::shaped(n, detail::endpoints(edges), shape), name);
+        std::vector<edge> const ends = detail::endpoints(edges);
+        require(detail::shaped(n, ends, shape), name);
+        if (describing_) measure_the_graph(n, ends, name);
         return edges;
     }
 
@@ -4602,6 +4686,26 @@ private:
         std::string const declared = detail::joined(features_, [](auto const& one) { return one.first; });
         detail::library_error(fmt("{}: saw(\"{}\") names a feature that was never declared; it declares {}",
                                   detail::where_of(where), name, declared.empty() ? "none" : declared));
+    }
+
+    static std::string shape_prefix(detail::value_name const& name, char const* otherwise) {
+        return detail::one_word(name.known() ? name.key() : std::string(otherwise)) + ".";
+    }
+
+    EOLYMP_COLD void measure_the_tree(int n, std::vector<edge> const& edges, detail::value_name const& name) {
+        detail::tree_shape const shape = detail::shape_of_tree(n, edges);
+        std::string const prefix = shape_prefix(name, "tree");
+        keep_the_larger(stats_, prefix + "max_degree", shape.max_degree);
+        keep_the_larger(stats_, prefix + "leaves", shape.leaves);
+        keep_the_larger(stats_, prefix + "depth", shape.depth);
+        keep_the_larger(stats_, prefix + "diameter", shape.diameter);
+    }
+
+    EOLYMP_COLD void measure_the_graph(int n, std::vector<edge> const& edges, detail::value_name const& name) {
+        std::pair<long long, long long> const measured = detail::degree_and_components(n, edges);
+        std::string const prefix = shape_prefix(name, "graph");
+        keep_the_larger(stats_, prefix + "max_degree", measured.first);
+        keep_the_larger(stats_, prefix + "components", measured.second);
     }
 
     EOLYMP_COLD void a_sum_was_checked(std::string const& name, long long total) {

@@ -367,6 +367,7 @@ public:
                                 detail::site where = detail::site::here()) {
         std::vector<edge> edges = edge_lines<edge>(n - 1, detail::stated::deliberate, n, {0, 0}, name, where);
         require(is_tree(n, edges), name);
+        if (describing_) measure_the_tree(n, edges, name);
         return edges;
     }
 
@@ -374,7 +375,9 @@ public:
                                          detail::site where = detail::site::here()) {
         std::vector<weighted_edge> edges =
             edge_lines<weighted_edge>(n - 1, detail::stated::deliberate, n, weights, name, where);
-        require(is_tree(n, detail::endpoints(edges)), name);
+        std::vector<edge> const ends = detail::endpoints(edges);
+        require(is_tree(n, ends), name);
+        if (describing_) measure_the_tree(n, ends, name);
         return edges;
     }
 
@@ -382,6 +385,7 @@ public:
                                  detail::site where = detail::site::here()) {
         std::vector<edge> edges = edge_lines<edge>(m, detail::stated::deliberate, n, {0, 0}, name, where);
         require(detail::shaped(n, edges, shape), name);
+        if (describing_) measure_the_graph(n, edges, name);
         return edges;
     }
 
@@ -389,7 +393,9 @@ public:
                                           detail::value_name name, detail::site where = detail::site::here()) {
         std::vector<weighted_edge> edges =
             edge_lines<weighted_edge>(m, detail::stated::deliberate, n, weights, name, where);
-        require(detail::shaped(n, detail::endpoints(edges), shape), name);
+        std::vector<edge> const ends = detail::endpoints(edges);
+        require(detail::shaped(n, ends, shape), name);
+        if (describing_) measure_the_graph(n, ends, name);
         return edges;
     }
 
@@ -499,6 +505,26 @@ private:
         std::string const declared = detail::joined(features_, [](auto const& one) { return one.first; });
         detail::library_error(fmt("{}: saw(\"{}\") names a feature that was never declared; it declares {}",
                                   detail::where_of(where), name, declared.empty() ? "none" : declared));
+    }
+
+    static std::string shape_prefix(detail::value_name const& name, char const* otherwise) {
+        return detail::one_word(name.known() ? name.key() : std::string(otherwise)) + ".";
+    }
+
+    EOLYMP_COLD void measure_the_tree(int n, std::vector<edge> const& edges, detail::value_name const& name) {
+        detail::tree_shape const shape = detail::shape_of_tree(n, edges);
+        std::string const prefix = shape_prefix(name, "tree");
+        keep_the_larger(stats_, prefix + "max_degree", shape.max_degree);
+        keep_the_larger(stats_, prefix + "leaves", shape.leaves);
+        keep_the_larger(stats_, prefix + "depth", shape.depth);
+        keep_the_larger(stats_, prefix + "diameter", shape.diameter);
+    }
+
+    EOLYMP_COLD void measure_the_graph(int n, std::vector<edge> const& edges, detail::value_name const& name) {
+        std::pair<long long, long long> const measured = detail::degree_and_components(n, edges);
+        std::string const prefix = shape_prefix(name, "graph");
+        keep_the_larger(stats_, prefix + "max_degree", measured.first);
+        keep_the_larger(stats_, prefix + "components", measured.second);
     }
 
     EOLYMP_COLD void a_sum_was_checked(std::string const& name, long long total) {

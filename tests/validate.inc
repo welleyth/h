@@ -827,6 +827,74 @@ EO_TEST(the_total_of_a_sum_limit_is_a_stat_of_its_own) {
     EO_CHECK_IN(early.printed, "eo-describe stat first 4\n");
 }
 
+EO_TEST(a_tree_and_a_graph_describe_their_shape) {
+    eot::outcome const tree = validate("7\n1 2\n2 3\n3 4\n2 5\n5 6\n1 7\n", [](eo::validator& v) {
+        int const n = v.read_int(1, 9, "n");
+        v.read_eoln();
+        v.read_tree(n, "edge");
+    }, {"--eo-describe"});
+    EO_CHECK(!tree.stopped);
+    EO_CHECK_IN(tree.printed, "eo-describe stat n 7\neo-describe stat edge.max_degree 3\neo-describe stat edge.leaves 3\n"
+                              "eo-describe stat edge.depth 3\neo-describe stat edge.diameter 4\n");
+    eot::outcome const weighted = validate("3\n2 1 5\n3 1 7\n", [](eo::validator& v) {
+        int const n = v.read_int(1, 9, "n");
+        v.read_eoln();
+        v.read_tree(n, eo::weighted(1, 9), "edge");
+    }, {"--eo-describe"});
+    EO_CHECK_IN(weighted.printed, "eo-describe stat edge.max_degree 2\neo-describe stat edge.leaves 2\n"
+                                  "eo-describe stat edge.depth 1\neo-describe stat edge.diameter 2\n");
+    eot::outcome const lone = validate("1\n", [](eo::validator& v) {
+        int const n = v.read_int(1, 9, "n");
+        v.read_eoln();
+        v.read_tree(n, eo::unnamed);
+    }, {"--eo-describe"});
+    EO_CHECK_IN(lone.printed, "eo-describe stat tree.max_degree 0\neo-describe stat tree.leaves 0\n"
+                              "eo-describe stat tree.depth 0\neo-describe stat tree.diameter 0\n");
+    eot::outcome const graph = validate("6 4\n1 2\n2 3\n3 1\n4 4\n", [](eo::validator& v) {
+        int const n = v.read_int(1, 9, "n");
+        v.read_space();
+        int const m = v.read_int(0, 9, "m");
+        v.read_eoln();
+        v.read_graph(n, m, eo::any_graph, "edge");
+    }, {"--eo-describe"});
+    EO_CHECK_IN(graph.printed, "eo-describe stat edge.max_degree 2\neo-describe stat edge.components 4\n");
+    eot::outcome const two = validate("3 1\n1 2 4\n", [](eo::validator& v) {
+        int const n = v.read_int(1, 9, "n");
+        v.read_space();
+        int const m = v.read_int(0, 9, "m");
+        v.read_eoln();
+        v.read_graph(n, m, eo::simple, eo::weighted(1, 9), "road");
+    }, {"--eo-describe"});
+    EO_CHECK_IN(two.printed, "eo-describe stat road.max_degree 1\neo-describe stat road.components 2\n");
+    eot::outcome const apart = validate("3\n1 2\n2 3\n4\n1 2\n1 3\n1 4\n3 1\n1 2\n", [](eo::validator& v) {
+        int const n = v.read_int(1, 9, "n");
+        v.read_eoln();
+        v.read_tree(n, "path");
+        int const k = v.read_int(1, 9, "k");
+        v.read_eoln();
+        v.read_tree(k, "star");
+        int const g = v.read_int(1, 9, "g");
+        v.read_space();
+        int const m = v.read_int(0, 9, "m");
+        v.read_eoln();
+        v.read_graph(g, m, eo::any_graph, "pair");
+    }, {"--eo-describe"});
+    EO_CHECK(!apart.stopped);
+    EO_CHECK_IN(apart.printed, "eo-describe stat path.max_degree 2\n");
+    EO_CHECK_IN(apart.printed, "eo-describe stat path.diameter 2\n");
+    EO_CHECK_IN(apart.printed, "eo-describe stat star.max_degree 3\n");
+    EO_CHECK_IN(apart.printed, "eo-describe stat star.diameter 2\n");
+    EO_CHECK_IN(apart.printed, "eo-describe stat pair.max_degree 1\n");
+    EO_CHECK_IN(apart.printed, "eo-describe stat pair.components 2\n");
+    eot::outcome const judged = validate("2\n1 2\n", [](eo::validator& v) {
+        int const n = v.read_int(1, 9, "n");
+        v.read_eoln();
+        v.read_tree(n, "edge");
+    });
+    EO_CHECK(!judged.stopped);
+    EO_CHECK(!eot::contains(judged.printed, "eo-describe"));
+}
+
 EO_TEST(describe_prints_the_table_the_bounds_and_the_features) {
     eot::outcome const result = validate("5\n2 1 9\n1.000 abc\nhello\n", [](eo::validator& v) {
         v.feature("small");

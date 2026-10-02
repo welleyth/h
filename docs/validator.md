@@ -547,6 +547,22 @@ each character of its name that a stat's name cannot hold written as `_`:
 `eo::sum_limit total(200000, "the sum of n")` gives `the_sum_of_n`, which for a multi-test
 input is usually the size that matters.
 
+**A tree or a graph describes its shape**, under `--eo-describe` only, since that takes
+another pass over the edges. Each stat is named after the read, as `s.length` is, so
+`v.read_tree(n, "edge")` gives `edge.depth`, and two trees, or a tree and a graph, in one test
+are told apart; a read with `eo::unnamed` is called `tree` or `graph`:
+
+| Read | Stats |
+| --- | --- |
+| `read_tree`, with or without weights | `.max_degree`; `.leaves`, the vertices of degree 1; `.depth`, the most edges from vertex 1 to any vertex; `.diameter`, the most edges between two vertices |
+| `read_graph`, with or without weights | `.max_degree`, a loop counting 2; `.components`, the connected components, an isolated vertex counting as one |
+
+A path on 200,000 vertices shows `edge.max_degree 2` and `edge.diameter 199999`, a star
+`edge.max_degree 199999` and `edge.diameter 2`, so the stats tell the usual shapes apart
+without a feature for each. In a multi-test input, where every case reads its tree under the
+same name, each is the most that any case reached, as for every stat. The judge
+never passes `--eo-describe`, so it pays one test of a flag for them.
+
 `./validator input.txt --group 1 --eo-describe` validates as usual and also prints what it
 recorded **for that one test**, one line each:
 
