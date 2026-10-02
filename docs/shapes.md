@@ -150,9 +150,14 @@ of each size.
 | `log_uniform(draw, count, low, high)` | every decimal length from `low`'s to `high`'s equally likely, so short numbers are as common as long ones; `low` is at least 0 | a solution only ever run on values near the bound, as uniform values are: digit DP at short lengths, `log` and `sqrt` estimates |
 | `near_bounds(draw, count, low, high, spread)` | each value within `spread` of `low` or of `high`, half and half | off-by-one at either bound; sums and products at the extremes |
 | `spikes(draw, count, tall, low, high)` | `tall` values, at random places, from the top sixteenth of the range; the rest from the bottom sixteenth | cost that grows with the maximum: counting sort, DP over the value or the sum, sqrt decomposition by value |
+| `split_sum(draw, total, parts, least, most)` | `parts` values in `least..most` adding up to exactly `total` | a multi-test solution that clears its arrays per case in O(limit), not O(n); per-case work that only the sum bounds |
 
 `draw.partition(t, n)` splits a total across test cases, which is how you build the two tests
-that catch different bugs: `t = 10^5` cases of `n = 1`, and one case of `n = 10^5`.
+that catch different bugs: `t = 10^5` cases of `n = 1`, and one case of `n = 10^5`. When each
+case also has a ceiling, as in "the sum of `n` is at most 2·10^5 and each `n` at most 10^5",
+`split_sum(draw, total, parts, least, most)` is the same split with every part inside
+`least..most`: it draws a uniform composition and moves what overflows a part's ceiling to
+parts with room, in a random order, so a few parts sit exactly at `most`.
 
 ## Permutations
 
@@ -244,7 +249,7 @@ exist under 10^9 — r = 48,612,265 carries 2,916 — but they are not worth the
 | presentation | `presented`, `parent_array` |
 | trees | `tree`, `random_tree`, `uniform_tree`, `deep_tree`, `path`, `star`, `caterpillar`, `broom`, `binary_tree`, `kary_tree`, `dumbbell`, `spider` |
 | graphs | `connected_graph`, `sparse_graph`, `complete_graph`, `cycle`, `cycle_with_chords`, `grid`, `bipartite_graph`, `complete_bipartite`, `many_components`, `dag`, `functional` |
-| sequences | `equal_values`, `few_distinct`, `plateaus`, `nearly_sorted`, `alternating`, `hash_collisions`, `log_uniform`, `near_bounds`, `spikes` |
+| sequences | `equal_values`, `few_distinct`, `plateaus`, `nearly_sorted`, `alternating`, `hash_collisions`, `log_uniform`, `near_bounds`, `spikes`, `split_sum` |
 | permutations | `permutation`, `permutation_cycles`, `derangement`, `involution`, `with_inversions`, `with_lis` |
 | strings | `repeated`, `periodic`, `near_periodic`, `fibonacci_word`, `thue_morse`, `palindrome` |
 | geometry | `scattered`, `collinear`, `convex_position`, `cocircular`, `extreme_points` |

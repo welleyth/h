@@ -96,3 +96,45 @@ EO_TEST(distributions_are_the_same_bytes_for_the_same_seed) {
     drawn += values_of(eo::shapes::spikes(draw, 30, 4, 0, 1000000));
     pin_bytes(drawn, 508, 0xe2ed5d834119dc26ull, __FILE__, __LINE__);
 }
+
+EO_TEST(a_split_sum_adds_up_with_every_part_inside_its_bounds) {
+    eo::rng draw(205);
+    struct asked {
+        long long total;
+        long long parts;
+        long long least;
+        long long most;
+    };
+    for (asked const one : {asked{200000, 1000, 1, 1000}, asked{200000, 1000, 1, 200}, asked{200000, 1000, 200, 200},
+                            asked{10, 10, 0, 1}, asked{0, 5, 0, 0}, asked{7, 1, 7, 7}, asked{200000, 3, 1, 100000},
+                            asked{1000000000000000000LL, 4, 0, 1000000000000000000LL},
+                            asked{100, 10, 0, 4000000000000000000LL}}) {
+        std::vector<long long> const parts = eo::shapes::split_sum(draw, one.total, one.parts, one.least, one.most);
+        EO_CHECK_EQ(static_cast<long long>(parts.size()), one.parts);
+        long long sum = 0;
+        bool inside = true;
+        for (long long const part : parts) {
+            sum += part;
+            inside = inside && part >= one.least && part <= one.most;
+        }
+        EO_CHECK_EQ(sum, one.total);
+        EO_CHECK(inside);
+    }
+    std::vector<long long> const capped = eo::shapes::split_sum(draw, 200000, 1000, 1, 201);
+    EO_CHECK(std::count(capped.begin(), capped.end(), 201LL) > 0);
+    EO_CHECK(*std::min_element(capped.begin(), capped.end()) < 190);
+    std::string drawn = values_of(eo::shapes::split_sum(draw, 100, 7, 2, 30));
+    pin_bytes(drawn, 18, 0x9adbd55037ee6fc1ull, __FILE__, __LINE__);
+    EO_CHECK_IN(refusal([&] { (void)eo::shapes::split_sum(draw, 10, 0, 1, 5); }),
+                "split_sum splits into at least one part, not 0");
+    EO_CHECK_IN(refusal([&] { (void)eo::shapes::split_sum(draw, 10, 2, 6, 5); }),
+                "split_sum's parts lie in 6..5, which is empty");
+    EO_CHECK_IN(refusal([&] { (void)eo::shapes::split_sum(draw, 10, 2, -1, 5); }),
+                "split_sum's parts are at least 0, not -1");
+    EO_CHECK_IN(refusal([&] { (void)eo::shapes::split_sum(draw, 11, 2, 1, 5); }),
+                "2 parts of 1..5 add up to 2..10, not 11");
+    EO_CHECK_IN(refusal([&] { (void)eo::shapes::split_sum(draw, 1, 2, 1, 5); }), "add up to 2..10, not 1");
+    EO_CHECK_IN(refusal([&] { (void)eo::shapes::split_sum(draw, 5, 3, 4000000000000000000LL,
+                                                          4000000000000000000LL); }),
+                "3 parts of 4000000000000000000..4000000000000000000 add up to more than a long long holds, not 5");
+}

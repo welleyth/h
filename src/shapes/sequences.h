@@ -141,5 +141,41 @@ inline int decimal_length(long long value) {
     return values;
 }
 
+[[nodiscard]] inline std::vector<long long> split_sum(rng& draw, long long total, long long parts, long long least,
+                                                      long long most) {
+    if (parts < 1) eo::detail::library_error(fmt("split_sum splits into at least one part, not {}", parts));
+    if (least > most) eo::detail::library_error(fmt("split_sum's parts lie in {}..{}, which is empty", least, most));
+    if (least < 0) eo::detail::library_error(fmt("split_sum's parts are at least 0, not {}", least));
+    long long lowest = 0;
+    long long highest = 0;
+    if (eo::detail::product_overflows(least, parts, &lowest))
+        eo::detail::library_error(fmt("{} parts of {}..{} add up to more than a long long holds, not {}", parts,
+                                      least, most, total));
+    bool const unbounded = eo::detail::product_overflows(most, parts, &highest);
+    if (total < lowest || (!unbounded && total > highest))
+        eo::detail::library_error(
+            fmt("{} parts of {}..{} add up to {}..{}, not {}", parts, least, most, lowest, highest, total));
+    long long const room = most - least;
+    std::vector<long long> shares = draw.partition(parts, total - lowest, 0);
+    long long spill = 0;
+    for (long long& share : shares) {
+        if (share <= room) continue;
+        spill += share - room;
+        share = room;
+    }
+    if (spill > 0) {
+        std::vector<std::size_t> order(shares.size());
+        for (std::size_t at = 0; at < order.size(); at++) order[at] = at;
+        draw.shuffle(order);
+        for (std::size_t const at : order) {
+            long long const given = (std::min)(room - shares[at], spill);
+            shares[at] += given;
+            spill -= given;
+        }
+    }
+    for (long long& share : shares) share += least;
+    return shares;
+}
+
 }  // namespace shapes
 }  // namespace eo
