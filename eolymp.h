@@ -4535,6 +4535,20 @@ public:
         found->second = true;
     }
 
+    void stat(std::string const& name, long long value, detail::site where = detail::site::here()) {
+        for (std::pair<std::string, long long>& one : stats_)
+            if (one.first == name) {
+                one.second = (std::max)(one.second, value);
+                return;
+            }
+        bool plain = !name.empty();
+        for (char const one : name)
+            plain = plain && ((one >= 'a' && one <= 'z') || (one >= 'A' && one <= 'Z') || (one >= '0' && one <= '9') ||
+                              one == '_' || one == '.' || one == '-');
+        if (!plain) not_a_stat_name(name, where);
+        stats_.emplace_back(name, value);
+    }
+
     [[noreturn]] void invalid(detail::value_name const& name, std::string what) {
         from_.refuse(name, what);
     }
@@ -4555,6 +4569,12 @@ private:
     template <class Limits>
     friend class subtask_table;
 
+
+    [[noreturn]] static void not_a_stat_name(std::string const& name, detail::site where) {
+        detail::library_error(fmt("{}: stat(\"{}\") is not a stat's name; name it with one word of letters, digits, "
+                                  "_, . or -, as depth or max_degree",
+                                  detail::where_of(where), detail::escaped(name)));
+    }
 
     [[noreturn]] void never_declared(std::string const& name, detail::site where) const {
         std::string const declared = detail::joined(features_, [](auto const& one) { return one.first; });
@@ -4716,6 +4736,7 @@ private:
                        one.second.reached_high ? "yes" : "no");
         for (auto const& one : features_)
             out += fmt("eo-describe feature {} seen={}\n", one.first, one.second ? "yes" : "no");
+        for (auto const& one : stats_) out += fmt("eo-describe stat {} {}\n", one.first, one.second);
         for (std::size_t at = 0; at < case_marks_.size(); at++)
             out += fmt("eo-describe case {} {} {}\n", at + 1, case_marks_[at].first, case_marks_[at].second);
         detail::report(out.empty() ? std::string() : out.substr(0, out.size() - 1));
@@ -4729,6 +4750,7 @@ private:
     std::vector<std::pair<long long, long long>> case_marks_;
     std::optional<int> group_;
     std::map<std::string, bool> features_;
+    std::vector<std::pair<std::string, long long>> stats_;
     bool completed_ = false;
     bool ended_ = false;
     bool describing_ = false;

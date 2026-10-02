@@ -724,6 +724,41 @@ EO_TEST(features_declares_a_list_and_saw_names_the_declared_ones_when_it_refuses
     EO_CHECK_IN(none.text, "saw(\"any\") names a feature that was never declared; it declares none");
 }
 
+EO_TEST(a_stat_is_a_number_per_test_and_keeps_its_largest_value) {
+    eot::outcome const result = validate("3\n1 2 3\n", [](eo::validator& v) {
+        int const n = v.read_int(1, 9, "n");
+        v.read_eoln();
+        std::vector<int> const a = v.read_ints(n, 1, 9, "a");
+        v.read_eoln();
+        v.stat("runs", 1);
+        v.stat("depth", 4);
+        v.stat("depth", 2);
+        v.stat("depth", 7);
+        v.stat("low", -3);
+        v.stat("runs", static_cast<long long>(a.size()));
+    }, {"--eo-describe"});
+    EO_CHECK(!result.stopped);
+    EO_CHECK_IN(result.printed, "eo-describe stat runs 3\neo-describe stat depth 7\neo-describe stat low -3\n");
+    eot::outcome const quiet = validate("1\n", [](eo::validator& v) {
+        v.read_int(1, 9, "n");
+        v.read_eoln();
+        v.stat("depth", 4);
+    });
+    EO_CHECK(!quiet.stopped);
+    EO_CHECK(!eot::contains(quiet.printed, "eo-describe"));
+    for (char const* bad : {"", "max depth", "depth=4", "tab\there"}) {
+        eot::outcome const refused = validate("1\n", [&](eo::validator& v) {
+            v.read_int(1, 9, "n");
+            v.read_eoln();
+            v.stat(bad, 4);
+        });
+        EO_CHECK_EQ(refused.code, 3);
+        EO_CHECK_IN(refused.text, "validate.inc:");
+        EO_CHECK_IN(refused.text, "is not a stat's name; name it with one word of letters, digits, _, . or -, as "
+                                  "depth or max_degree");
+    }
+}
+
 EO_TEST(describe_prints_the_table_the_bounds_and_the_features) {
     eot::outcome const result = validate("5\n2 1 9\n1.000 abc\nhello\n", [](eo::validator& v) {
         v.feature("small");

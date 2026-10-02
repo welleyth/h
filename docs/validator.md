@@ -526,6 +526,13 @@ library's error, the line, and the names that were declared: `validator.cpp:13: 
 names a feature that was never declared; it declares path, star`. Marking costs a lookup on
 the judge and nothing more: the marks only leave the program under `--eo-describe`, below.
 
+A **stat** is a number the validator measured on this test, which an author wants to see
+without opening the file: `v.stat("depth", depth)`. A name is one word of letters, digits, `_`,
+`.` and `-`; anything else, an empty name too, is the library's error. A stat recorded twice
+in one test keeps the larger value, so in a multi-test input it is the most any case reached.
+Like the marks, stats only leave the program under `--eo-describe`, and on the judge one costs
+a comparison of names.
+
 `./validator input.txt --group 1 --eo-describe` validates as usual and also prints what it
 recorded **for that one test**, one line each:
 
@@ -535,6 +542,7 @@ eo-describe value n int 1 200000 low=no high=yes
 eo-describe value p real 0 1 low=no high=no
 eo-describe value s length 1 8 low=yes high=no
 eo-describe feature path seen=yes
+eo-describe stat depth 199999
 ```
 
 `eo-judge check` adds those up across the tests and reports EO807. Because each block
@@ -606,6 +614,7 @@ records.
 | `read_edges(m, n, name)` | an edge list with its vertices bounded |
 | `eo::weighted(low, high)` before the name of `read_tree`, `read_graph` or `read_edges` | the same with a weight on every edge |
 | `feature(name)`, `features({names})`, `saw(name)` | declare the features this validator recognises; mark one this test has |
+| `stat(name, value)` | a number measured on this test; the largest is kept |
 | `invalid(name, text)` | reject this test with your own message |
 
 | Function | Does |
