@@ -22,7 +22,7 @@ missing.
 #include <eolymp.h>
 
 int main(int argc, char** argv) {
-    eo::generator g(argc, argv);
+    eo::generator g(argc, argv, eo::salt("3f9c0b7e5a1d42c8e6b09f17d3a5c824"));
     int n = g.option<int>("n", 1, 200000);
     int top = g.option<int>("max", 1, 1000000000, 1000000000);
     std::vector<long long> a = g.rng("values").ints(n, 1, top);
@@ -34,8 +34,11 @@ int main(int argc, char** argv) {
 Run as `gen -n=10 -max=100`, it prints two lines: `10`, then ten numbers between 1 and 100
 separated by single spaces.
 
-- `eo::generator g(argc, argv)` makes the program a generator and derives the seed from the
-  arguments.
+- `eo::generator g(argc, argv, eo::salt("…"))` makes the program a generator and derives the
+  seed from the arguments and the salt, a secret of this problem's own; see
+  [What is secret and what is not](#what-is-secret-and-what-is-not). `eo-judge init` writes a
+  fresh salt into every generator it makes. Never copy one from a page, this one included:
+  a salt that is published is no secret.
 - `g.option<int>("n", 1, 200000)` declares `-n`: an integer in that range, required.
 - `g.option<int>("max", 1, 1000000000, 1000000000)` declares `-max` with a default.
 - `g.rng("values")` is a named random stream.
@@ -216,6 +219,63 @@ Each of these makes the same generator produce different tests on different mach
 The library's streams use one documented algorithm and one method per operation whatever the
 C++ types of the arguments, so the tests are the same everywhere.
 
+## What is secret and what is not
+
+**The library is public by design, as testlib and jngen are.** So are its algorithms: the
+streams, every draw, and the shapes of [shapes.md](shapes.md). What stays private is the
+problem on Eolymp: the generator's source, its tests and the arguments stored with them.
+
+**The seed is derived from the arguments.** Without a salt, anyone who has the library and can
+guess the arguments, `-n=200000 -shape=path`, can rebuild a stock test byte for byte, run a
+correct solution on it and hard-code its answer; and the same call with the same arguments is
+the same test in every problem that makes it. Arguments are easy to guess and they leak: when a
+package or a repository is published, when a problem is reused, when a generator is committed
+to a public repository while the problem is prepared.
+
+**A salt is a secret constant in the generator's source, mixed into every stream:**
+
+```cpp
+#include <eolymp.h>
+
+int main(int argc, char** argv) {
+    eo::generator g(argc, argv, eo::salt("3f9c0b7e5a1d42c8e6b09f17d3a5c824"));
+    int n = g.option<int>("n", 1, 200000);
+    g.out.line(n);
+    g.out.line(g.rng("values").ints(n, 1, 1000000000));
+}
+```
+
+With it, the arguments alone reproduce nothing: the tests are rebuilt only from the source,
+which stays with the problem. Every draw of every stream changes, `g.rng()` and each
+`g.rng("label")` alike, and a stress run's appended seed is folded in after it, so a stress run
+still gets a new test every iteration and the same one on every rerun.
+
+| | |
+| --- | --- |
+| what it is | exactly 32 hex digits, 128 bits, `0-9` and `a-f` in either case; `eo-judge init` writes one drawn from the operating system's secure random source |
+| where it lives | in the source, never in the environment: the judge passes none, and a local run must give the bytes the judge gives |
+| how it is mixed | the seed becomes SipHash-2-4 of the arguments, keyed by the salt, so the seed of one test, even recovered from its bytes, says nothing about the seed of another |
+| without one | the seed is exactly what 2.3.0 derives, and every test is the byte-for-byte same |
+| changing it | changes every random test, as changing every test's arguments would; choose it once, when the problem is made |
+
+A salt that cannot be one stops the generator before it writes anything:
+
+| Salt | Message |
+| --- | --- |
+| `eo::salt("")` | `gen.cpp:4: eo::salt("") is empty; give it 32 hex digits; eo-judge init writes one` |
+| 31 digits, or 33 | `gen.cpp:4: eo::salt("3f9c…c82") has 31 hex digits; give it 32 hex digits; eo-judge init writes one` |
+| a letter past `f` | `gen.cpp:4: eo::salt("…") holds "g", which is not a hex digit; give it 32 hex digits; eo-judge init writes one` |
+
+Exactly 32, because a shorter salt would have to be padded, and `…abcdef` and `…abcdef0` would
+then be one key.
+
+What a salt does not hide: a test with nothing random in it, such as `n = 200000` equal values,
+which anyone can rebuild from the statement; a test once it is published; and the families of
+tests a problem obviously needs, since everyone expects a path among the trees. Nor does it
+reach randomness the generator makes on its own: a `std::mt19937` it seeds itself, or an
+`eo::rng r(12345)` built from a number or an option, never sees the salt, and nothing in the
+library or in `eo-judge check` can tell. Draw from `g.rng()`.
+
 ## Writing the test
 
 | Call | Writes |
@@ -308,6 +368,7 @@ Nothing a generator draws is missing. EO812 (the same bytes under two compilers)
 | Member | Does |
 | --- | --- |
 | `eo::generator g(argc, argv)` | makes the program a generator; derives the seed |
+| `eo::generator g(argc, argv, eo::salt("…"))` | the same, with the problem's secret mixed into every stream |
 | `g.option<T>(name, low, high)`, `(name, low, high, def)` | a number option |
 | `g.option<std::optional<T>>(name, low, high)` | a number option that may be left out |
 | `g.option<std::string>(name, {choices})`, `(name, {choices}, def)` | a choice |

@@ -134,7 +134,7 @@ See [interactor.md](interactor.md).
 
 | testlib | eolymp.h |
 | --- | --- |
-| `registerGen(argc, argv, 1);` | `eo::generator g(argc, argv);` |
+| `registerGen(argc, argv, 1);` | `eo::generator g(argc, argv, eo::salt("…"))`, with a salt of the problem's own, so that the arguments alone reproduce no test; or `eo::generator g(argc, argv)`, whose seed is the arguments alone, as testlib's is. See [What is secret and what is not](generator.md#what-is-secret-and-what-is-not) |
 | `opt<int>("n")` | `g.option<int>("n", 1, 200000)`, with its range |
 | `opt<int>("n", 10)` | `g.option<int>("n", 1, 200000, 10)` |
 | `has_opt("m") ? opt<int>("m") : n - 1` | `g.option<std::optional<int>>("m", 0, 200000).value_or(n - 1)` |

@@ -3693,6 +3693,48 @@ inline std::uint64_t seed_of(std::string const& bytes) {
     return mixed;
 }
 
+inline std::uint64_t rotated(std::uint64_t bits, int by) { return (bits << by) | (bits >> (64 - by)); }
+
+inline std::uint64_t siphash(std::uint64_t k0, std::uint64_t k1, std::string const& bytes) {
+    std::uint64_t v0 = k0 ^ 0x736f6d6570736575ull;
+    std::uint64_t v1 = k1 ^ 0x646f72616e646f6dull;
+    std::uint64_t v2 = k0 ^ 0x6c7967656e657261ull;
+    std::uint64_t v3 = k1 ^ 0x7465646279746573ull;
+    auto const round = [&] {
+        v0 += v1;
+        v1 = rotated(v1, 13) ^ v0;
+        v0 = rotated(v0, 32);
+        v2 += v3;
+        v3 = rotated(v3, 16) ^ v2;
+        v0 += v3;
+        v3 = rotated(v3, 21) ^ v0;
+        v2 += v1;
+        v1 = rotated(v1, 17) ^ v2;
+        v2 = rotated(v2, 32);
+    };
+    auto const absorb = [&](std::uint64_t word) {
+        v3 ^= word;
+        round();
+        round();
+        v0 ^= word;
+    };
+    std::size_t const whole = bytes.size() - bytes.size() % 8;
+    for (std::size_t at = 0; at < whole; at += 8) {
+        std::uint64_t word = 0;
+        for (std::size_t byte = 0; byte < 8; byte++)
+            word |= static_cast<std::uint64_t>(static_cast<unsigned char>(bytes[at + byte])) << (8 * byte);
+        absorb(word);
+    }
+    std::uint64_t last = bytes.size() & 0xff;
+    last <<= 56;
+    for (std::size_t at = whole; at < bytes.size(); at++)
+        last |= static_cast<std::uint64_t>(static_cast<unsigned char>(bytes[at])) << (8 * (at - whole));
+    absorb(last);
+    v2 ^= 0xff;
+    for (int times = 0; times < 4; times++) round();
+    return v0 ^ v1 ^ v2 ^ v3;
+}
+
 inline std::uint64_t seed_of_file(char const* path) {
     source reading = source::over_file(path, true);
     std::uint64_t mixed = seed_start;
@@ -6328,41 +6370,44 @@ inline bool looks_like_a_seed(std::string const& word) {
 
 }  // namespace detail
 
+class salt {
+public:
+    explicit salt(char const* hex, detail::site where = detail::site::here()) {
+        std::string const text = hex == nullptr ? std::string() : std::string(hex);
+        std::string const said = fmt("{}: eo::salt(\"{}\")", detail::where_of(where), detail::escaped(text));
+        char const* const fix = "give it 32 hex digits; eo-judge init writes one";
+        if (text.empty()) detail::library_error(fmt("{} is empty; {}", said, fix));
+        for (char const one : text)
+            if (digit_of(one) < 0)
+                detail::library_error(fmt("{} holds \"{}\", which is not a hex digit; {}", said,
+                                          detail::escaped(std::string(1, one)), fix));
+        if (text.size() != 32) detail::library_error(fmt("{} has {} hex digits; {}", said, text.size(), fix));
+        for (std::size_t at = 0; at < 32; at++) {
+            std::uint64_t& word = at < 16 ? high_ : low_;
+            word = word << 4 | static_cast<std::uint64_t>(digit_of(text[at]));
+        }
+    }
+
+private:
+    friend class generator;
+
+    static int digit_of(char one) {
+        if (one >= '0' && one <= '9') return one - '0';
+        if (one >= 'a' && one <= 'f') return one - 'a' + 10;
+        if (one >= 'A' && one <= 'F') return one - 'A' + 10;
+        return -1;
+    }
+
+    std::uint64_t high_ = 0;
+    std::uint64_t low_ = 0;
+};
+
 class generator {
 public:
-    generator(int argc, char** argv, detail::site where = detail::site::here()) {
-        detail::log_file() = stderr;
-        detail::emitter() = &generator::say;
-        if (detail::live_generator() != nullptr)
-            detail::library_error(fmt("{}: this program already has a generator", detail::where_of(where)));
-        detail::diagnostics::shared().start_the_clock("EO504", "generator", 60000, where);
-        std::string all;
-        for (int at = 1; at < argc; at++) {
-            std::string const word = argv[at];
-            all += word;
-            all.push_back('\0');
-            if (at == argc - 1 && detail::looks_like_a_seed(word)) {
-                stress_ = true;
-                continue;
-            }
-            if (word == "--eo-describe") {
-                describing_ = true;
-                continue;
-            }
-            std::size_t const split = word.find('=');
-            if (word.size() < 2 || word[0] != '-' || split == std::string::npos || split < 2)
-                detail::library_error(fmt("{} is not an option; write -name=value", word));
-            given_[word.substr(1, split - 1)] = word.substr(split + 1);
-        }
-        base_ = detail::seed_of(all);
-        dice_.emplace("", eo::rng(base_));
-        std::fflush(stdout);
-        detail::keep_binary(1);
-        long long size = 0;
-        if (detail::regular_file(1, size)) started_ = detail::offset_of(1);
-        out.owner_ = this;
-        detail::live_generator() = this;
-        detail::close_on_exit(&generator::exited_early);
+    generator(int argc, char** argv, detail::site where = detail::site::here()) { start(argc, argv, nullptr, where); }
+
+    generator(int argc, char** argv, eo::salt const& secret, detail::site where = detail::site::here()) {
+        start(argc, argv, &secret, where);
     }
 
     generator(generator const&) = delete;
@@ -6504,6 +6549,41 @@ public:
     sheet out;
 
 private:
+    void start(int argc, char** argv, eo::salt const* secret, detail::site where) {
+        detail::log_file() = stderr;
+        detail::emitter() = &generator::say;
+        if (detail::live_generator() != nullptr)
+            detail::library_error(fmt("{}: this program already has a generator", detail::where_of(where)));
+        detail::diagnostics::shared().start_the_clock("EO504", "generator", 60000, where);
+        std::string all;
+        for (int at = 1; at < argc; at++) {
+            std::string const word = argv[at];
+            all += word;
+            all.push_back('\0');
+            if (at == argc - 1 && detail::looks_like_a_seed(word)) {
+                stress_ = true;
+                continue;
+            }
+            if (word == "--eo-describe") {
+                describing_ = true;
+                continue;
+            }
+            std::size_t const split = word.find('=');
+            if (word.size() < 2 || word[0] != '-' || split == std::string::npos || split < 2)
+                detail::library_error(fmt("{} is not an option; write -name=value", word));
+            given_[word.substr(1, split - 1)] = word.substr(split + 1);
+        }
+        base_ = secret == nullptr ? detail::seed_of(all) : detail::siphash(secret->high_, secret->low_, all);
+        dice_.emplace("", eo::rng(base_));
+        std::fflush(stdout);
+        detail::keep_binary(1);
+        long long size = 0;
+        if (detail::regular_file(1, size)) started_ = detail::offset_of(1);
+        out.owner_ = this;
+        detail::live_generator() = this;
+        detail::close_on_exit(&generator::exited_early);
+    }
+
     template <class T>
     static char const* kind_of() {
         if constexpr (std::is_same_v<T, double>) return "a real number";

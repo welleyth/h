@@ -234,6 +234,48 @@ inline std::uint64_t seed_of(std::string const& bytes) {
     return mixed;
 }
 
+inline std::uint64_t rotated(std::uint64_t bits, int by) { return (bits << by) | (bits >> (64 - by)); }
+
+inline std::uint64_t siphash(std::uint64_t k0, std::uint64_t k1, std::string const& bytes) {
+    std::uint64_t v0 = k0 ^ 0x736f6d6570736575ull;
+    std::uint64_t v1 = k1 ^ 0x646f72616e646f6dull;
+    std::uint64_t v2 = k0 ^ 0x6c7967656e657261ull;
+    std::uint64_t v3 = k1 ^ 0x7465646279746573ull;
+    auto const round = [&] {
+        v0 += v1;
+        v1 = rotated(v1, 13) ^ v0;
+        v0 = rotated(v0, 32);
+        v2 += v3;
+        v3 = rotated(v3, 16) ^ v2;
+        v0 += v3;
+        v3 = rotated(v3, 21) ^ v0;
+        v2 += v1;
+        v1 = rotated(v1, 17) ^ v2;
+        v2 = rotated(v2, 32);
+    };
+    auto const absorb = [&](std::uint64_t word) {
+        v3 ^= word;
+        round();
+        round();
+        v0 ^= word;
+    };
+    std::size_t const whole = bytes.size() - bytes.size() % 8;
+    for (std::size_t at = 0; at < whole; at += 8) {
+        std::uint64_t word = 0;
+        for (std::size_t byte = 0; byte < 8; byte++)
+            word |= static_cast<std::uint64_t>(static_cast<unsigned char>(bytes[at + byte])) << (8 * byte);
+        absorb(word);
+    }
+    std::uint64_t last = bytes.size() & 0xff;
+    last <<= 56;
+    for (std::size_t at = whole; at < bytes.size(); at++)
+        last |= static_cast<std::uint64_t>(static_cast<unsigned char>(bytes[at])) << (8 * (at - whole));
+    absorb(last);
+    v2 ^= 0xff;
+    for (int times = 0; times < 4; times++) round();
+    return v0 ^ v1 ^ v2 ^ v3;
+}
+
 inline std::uint64_t seed_of_file(char const* path) {
     source reading = source::over_file(path, true);
     std::uint64_t mixed = seed_start;

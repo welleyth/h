@@ -709,6 +709,17 @@ EO_TEST(pin_the_bytes_of_named_streams_and_a_stress_seed_without_a_salt) {
                                            "851663664071\n"));
 }
 
+EO_TEST(pin_the_bytes_of_a_salted_generator) {
+    made const stored = generate({"-n=4"}, streams_of, a_salt);
+    EO_CHECK_EQ(stored.test, std::string("378341003 675225303 115457788 361453820\n"
+                                         "1 4 2 3\n"
+                                         "636528036007\n"));
+    made const stressed = generate({"-n=4", "9f3a0c41d2e87b60"}, streams_of, a_salt);
+    EO_CHECK_EQ(stressed.test, std::string("865396844 358199401 242337733 623763711\n"
+                                           "2 1 3 4\n"
+                                           "944337264737\n"));
+}
+
 namespace {
 
 char const* comma_locale() {

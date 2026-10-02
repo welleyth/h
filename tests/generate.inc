@@ -9,7 +9,7 @@ struct made {
 };
 
 template <class Body>
-made generate(std::vector<char const*> given, Body&& body) {
+made generate(std::vector<char const*> given, Body&& body, char const* secret = nullptr) {
     eo::detail::diagnostics::shared().forget_everything();
     forget_the_environment();
     std::string const test_path = temporary_path();
@@ -25,8 +25,13 @@ made generate(std::vector<char const*> given, Body&& body) {
         std::vector<char*> arguments{program.data()};
         for (char const* one : given) arguments.push_back(const_cast<char*>(one));
         try {
-            eo::generator g(static_cast<int>(arguments.size()), arguments.data());
-            body(g);
+            if (secret == nullptr) {
+                eo::generator g(static_cast<int>(arguments.size()), arguments.data());
+                body(g);
+            } else {
+                eo::generator g(static_cast<int>(arguments.size()), arguments.data(), eo::salt(secret));
+                body(g);
+            }
         } catch (eo::detail::stop const& reached) {
             result.stopped = true;
             result.code = reached.code;
@@ -141,6 +146,94 @@ EO_TEST(a_generator_writes_a_test_from_its_options) {
         g.out.line(g.rng("values").ints(n, 1, top));
     });
     EO_CHECK(other.test != result.test);
+}
+
+namespace {
+
+char const* const a_salt = "3f9c0b7e5a1d42c8e6b09f17d3a5c824";
+
+void streams_of(eo::generator& g) {
+    int const n = g.option<int>("n", 1, 10);
+    g.out.line(g.rng("values").ints(n, 1, 1000000000));
+    g.out.line(g.rng("order").perm(n, 1));
+    g.out.line(g.rng("big").uniform(1, 1000000000000LL));
+}
+
+std::vector<std::string> lines_of(std::string const& text) {
+    std::vector<std::string> lines;
+    std::size_t start = 0;
+    for (std::size_t end = text.find('\n'); end != std::string::npos; end = text.find('\n', start)) {
+        lines.push_back(text.substr(start, end - start));
+        start = end + 1;
+    }
+    return lines;
+}
+
+}  // namespace
+
+EO_TEST(a_salt_changes_every_stream_and_the_same_salt_gives_the_same_bytes) {
+    made const plain = generate({"-n=6"}, streams_of);
+    made const salted = generate({"-n=6"}, streams_of, a_salt);
+    made const again = generate({"-n=6"}, streams_of, a_salt);
+    made const other = generate({"-n=6"}, streams_of, "3f9c0b7e5a1d42c8e6b09f17d3a5c825");
+    EO_CHECK(!salted.stopped);
+    EO_CHECK_EQ(again.test, salted.test);
+    std::vector<std::string> const before = lines_of(plain.test);
+    std::vector<std::string> const after = lines_of(salted.test);
+    std::vector<std::string> const other_lines = lines_of(other.test);
+    EO_CHECK_EQ(before.size(), std::size_t{3});
+    EO_CHECK_EQ(after.size(), std::size_t{3});
+    EO_CHECK_EQ(other_lines.size(), std::size_t{3});
+    for (std::size_t at = 0; at < 3 && at < after.size() && at < other_lines.size(); at++) {
+        EO_CHECK(before[at] != after[at]);
+        EO_CHECK(other_lines[at] != after[at]);
+    }
+    made const first = generate({}, [](eo::generator& g) { g.out.line(g.rng().uniform(1, 1000000000000LL)); },
+                                a_salt);
+    made const unsalted = generate({}, [](eo::generator& g) { g.out.line(g.rng().uniform(1, 1000000000000LL)); });
+    EO_CHECK(first.test != unsalted.test);
+}
+
+EO_TEST(a_salted_stress_run_folds_its_seed_in_and_repeats) {
+    made const stored = generate({"-n=6"}, streams_of, a_salt);
+    made const stressed = generate({"-n=6", "9f3a0c41d2e87b60"}, streams_of, a_salt);
+    made const again = generate({"-n=6", "9f3a0c41d2e87b60"}, streams_of, a_salt);
+    made const unsalted = generate({"-n=6", "9f3a0c41d2e87b60"}, streams_of);
+    EO_CHECK(!stressed.stopped);
+    EO_CHECK(stressed.test != stored.test);
+    EO_CHECK(stressed.test != unsalted.test);
+    EO_CHECK_EQ(again.test, stressed.test);
+}
+
+EO_TEST(a_salt_takes_exactly_32_hex_digits_in_either_case) {
+    made const upper = generate({}, [](eo::generator& g) { g.out.line(g.rng().uniform(1, 1000000000)); },
+                                "3F9C0B7E5A1D42C8E6B09F17D3A5C824");
+    made const lower = generate({}, [](eo::generator& g) { g.out.line(g.rng().uniform(1, 1000000000)); }, a_salt);
+    EO_CHECK(!upper.stopped);
+    EO_CHECK_EQ(upper.test, lower.test);
+    made const empty = generate({}, [](eo::generator& g) { g.out.line(1); }, "");
+    EO_CHECK_EQ(empty.code, 3);
+    EO_CHECK_IN(empty.text, "eo::salt(\"\") is empty; give it 32 hex digits; eo-judge init writes one");
+    made const brief = generate({}, [](eo::generator& g) { g.out.line(1); }, "3f9c0b7e5a1d42c8e6b09f17d3a5c82");
+    EO_CHECK_IN(brief.text, "eo::salt(\"3f9c0b7e5a1d42c8e6b09f17d3a5c82\") has 31 hex digits; give it 32 hex "
+                            "digits; eo-judge init writes one");
+    made const wordy = generate({}, [](eo::generator& g) { g.out.line(1); }, "3f9c0b7e5a1d42c8e6b09f17d3a5c8240");
+    EO_CHECK_IN(wordy.text, "has 33 hex digits; give it 32 hex digits; eo-judge init writes one");
+    made const spelled = generate({}, [](eo::generator& g) { g.out.line(1); }, "3f9c0b7e5a1d42c8e6b09f17d3a5c82g");
+    EO_CHECK_IN(spelled.text, "eo::salt(\"3f9c0b7e5a1d42c8e6b09f17d3a5c82g\") holds \"g\", which is not a hex "
+                              "digit; give it 32 hex digits; eo-judge init writes one");
+    EO_CHECK_IN(spelled.text, "generate.inc:");
+}
+
+EO_TEST(siphash_gives_the_reference_vectors) {
+    std::uint64_t const k0 = 0x0706050403020100ull;
+    std::uint64_t const k1 = 0x0f0e0d0c0b0a0908ull;
+    std::string message;
+    EO_CHECK_EQ(eo::detail::siphash(k0, k1, message), 0x726fdb47dd0e0e31ull);
+    for (int one = 0; one < 8; one++) message.push_back(static_cast<char>(one));
+    EO_CHECK_EQ(eo::detail::siphash(k0, k1, message), 0x93f5f5799a932462ull);
+    for (int one = 8; one < 15; one++) message.push_back(static_cast<char>(one));
+    EO_CHECK_EQ(eo::detail::siphash(k0, k1, message), 0xa129ca6149be45e5ull);
 }
 
 EO_TEST(every_option_is_declared_with_its_range) {
