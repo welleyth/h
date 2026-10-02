@@ -16,9 +16,19 @@
 
 namespace eo {
 
+class generator;
+
 class rng {
 public:
     explicit rng(std::uint64_t seed) : state_(seed) {}
+
+    rng(rng const& other) : state_(other.state_) { other.copied_ = true; }
+
+    rng& operator=(rng const& other) {
+        state_ = other.state_;
+        other.copied_ = true;
+        return *this;
+    }
 
     [[nodiscard]] std::uint64_t next() {
         state_ += 0x9e3779b97f4a7c15ull;
@@ -180,6 +190,8 @@ public:
     [[nodiscard]] std::string pattern(detail::pattern_text told) { return pattern(eo::pattern(told), told.where()); }
 
 private:
+    friend class generator;
+
     void draw(eo::pattern const& told, int index, std::string& out) {
         detail::pattern_piece const& piece = told.tree_.at(index);
         if (piece.shape == detail::piece_shape::one) {
@@ -218,6 +230,7 @@ private:
     }
 
     std::uint64_t state_;
+    mutable bool copied_ = false;
 };
 
 namespace detail {

@@ -404,6 +404,49 @@ EO_TEST(a_generator_describes_its_options) {
     EO_CHECK(!eot::contains(result.test, "this is not printed"));
 }
 
+EO_TEST(a_generator_describes_whether_it_drew_and_whether_it_is_salted) {
+    made const drawn = generate({"-n=5", "--eo-describe"}, [](eo::generator& g) {
+        int const n = g.option<int>("n", 1, 9);
+        g.out.line(g.rng("values").ints(n, 1, 9));
+    });
+    EO_CHECK_IN(drawn.test, "eo-describe randomness drawn=yes salt=no\n");
+    made const salted = generate({"-n=5", "--eo-describe"}, [](eo::generator& g) {
+        int const n = g.option<int>("n", 1, 9);
+        g.out.line(g.rng().ints(n, 1, 9));
+    }, a_salt);
+    EO_CHECK_IN(salted.test, "eo-describe randomness drawn=yes salt=yes\n");
+    made const still = generate({"-n=5", "--eo-describe"}, [](eo::generator& g) {
+        int const n = g.option<int>("n", 1, 9);
+        eo::rng& unused = g.rng("values");
+        (void)unused;
+        g.out.line(n);
+    });
+    EO_CHECK_IN(still.test, "eo-describe randomness drawn=no salt=no\n");
+    made const copied = generate({"-n=5", "--eo-describe"}, [](eo::generator& g) {
+        int const n = g.option<int>("n", 1, 9);
+        eo::rng copy = g.rng("values");
+        g.out.line(copy.ints(n, 1, 9));
+    });
+    EO_CHECK_IN(copied.test, "eo-describe randomness drawn=yes salt=no\n");
+    made const assigned = generate({"-n=5", "--eo-describe"}, [](eo::generator& g) {
+        int const n = g.option<int>("n", 1, 9);
+        eo::rng other(1);
+        other = g.rng("values");
+        g.out.line(n, other.uniform(1, 9));
+    });
+    EO_CHECK_IN(assigned.test, "eo-describe randomness drawn=yes salt=no\n");
+    made const stray = generate({"--eo-describe"}, [](eo::generator& g) {
+        std::printf("x");
+        g.out.line(1);
+    });
+    EO_CHECK_IN(stray.test, "x\neo-describe randomness drawn=no salt=no\n");
+    made const generating = generate({"-n=5"}, [](eo::generator& g) {
+        int const n = g.option<int>("n", 1, 9);
+        g.out.line(g.rng("values").ints(n, 1, 9));
+    });
+    EO_CHECK(!eot::contains(generating.test, "eo-describe"));
+}
+
 EO_TEST(a_generator_says_when_its_options_do_not_fit_together) {
     made const result = generate({"-t=10", "-total=5"}, [](eo::generator& g) {
         int const t = g.option<int>("t", 1, 10000);

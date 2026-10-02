@@ -3475,9 +3475,19 @@ inline check_result shaped(int n, std::vector<edge> const& edges, graph_shape sh
 
 namespace eo {
 
+class generator;
+
 class rng {
 public:
     explicit rng(std::uint64_t seed) : state_(seed) {}
+
+    rng(rng const& other) : state_(other.state_) { other.copied_ = true; }
+
+    rng& operator=(rng const& other) {
+        state_ = other.state_;
+        other.copied_ = true;
+        return *this;
+    }
 
     [[nodiscard]] std::uint64_t next() {
         state_ += 0x9e3779b97f4a7c15ull;
@@ -3639,6 +3649,8 @@ public:
     [[nodiscard]] std::string pattern(detail::pattern_text told) { return pattern(eo::pattern(told), told.where()); }
 
 private:
+    friend class generator;
+
     void draw(eo::pattern const& told, int index, std::string& out) {
         detail::pattern_piece const& piece = told.tree_.at(index);
         if (piece.shape == detail::piece_shape::one) {
@@ -3677,6 +3689,7 @@ private:
     }
 
     std::uint64_t state_;
+    mutable bool copied_ = false;
 };
 
 namespace detail {
@@ -6488,8 +6501,7 @@ public:
         else used_a_label_ = true;
         auto const found = dice_.find(label);
         if (found != dice_.end()) return found->second;
-        std::uint64_t const from = detail::seed_of(label) * 0x9e3779b97f4a7c15ull ^ base_;
-        return dice_.emplace(label, eo::rng(from)).first->second;
+        return dice_.emplace(label, eo::rng(seed_for(label))).first->second;
     }
 
     class sheet {
@@ -6574,6 +6586,7 @@ private:
             given_[word.substr(1, split - 1)] = word.substr(split + 1);
         }
         base_ = secret == nullptr ? detail::seed_of(all) : detail::siphash(secret->high_, secret->low_, all);
+        salted_ = secret != nullptr;
         dice_.emplace("", eo::rng(base_));
         std::fflush(stdout);
         detail::keep_binary(1);
@@ -6707,11 +6720,22 @@ private:
                          "an added draw shifts every later draw of the default stream", where_of_run_);
     }
 
+    std::uint64_t seed_for(std::string const& label) const {
+        return label.empty() ? base_ : detail::seed_of(label) * 0x9e3779b97f4a7c15ull ^ base_;
+    }
+
+    bool drawn() const {
+        for (auto const& one : dice_)
+            if (one.second.state_ != seed_for(one.first) || one.second.copied_) return true;
+        return false;
+    }
+
     void describe() {
         std::string said;
         for (detail::declared_option const& one : shape_)
             said += fmt("eo-describe option {} {} {}{}{}\n", one.name, one.kind, one.range,
                         one.fallback.empty() ? "" : " default=" + one.fallback, one.optional ? " optional" : "");
+        said += fmt("\neo-describe randomness drawn={} salt={}\n", drawn() ? "yes" : "no", salted_ ? "yes" : "no");
         std::fwrite(said.data(), 1, said.size(), stdout);
         std::fflush(stdout);
     }
@@ -6727,6 +6751,7 @@ private:
     long long started_ = -1;
     long long written_ = 0;
     bool stress_ = false;
+    bool salted_ = false;
     bool drew_ = false;
     bool describing_ = false;
     bool checked_ = false;

@@ -145,10 +145,17 @@ eo-describe option n an integer 1..200000
 eo-describe option max an integer 1..1000000000 default=1000000000
 eo-describe option m an integer 0..200000 optional
 eo-describe option shape choice random, sorted default=random
+
+eo-describe randomness drawn=yes salt=yes
 ```
 
 Declare every option at the top of `main` so that they are all listed; one declared inside a
-branch is listed only when that branch runs.
+branch is listed only when that branch runs. The last line says whether the run drew from any
+stream, and whether the generator has a salt. A stream drew when its state moved, or when it was
+copied, as `eo::rng r = g.rng();` copies it, since the copy is what is drawn from; a stream only
+asked for with `g.rng` did not. The line follows a line break of its own, so that it starts a
+line even after bytes the generator printed itself. Given the arguments of a test as well, `gen -n=10 --eo-describe` runs the
+generator on them, writes nothing of the test, and says the same of that run.
 
 ## Randomness
 
